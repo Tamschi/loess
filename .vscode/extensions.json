@@ -1,0 +1,13 @@
+{
+	"recommendations": [
+		"tamasfe.even-better-toml",
+		"serayuzgur.crates",
+		"editorconfig.editorconfig",
+		"rust-lang.rust-analyzer",
+		"sidp.strict-whitespace",
+		"gruntfuggly.todo-tree"
+	],
+	"unwantedRecommendations": [
+		"rust-lang.rust"
+	]
+}
