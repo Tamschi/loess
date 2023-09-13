@@ -2,7 +2,8 @@ use crate::io::{Input, Parse};
 
 use self::{
 	block_expressions::{AsyncBlockExpression, BlockExpression, UnsafeBlockExpression},
-	literal_expressions::LiteralExpression, path_expressions::PathExpression,
+	literal_expressions::LiteralExpression,
+	path_expressions::PathExpression,
 };
 
 pub mod block_expressions;

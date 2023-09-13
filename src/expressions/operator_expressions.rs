@@ -11,7 +11,8 @@ use crate::{
 			Or, OrEq, OrOr, Percent, PercentEq, Plus, PlusEq, Question, Shl, ShlEq, Shr, ShrEq,
 			Slash, SlashEq, Star, StarEq,
 		},
-	}, types::TypeNoBounds,
+	},
+	types::TypeNoBounds,
 };
 
 use super::Expression;
