@@ -16,7 +16,9 @@
 [![crev reviews](https://web.crev.dev/rust-reviews/badge/crev_count/loess.svg)](https://web.crev.dev/rust-reviews/crate/loess/)
 [![Zulip Chat](https://img.shields.io/endpoint?label=chat&url=https%3A%2F%2Fiteration-square-automation.schichler.dev%2F.netlify%2Ffunctions%2Fstream_subscribers_shield%3Fstream%3Dproject%252Floess)](https://iteration-square.schichler.dev/#narrow/stream/project.2Floess)
 
-TODO_README_DESCRIPTION
+A group-lazy defaulting speculative Rust parser.
+
+The crate structure mirrors roughtly [The Rust Reference](https://doc.rust-lang.org/stable/reference/)'s.
 
 ## Installation
 
@@ -31,6 +33,14 @@ cargo add loess
 ```rust
 // TODO_EXAMPLE
 ```
+
+## See Also
+
+- [matklad - Resilient LL Parsing Tutorial](https://matklad.github.io/2023/05/21/resilient-ll-parsing-tutorial.html)
+
+  A friend pointed this out, and it's likely a better explanation of resilient parsing than what you'd get from looking through my code.
+
+  I'm just winging this crate, but in terms of this article, I'm going with the "errors are side-effects of the parsing process" approach here to save myself a bunch of typing without macros.
 
 ## License
 

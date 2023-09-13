@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = ["Tamme Schichler <tamme@schichler.dev>"]
 edition = "2021"
 rust-version = "1.56"
-description = "TODO_DESCRIPTION"
+description = "A group-lazy defaulting speculative Rust parser."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Tamschi/loess"
 homepage = "https://github.com/Tamschi/loess/tree/v0.0.1"
@@ -38,4 +38,7 @@ version-sync = "0.9.3"
 wasm-bindgen-test = "0.3.28"
 
 [dependencies]
+either = "1.9.0"
 proc-macro2 = "1.0.66"
+this-is-fine = "0.0.1"
+vec1 = "1.10.1"

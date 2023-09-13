@@ -46,6 +46,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "either"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+
+[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -106,8 +112,11 @@ name = "loess"
 version = "0.0.1"
 dependencies = [
  "cargo-husky",
+ "either",
  "git_info",
  "proc-macro2",
+ "this-is-fine",
+ "vec1",
  "version-sync",
  "wasm-bindgen-test",
 ]
@@ -247,6 +256,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "this-is-fine"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e922c27d74e8b47199e9a701eadf67135ae4f605a7eef123757ad500ce1c278"
+
+[[package]]
 name = "tinyvec"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -335,6 +350,12 @@ dependencies = [
  "idna",
  "percent-encoding",
 ]
+
+[[package]]
+name = "vec1"
+version = "1.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bda7c41ca331fe9a1c278a9e7ee055f4be7f5eb1c2b72f079b4ff8b5fce9d5c"
 
 [[package]]
 name = "version-sync"
