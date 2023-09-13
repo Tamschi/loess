@@ -5,9 +5,11 @@ use either::Either;
 use crate::{
 	expressions::Expression,
 	io::{Input, Parse},
+	macros::DelimTokenTree,
+	names::paths::SimplePath,
 	tokens::{
+		delimiters::Brackets,
 		punctuation::{Eq, Not, Pound},
-		Brackets,
 	},
 };
 
@@ -50,7 +52,7 @@ impl<'a> Parse<'a> for OuterAttribute<'a> {
 }
 
 pub struct Attr<'a> {
-	pub simple_path: SimplePath<'a>,
+	pub simple_path: SimplePath,
 	pub attr_input: Option<AttrInput<'a>>,
 }
 

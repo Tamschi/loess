@@ -1,6 +1,11 @@
 use std::fmt::Write;
 
-use crate::io::{Input, Parse};
+use crate::{
+	io::{Input, Parse},
+	macros::MacroInvocation,
+	names::paths::TypePath,
+	tokens::{delimiters::Parentheses, punctuation::Comma},
+};
 
 use self::never_type::NeverType;
 
@@ -91,7 +96,7 @@ impl Default for TypeNoBounds<'_> {
 }
 
 pub struct ParenthesizedOrTupleType<'a> {
-	parens: Parens<'a>,
+	parens: Parentheses<'a, (Type<'a>, Vec<(Comma, Type<'a>)>, Option<Comma>)>,
 }
 
 impl<'a> Parse<'a> for ParenthesizedOrTupleType<'a> {
@@ -102,6 +107,6 @@ impl<'a> Parse<'a> for ParenthesizedOrTupleType<'a> {
 	}
 
 	fn describe(w: &mut dyn Write) {
-		Parens::describe(w)
+		Parentheses::<(Type, Vec<(Comma, Type)>, Option<Comma>)>::describe(w)
 	}
 }

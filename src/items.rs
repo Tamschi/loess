@@ -5,6 +5,7 @@ use either::Either;
 use crate::{
 	attributes::OuterAttribute,
 	io::{Input, Parse},
+	names::visibility_and_privacy::Visibility,
 };
 
 pub mod modules;
@@ -28,7 +29,7 @@ impl<'a> Parse<'a> for Item<'a> {
 }
 
 pub struct VisItem<'a> {
-	visibility: Option<Visibility>,
+	visibility: Option<Visibility<'a>>,
 	variant: VisItemVariant<'a>,
 }
 

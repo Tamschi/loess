@@ -4,6 +4,7 @@ use either::Either;
 use vec1::Vec1;
 
 use crate::{
+	expressions::{block_expressions::BlockExpression, literal_expressions::LiteralExpression},
 	identifiers::Identifier,
 	io::{Input, Parse},
 	tokens::{
