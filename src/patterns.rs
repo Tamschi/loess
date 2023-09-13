@@ -5,7 +5,7 @@ use proc_macro2::{Ident, Literal, Span};
 use crate::{
 	help::Diagnostic,
 	identifiers::Identifier,
-	io::{Input, Parse, random_access::TokenTree},
+	io::{random_access::TokenTree, Input, Parse},
 	tokens::{
 		keywords::{Mut, Ref},
 		punctuation::{At, DotDot, DotDotDot, DotDotEq, Minus, Or, Underscore},
