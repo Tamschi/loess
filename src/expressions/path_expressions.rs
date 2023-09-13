@@ -1,4 +1,7 @@
-use crate::io::{Input, Parse};
+use crate::{
+	io::{Input, Parse},
+	names::paths::{PathInExpression, QualifiedPathInExpression},
+};
 
 pub enum PathExpression<'a> {
 	PathInExpression(PathInExpression<'a>),

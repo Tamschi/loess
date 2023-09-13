@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
-use proc_macro2::{Ident, Literal, Span, TokenTree};
+use proc_macro2::{Ident, Literal, Span};
 
 use crate::{
 	help::Diagnostic,
 	identifiers::Identifier,
-	io::{Input, Parse},
+	io::{Input, Parse, random_access::TokenTree},
 	tokens::{
 		keywords::{Mut, Ref},
 		punctuation::{At, DotDot, DotDotDot, DotDotEq, Minus, Or, Underscore},

@@ -12,15 +12,18 @@
 #[doc = include_str!("../README.md")]
 mod readme {}
 
+pub mod attributes;
 pub mod expressions;
 pub mod help;
 pub mod identifiers;
 pub mod io;
+pub mod items;
+pub mod macros;
 pub mod names;
 pub mod patterns;
 pub mod statements;
 pub mod tokens;
-pub mod types;
+pub mod type_system;
 
 #[macro_export]
 macro_rules! Token {

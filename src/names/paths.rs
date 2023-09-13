@@ -1,11 +1,69 @@
+use std::fmt::Write;
+
+use either::Either;
+use vec1::Vec1;
+
 use crate::{
 	identifiers::Identifier,
 	io::{Input, Parse},
 	tokens::{
-		keywords::{Crate, Selftype, Selfvalue, Super},
-		punctuation::{Comma, Dollar, DotDot, Gt, Lt, Minus},
+		delimiters::Parentheses,
+		keywords::{As, Crate, Selftype, Selfvalue, Super},
+		punctuation::{Comma, Dollar, DotDot, Gt, Lt, Minus, RArrow},
 	},
+	type_system::{trait_and_lifetime_bounds::Lifetime, types::Type},
 };
+
+#[derive(Debug, Clone, Default)]
+pub struct SimplePath {
+	pub dot_dot: Option<DotDot>,
+	pub simple_path_segment: SimplePathSegment,
+	pub rest: Vec<(DotDot, SimplePathSegment)>,
+}
+
+impl Parse<'_> for SimplePath {
+	fn parse(input: &mut Input<'_>) -> Self {
+		Self {
+			dot_dot: input.parse(),
+			simple_path_segment: input.parse(),
+			rest: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(
+			Option<DotDot>,
+			SimplePathSegment,
+			Vec<(DotDot, SimplePathSegment)>,
+		)>::describe(w)
+	}
+}
+
+pub enum SimplePathSegment {
+	Identifier(Identifier),
+	Super(Super),
+	Selfvalue(Selfvalue),
+	Crate(Crate),
+	DollarCrate(Dollar, Crate),
+}
+
+impl Parse<'_> for SimplePathSegment {
+	fn parse(input: &mut Input<'_>) -> Self {
+		todo!()
+	}
+
+	fn describe(w: &mut dyn Write) {
+		w.write_char('(')?;
+		Identifier::describe(w)?;
+		w.write_str("|`super`|`self`|`crate`|`$crate)`")
+	}
+}
+
+impl Default for SimplePathSegment {
+	fn default() -> Self {
+		Self::Identifier(Identifier::default())
+	}
+}
 
 pub struct PathInExpression<'a> {
 	pub dot_dot: Option<DotDot>,
@@ -145,5 +203,156 @@ impl<'a> Parse<'a> for GenericArgsBinding<'a> {
 			idendifier: input.parse(),
 			r#type: input.parse(),
 		}
+	}
+}
+
+#[derive(Default)]
+pub struct QualifiedPathInExpression<'a> {
+	qualified_path_type: QualifiedPathType<'a>,
+	rest: Vec1<(DotDot, PathExprSegment<'a>)>,
+}
+
+impl<'a> Parse<'a> for QualifiedPathInExpression<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		Self {
+			qualified_path_type: input.parse(),
+			rest: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(QualifiedPathType, Vec1<(DotDot, PathExprSegment)>)>::describe(w)
+	}
+}
+
+#[derive(Default)]
+pub struct QualifiedPathType<'a> {
+	lt: Lt,
+	r#type: Type<'a>,
+	as_type_path: Option<(As, TypePath<'a>)>,
+	gt: Gt,
+}
+
+impl<'a> Parse<'a> for QualifiedPathType<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		Self {
+			lt: input.parse(),
+			r#type: input.parse(),
+			as_type_path: input.parse(),
+			gt: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(Lt, Type<'a>, Option<(As, TypePath<'a>)>, Gt)>::describe(w)
+	}
+}
+
+#[derive(Default)]
+pub struct QualifiedPathInType<'a> {
+	qualified_path_type: QualifiedPathType<'a>,
+	rest: Vec1<(DotDot, TypePathSegment<'a>)>,
+}
+
+impl<'a> Parse<'a> for QualifiedPathInType<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		Self {
+			qualified_path_type: input.parse(),
+			rest: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(QualifiedPathType, Vec1<(DotDot, TypePathSegment)>)>::describe(w)
+	}
+}
+
+#[derive(Default)]
+pub struct TypePath<'a> {
+	dot_dot: Option<DotDot>,
+	type_path_segment: TypePathSegment<'a>,
+	rest: Vec<(DotDot, TypePathSegment<'a>)>,
+}
+
+impl<'a> Parse<'a> for TypePath<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		Self {
+			dot_dot: input.parse(),
+			type_path_segment: input.parse(),
+			rest: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(
+			Option<DotDot>,
+			TypePathSegment,
+			Vec<(DotDot, TypePathSegment)>,
+		)>::describe(w)
+	}
+}
+
+#[derive(Default)]
+pub struct TypePathSegment<'a> {
+	path_ident_segment: PathIdentSegment<'a>,
+	generic_args_or_type_path_fn: Option<(Option<DotDot>, Either<GenericArgs<'a>, TypePathFn<'a>>)>,
+}
+
+impl<'a> Parse<'a> for TypePathSegment<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		Self {
+			path_ident_segment: input.parse(),
+			generic_args_or_type_path_fn: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(
+			PathIdentSegment<'a>,
+			Option<(Option<DotDot>, Either<GenericArgs<'a>, TypePathFn<'a>>)>,
+		)>::describe(w)
+	}
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TypePathFn<'a> {
+	parentheses: Parentheses<'a, Option<TypePathFnInputs<'a>>>,
+	return_type: Option<(RArrow, Type<'a>)>,
+}
+
+impl<'a> Parse<'a> for TypePathFn<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		Self {
+			parentheses: input.parse(),
+			return_type: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(
+			Parentheses<'a, Option<TypePathFnInputs<'a>>>,
+			Option<(RArrow, Type<'a>)>,
+		)>::describe(w)
+	}
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TypePathFnInputs<'a> {
+	first_type: Box<Type<'a>>,
+	rest: Vec<(Comma, Type<'a>)>,
+	comma: Option<Comma>,
+}
+
+impl<'a> Parse<'a> for TypePathFnInputs<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		Self {
+			first_type: input.parse(),
+			rest: input.parse(),
+			comma: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(Type, Vec<(Comma, Type)>, Option<Comma>)>::describe(w)
 	}
 }

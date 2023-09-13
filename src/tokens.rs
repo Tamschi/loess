@@ -1,11 +1,41 @@
 use std::{fmt::Write, marker::PhantomData};
 
-use proc_macro2::{Ident, Punct, Spacing, Span, TokenTree};
+use proc_macro2::{extra::DelimSpan, Delimiter, Ident, Punct, Spacing, Span};
 
-use crate::io::{Input, Parse};
+use crate::{
+	identifiers::Identifier,
+	io::{random_access::TokenTree, Input, Parse},
+};
 
 pub mod keywords;
 pub mod punctuation;
+
+pub struct LifetimeOrLabel {
+	apostrophe: SPunct<'\'', true>,
+	identifier: Identifier,
+}
+
+impl Parse<'_> for LifetimeOrLabel {
+	fn parse(input: &mut Input<'_>) -> Self {
+		Self {
+			apostrophe: input.parse(),
+			identifier: input.parse(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		w.write_str("LIFETIME_OR_LABEL")
+	}
+}
+
+impl Default for LifetimeOrLabel {
+	fn default() -> Self {
+		Self {
+			apostrophe: SPunct::default(),
+			identifier: Identifier::default(),
+		}
+	}
+}
 
 pub struct SPunct<const CH: char, const JOINT: bool> {
 	punct: Punct,
@@ -423,4 +453,70 @@ pub trait KeywordString {
 pub struct Keyword<KW: KeywordString> {
 	ident: Ident,
 	phantom: PhantomData<KW>,
+}
+
+trait Delimiter_ {
+	const DELIMITER: Delimiter;
+	const OPEN: char;
+	const CLOSE: char;
+}
+
+enum PARENTHESIS {}
+impl Delimiter_ for PARENTHESIS {
+	const DELIMITER: Delimiter = Delimiter::Parenthesis;
+	const OPEN: char = '(';
+	const CLOSE: char = ')';
+}
+
+enum BRACE {}
+impl Delimiter_ for BRACE {
+	const DELIMITER: Delimiter = Delimiter::Brace;
+	const OPEN: char = '{';
+	const CLOSE: char = '}';
+}
+
+enum BRACKET {}
+impl Delimiter_ for BRACKET {
+	const DELIMITER: Delimiter = Delimiter::Bracket;
+	const OPEN: char = '[';
+	const CLOSE: char = ']';
+}
+
+pub struct Delimited<'a, Delimiter, Contents>
+where
+	Delimiter: Delimiter_,
+{
+	pub delimiter: PhantomData<Delimiter>,
+	pub delim_span: DelimSpan,
+	pub enclosed: &'a [TokenTree<'a>],
+	pub contents: PhantomData<Contents>,
+}
+
+impl<'a, Delimiter, Contents> Parse<'a> for Delimited<'a, Delimiter, Contents>
+where
+	Delimiter: Delimiter_,
+{
+	fn parse(input: &mut Input<'a>) -> Self {
+		match input.cursor.first() {
+			Some(TokenTree::Group(group)) if group.delimiter() == Delimiter::DELIMITER => Self {
+				delimiter: PhantomData,
+				delim_span: group.delim_span(),
+				enclosed: group.contents.as_slice(),
+				contents: PhantomData,
+			},
+			_ => input.error_expected(),
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		w.write_str("`{ … }`")
+	}
+}
+
+pub mod delimiters {
+	use super::{Delimited, BRACE, BRACKET, PARENTHESIS};
+
+	pub type Parentheses<'a, Content> = Delimited<'a, PARENTHESIS, Content>;
+	pub type Braces<'a, Content> = Delimited<'a, BRACE, Content>;
+	pub type Brackets<'a, Content> = Delimited<'a, BRACKET, Content>;
 }

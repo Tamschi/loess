@@ -1,11 +1,9 @@
 use std::{
-	cell::{Cell, RefCell},
+	cell::RefCell,
 	iter::{self, IntoIterator},
 	marker::PhantomData,
 	vec::Vec,
 };
-
-use proc_macro2::Span;
 
 pub struct DiagnosticsList<'a> {
 	diagnostics: RefCell<Vec<Diagnostic<'a>>>,

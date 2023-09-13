@@ -3,24 +3,14 @@ use vec1::Vec1;
 use crate::{
 	help::DiagnosticsList,
 	io::{Input, Parse},
-	tokens::keywords::{Async, Move, Unsafe},
+	tokens::{
+		keywords::{Async, Move, Unsafe},
+		Braces,
+	},
 };
 
 pub struct BlockExpression<'a> {
-	pub braces: Braces<'a>,
-}
-
-impl<'a> BlockExpression<'a> {
-	pub fn contents(
-		&self,
-		diagnostics: &DiagnosticsList<'a>,
-	) -> (Vec<InnerAttribute<'a>>, Option<Statements<'a>>) {
-		Input {
-			cursor: self.braces.contents,
-			diagnostics,
-		}
-		.parse()
-	}
+	pub braces: Braces<'a, (Vec<InnerAttribute<'a>>, Statements<'a>)>,
 }
 
 impl<'a> Parse<'a> for BlockExpression<'a> {

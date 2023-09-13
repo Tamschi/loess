@@ -1,14 +1,17 @@
 use std::fmt::Write;
 
 use either::Either;
-use proc_macro2::TokenTree;
 use this_is_fine::Fine;
 use vec1::Vec1;
 
 use crate::help::DiagnosticsList;
 
+use self::random_access::TokenTree;
+
+pub mod random_access;
+
 pub struct Input<'a> {
-	pub cursor: &'a [TokenTree],
+	pub cursor: &'a [TokenTree<'a>],
 	pub diagnostics: &'a DiagnosticsList<'a>,
 }
 

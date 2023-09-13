@@ -12,7 +12,7 @@ use crate::{
 			Slash, SlashEq, Star, StarEq,
 		},
 	},
-	types::TypeNoBounds,
+	type_system::types::TypeNoBounds,
 };
 
 use super::Expression;
