@@ -1,8 +1,7 @@
 use std::fmt::Write;
 
 use either::Either;
-use this_is_fine::Fine;
-use this_is_fine::FineExt;
+use this_is_fine::{Fine, FineExt};
 use vec1::Vec1;
 
 use crate::help::DiagnosticsList;
