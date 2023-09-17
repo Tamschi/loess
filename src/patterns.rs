@@ -9,7 +9,7 @@ use crate::{
 	tokens::{
 		keywords::{If, In, Mut, Ref},
 		punctuation::{
-			At, Comma, colon_colon, DotDotDot, DotDotEq, Eq, FatArrow, Minus, Or, Underscore,
+			colon_colon, At, Comma, DotDotDot, DotDotEq, Eq, FatArrow, Minus, Or, Underscore,
 		},
 	},
 };
