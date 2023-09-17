@@ -2,6 +2,7 @@ use std::fmt::Write;
 
 use either::Either;
 use this_is_fine::Fine;
+use this_is_fine::FineExt;
 use vec1::Vec1;
 
 use crate::help::DiagnosticsList;
@@ -256,6 +257,10 @@ impl<'a> Input<'a> {
 
 	pub fn try_parse<T: Parse<'a>>(&mut self) -> Fine<T, DiagnosticsList<'a>> {
 		T::try_parse(self)
+	}
+
+	pub fn peek<T: Parse<'a>>(&self) -> bool {
+		self.clone().try_parse::<T>().is_ok()
 	}
 
 	pub fn consume(&mut self, token_tree_count: usize) -> &'a [TokenTree] {

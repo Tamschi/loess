@@ -1,22 +1,34 @@
-use crate::io::{Input, Parse};
+use std::fmt::Write;
+
+use crate::{
+	attributes::OuterAttribute,
+	io::{Input, Parse},
+};
 
 use self::{
 	block_expressions::{AsyncBlockExpression, BlockExpression, UnsafeBlockExpression},
+	grouped_expressions::GroupedExpression,
+	limitations::{ExpressionLimitation, NONE},
 	literal_expressions::LiteralExpression,
-	path_expressions::PathExpression, operator_expressions::OperatorExpression,
+	loop_expressions::{BreakExpression, ContinueExpression},
+	operator_expressions::OperatorExpression,
+	path_expressions::PathExpression,
 };
 
 pub mod block_expressions;
+pub mod grouped_expressions;
 pub mod literal_expressions;
+pub mod loop_expressions;
+pub mod match_expressions;
 pub mod operator_expressions;
 pub mod path_expressions;
 
-pub enum Expression<'a> {
-	ExpressionWithoutBlock(ExpressionWithoutBlock<'a>),
-	ExpressionWithBlock(ExpressionWithBlock<'a>),
+pub enum Expression<'a, LIMITATION: ExpressionLimitation = NONE> {
+	ExpressionWithoutBlock(ExpressionWithoutBlock<'a, LIMITATION>),
+	ExpressionWithBlock(ExpressionWithBlock<'a, LIMITATION>),
 }
 
-impl<'a> Parse<'a> for Expression<'a> {
+impl<'a, LIMITATION: ExpressionLimitation> Parse<'a> for Expression<'a, LIMITATION> {
 	fn parse(input: &mut Input<'a>) -> Self {
 		if let (ewb, Ok(())) = input.try_parse() {
 			Self::ExpressionWithoutBlock(ewb)
@@ -28,12 +40,60 @@ impl<'a> Parse<'a> for Expression<'a> {
 	}
 }
 
-pub struct ExpressionWithoutBlock<'a> {
-	pub outer_attributes: Vec<OuterAttribute<'a>>,
-	pub variant: ExpressionWithoutBlockContent<'a>,
+pub mod limitations {
+	#![allow(non_camel_case_types)]
+
+	use self::sealed::Sealed;
+
+	mod sealed {
+		pub trait Sealed {}
+	}
+
+	pub trait ExpressionLimitation: Sealed {
+		type EXCEPT_STRUCT_EXPRESSION;
+		const EXCEPT_STRUCT_EXPRESSION: bool = false;
+		const EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION: bool = false;
+	}
+
+	pub enum NONE {}
+	impl Sealed for NONE {}
+	impl ExpressionLimitation for NONE {
+		type EXCEPT_STRUCT_EXPRESSION = EXCEPT_STRUCT_EXPRESSION;
+	}
+
+	pub enum EXCEPT_STRUCT_EXPRESSION {}
+	impl Sealed for EXCEPT_STRUCT_EXPRESSION {}
+	impl ExpressionLimitation for EXCEPT_STRUCT_EXPRESSION {
+		type EXCEPT_STRUCT_EXPRESSION = Self;
+
+		const EXCEPT_STRUCT_EXPRESSION: bool = true;
+	}
+
+	pub enum EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION {}
+	impl Sealed for EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION {}
+	impl ExpressionLimitation for EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION {
+		type EXCEPT_STRUCT_EXPRESSION =
+			EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION_OR_STRUCT_EXPRESSION;
+
+		const EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION: bool = true;
+	}
+
+	pub enum EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION_OR_STRUCT_EXPRESSION {}
+	impl Sealed for EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION_OR_STRUCT_EXPRESSION {}
+	impl ExpressionLimitation for EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION_OR_STRUCT_EXPRESSION {
+		type EXCEPT_STRUCT_EXPRESSION = Self;
+
+		const EXCEPT_STRUCT_EXPRESSION: bool = true;
+		const EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION: bool = true;
+	}
 }
 
-impl<'a> Parse<'a> for ExpressionWithoutBlock<'a> {
+pub struct ExpressionWithoutBlock<'a, LIMITATION: ExpressionLimitation = NONE> {
+	pub outer_attributes: Vec<OuterAttribute<'a>>,
+	pub variant: ExpressionWithoutBlockContent<'a, LIMITATION>,
+}
+
+impl<'a, LIMITATION: ExpressionLimitation> Parse<'a> for ExpressionWithoutBlock<'a, LIMITATION> {
 	fn parse(input: &mut Input<'a>) -> Self {
 		Self {
 			outer_attributes: input.parse(),
@@ -42,10 +102,11 @@ impl<'a> Parse<'a> for ExpressionWithoutBlock<'a> {
 	}
 }
 
-pub enum ExpressionWithoutBlockContent<'a> {
+#[derive(Debug, Clone)]
+pub enum ExpressionWithoutBlockContent<'a, LIMITATION: ExpressionLimitation = NONE> {
 	LiteralExpression(LiteralExpression),
 	PathExpression(PathExpression<'a>),
-	OperatorExpression(OperatorExpression<'a>),
+	OperatorExpression(OperatorExpression<'a, LIMITATION>),
 	GroupedExpression(GroupedExpression<'a>),
 	ArrayExpression(ArrayExpression<'a>),
 	AwaitExpression(AwaitExpression<'a>),
@@ -58,7 +119,7 @@ pub enum ExpressionWithoutBlockContent<'a> {
 	FieldExpression(FieldExpression<'a>),
 	ClosureExpression(ClosureExpression<'a>),
 	AsyncBlockExpression(AsyncBlockExpression<'a>),
-	ContinueExpression(ContinueExpression<'a>),
+	ContinueExpression(ContinueExpression),
 	BreakExpression(BreakExpression<'a>),
 	RangeExpression(RangeExpression<'a>),
 	ReturnExpression(ReturnExpression<'a>),
@@ -66,7 +127,9 @@ pub enum ExpressionWithoutBlockContent<'a> {
 	MacroInvocation(MacroInvocation<'a>),
 }
 
-impl<'a> Parse<'a> for ExpressionWithoutBlockContent<'a> {
+impl<'a, LIMITATION: ExpressionLimitation> Parse<'a>
+	for ExpressionWithoutBlockContent<'a, LIMITATION>
+{
 	fn parse(input: &mut Input<'a>) -> Self {
 		//TODO: snake_case
 		if let (LiteralExpression, Ok(())) = input.try_parse() {
@@ -87,7 +150,9 @@ impl<'a> Parse<'a> for ExpressionWithoutBlockContent<'a> {
 			Self::TupleExpression(TupleExpression)
 		} else if let (TupleIndexingExpression, Ok(())) = input.try_parse() {
 			Self::TupleIndexingExpression(TupleIndexingExpression)
-		} else if let (StructExpression, Ok(())) = input.try_parse() {
+		} else if let Some((StructExpression, Ok(()))) =
+			(!LIMITATION::EXCEPT_STRUCT_EXPRESSION).then_some(|| input.try_parse())
+		{
 			Self::StructExpression(StructExpression)
 		} else if let (CallExpression, Ok(())) = input.try_parse() {
 			Self::CallExpression(CallExpression)
@@ -112,8 +177,12 @@ impl<'a> Parse<'a> for ExpressionWithoutBlockContent<'a> {
 		} else if let (MacroInvocation, Ok(())) = input.try_parse() {
 			Self::MacroInvocation(MacroInvocation)
 		} else {
-			todo!()
+			input.error_expected()
 		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		w.write_str("expression")
 	}
 }
 

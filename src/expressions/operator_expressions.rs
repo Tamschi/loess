@@ -15,9 +15,12 @@ use crate::{
 	type_system::types::TypeNoBounds,
 };
 
-use super::Expression;
+use super::{
+	limitations::{ExpressionLimitation, NONE},
+	Expression,
+};
 
-pub enum OperatorExpression<'a> {
+pub enum OperatorExpression<'a, LIMITATION: ExpressionLimitation = NONE> {
 	BorrowExpression(BorrowExpression<'a>),
 	DereferenceExpression(DereferenceExpression<'a>),
 	ErrorPropagationExpression(ErrorPropagationExpression<'a>),
@@ -30,7 +33,7 @@ pub enum OperatorExpression<'a> {
 	CompoundAssignmentExpression(CompoundAssignmentExpression<'a>),
 }
 
-impl<'a> Parse<'a> for OperatorExpression<'a> {
+impl<'a, LIMITATION: ExpressionLimitation> Parse<'a> for OperatorExpression<'a, LIMITATION> {
 	fn parse(input: &mut Input<'a>) -> Self {
 		//TODO: snake_case
 		if let (BorrowExpression, Ok(())) = input.try_parse() {
@@ -45,7 +48,9 @@ impl<'a> Parse<'a> for OperatorExpression<'a> {
 			Self::ArithmeticOrLogicalExpression(ArithmeticOrLogicalExpression)
 		} else if let (ComparisonExpression, Ok(())) = input.try_parse() {
 			Self::ComparisonExpression(ComparisonExpression)
-		} else if let (LazyBooleanExpression, Ok(())) = input.try_parse() {
+		} else if let Some((LazyBooleanExpression, Ok(()))) =
+			(!LIMITATION::EXCEPT_LAZY_BOOLEAN_OPERATOR_EXPRESSION).then_some(|| input.try_parse())
+		{
 			Self::LazyBooleanExpression(LazyBooleanExpression)
 		} else if let (TypeCastExpression, Ok(())) = input.try_parse() {
 			Self::TypeCastExpression(TypeCastExpression)
@@ -54,7 +59,7 @@ impl<'a> Parse<'a> for OperatorExpression<'a> {
 		} else if let (CompoundAssignmentExpression, Ok(())) = input.try_parse() {
 			Self::CompoundAssignmentExpression(CompoundAssignmentExpression)
 		} else {
-			todo!()
+			input.error_expected()
 		}
 	}
 }
