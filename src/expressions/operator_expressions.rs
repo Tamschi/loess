@@ -7,9 +7,9 @@ use crate::{
 	tokens::{
 		keywords::{As, Mut},
 		punctuation::{
-			And, AndAnd, AndEq, Caret, CaretEq, Eq, EqEq, Ge, Gt, Le, Lt, Minus, MinusEq, Ne, Not,
-			Or, OrEq, OrOr, Percent, PercentEq, Plus, PlusEq, Question, Shl, ShlEq, Shr, ShrEq,
-			Slash, SlashEq, Star, StarEq,
+			And, AndAnd, AndEq, Caret, CaretEq, Comma, Eq, EqEq, FatArrow, Ge, Gt, Le, Lt, Minus,
+			MinusEq, Ne, Not, Or, OrEq, OrOr, Percent, PercentEq, Plus, PlusEq, Question, Semi,
+			Shl, ShlEq, Shr, ShrEq, Slash, SlashEq, Star, StarEq,
 		},
 	},
 	type_system::types::TypeNoBounds,
@@ -104,14 +104,21 @@ pub struct ErrorPropagationExpression<'a> {
 
 impl<'a> Parse<'a> for ErrorPropagationExpression<'a> {
 	fn parse(input: &mut Input<'a>) -> Self {
+		let (expression, question) = input.right_aligned_left_recursive_parse(|input| {
+			input.is_end()
+				|| input.peek::<FatArrow>()
+				|| input.peek::<Comma>()
+				|| input.peek::<Semi>()
+		});
 		Self {
-			expression: input.parse(),
-			question: input.parse(),
+			expression,
+			question,
 		}
 	}
 
 	fn describe(w: &mut dyn Write) {
-		<(Expression, Question)>::describe(w)
+		<(Expression, Question)>::describe(w)?;
+		w.write_str(" before (end|`=>`|`,`|`;`)")
 	}
 }
 

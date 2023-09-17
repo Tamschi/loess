@@ -8,24 +8,26 @@ use crate::{
 	identifiers::Identifier,
 	io::{Input, Parse},
 	tokens::{
-		delimiters::Parentheses,
-		keywords::{As, Crate, Selftype, Selfvalue, Super},
-		punctuation::{Comma, Dollar, DotDot, Gt, Lt, Minus, RArrow},
+		delimiters::{Braces, Brackets, Parentheses},
+		keywords::{As, Crate, Selftype, Selfvalue, Super, Where},
+		punctuation::{
+			Colon, ColonColon, Comma, Dollar, Eq, FatArrow, Gt, Lt, Minus, Or, RArrow, Semi, Shr,
+		},
 	},
 	type_system::{trait_and_lifetime_bounds::Lifetime, types::Type},
 };
 
 #[derive(Debug, Clone, Default)]
 pub struct SimplePath {
-	pub dot_dot: Option<DotDot>,
+	pub colon_colon: Option<ColonColon>,
 	pub simple_path_segment: SimplePathSegment,
-	pub rest: Vec<(DotDot, SimplePathSegment)>,
+	pub rest: Vec<(ColonColon, SimplePathSegment)>,
 }
 
 impl Parse<'_> for SimplePath {
 	fn parse(input: &mut Input<'_>) -> Self {
 		Self {
-			dot_dot: input.parse(),
+			colon_colon: input.parse(),
 			simple_path_segment: input.parse(),
 			rest: input.parse(),
 		}
@@ -33,9 +35,9 @@ impl Parse<'_> for SimplePath {
 
 	fn describe(w: &mut dyn Write) {
 		<(
-			Option<DotDot>,
+			Option<ColonColon>,
 			SimplePathSegment,
-			Vec<(DotDot, SimplePathSegment)>,
+			Vec<(ColonColon, SimplePathSegment)>,
 		)>::describe(w)
 	}
 }
@@ -67,24 +69,48 @@ impl Default for SimplePathSegment {
 }
 
 pub struct PathInExpression<'a> {
-	pub dot_dot: Option<DotDot>,
+	pub colon_colon: Option<ColonColon>,
 	pub path_expr_segment: PathExprSegment<'a>,
-	pub rest: Vec<(DotDot, PathExprSegment<'a>)>,
+	pub rest: Vec<(ColonColon, PathExprSegment<'a>)>,
 }
 
 impl<'a> Parse<'a> for PathInExpression<'a> {
 	fn parse(input: &mut Input<'a>) -> Self {
+		let (colon_colon, path_expr_segment, rest) = input.parse_to(|input| {
+			input.is_end()
+				|| input.peek::<FatArrow>()
+				|| input.peek::<Comma>()
+				|| input.peek::<Eq>()
+				|| input.peek::<Or>()
+				|| input.peek::<Semi>()
+				|| input.peek::<Colon>()
+				|| input.peek::<Gt>()
+				|| input.peek::<Shr>()
+				|| input.peek::<Brackets<_>>()
+				|| input.peek::<Braces<_>>()
+				|| input.peek::<As>()
+				|| input.peek::<Where>()
+		});
 		Self {
-			dot_dot: input.parse(),
-			path_expr_segment: input.parse(),
-			rest: input.parse(),
+			colon_colon,
+			path_expr_segment,
+			rest,
 		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(
+			Option<ColonColon>,
+			PathExprSegment,
+			Vec<(ColonColon, PathExprSegment)>,
+		)>::describe(w)?;
+		w.write_str(" before (end|`=>`|`>>`|`as`|`where`|[,=|;:>[{])");
 	}
 }
 
 pub struct PathExprSegment<'a> {
 	pub path_ident_segment: PathIdentSegment,
-	pub generics: Option<(DotDot, GenericArgs<'a>)>,
+	pub generics: Option<(ColonColon, GenericArgs<'a>)>,
 }
 
 impl<'a> Parse<'a> for PathExprSegment<'a> {
@@ -210,7 +236,7 @@ impl<'a> Parse<'a> for GenericArgsBinding<'a> {
 #[derive(Default)]
 pub struct QualifiedPathInExpression<'a> {
 	qualified_path_type: QualifiedPathType<'a>,
-	rest: Vec1<(DotDot, PathExprSegment<'a>)>,
+	rest: Vec1<(ColonColon, PathExprSegment<'a>)>,
 }
 
 impl<'a> Parse<'a> for QualifiedPathInExpression<'a> {
@@ -222,7 +248,7 @@ impl<'a> Parse<'a> for QualifiedPathInExpression<'a> {
 	}
 
 	fn describe(w: &mut dyn Write) {
-		<(QualifiedPathType, Vec1<(DotDot, PathExprSegment)>)>::describe(w)
+		<(QualifiedPathType, Vec1<(ColonColon, PathExprSegment)>)>::describe(w)
 	}
 }
 
@@ -252,7 +278,7 @@ impl<'a> Parse<'a> for QualifiedPathType<'a> {
 #[derive(Default)]
 pub struct QualifiedPathInType<'a> {
 	qualified_path_type: QualifiedPathType<'a>,
-	rest: Vec1<(DotDot, TypePathSegment<'a>)>,
+	rest: Vec1<(ColonColon, TypePathSegment<'a>)>,
 }
 
 impl<'a> Parse<'a> for QualifiedPathInType<'a> {
@@ -264,39 +290,56 @@ impl<'a> Parse<'a> for QualifiedPathInType<'a> {
 	}
 
 	fn describe(w: &mut dyn Write) {
-		<(QualifiedPathType, Vec1<(DotDot, TypePathSegment)>)>::describe(w)
+		<(QualifiedPathType, Vec1<(ColonColon, TypePathSegment)>)>::describe(w)
 	}
 }
 
 #[derive(Default)]
 pub struct TypePath<'a> {
-	dot_dot: Option<DotDot>,
+	colon_colon: Option<ColonColon>,
 	type_path_segment: TypePathSegment<'a>,
-	rest: Vec<(DotDot, TypePathSegment<'a>)>,
+	rest: Vec<(ColonColon, TypePathSegment<'a>)>,
 }
 
 impl<'a> Parse<'a> for TypePath<'a> {
 	fn parse(input: &mut Input<'a>) -> Self {
+		let (colon_colon, type_path_segment, rest) = input.parse_to(|input| {
+			input.is_end()
+				|| input.peek::<FatArrow>()
+				|| input.peek::<Comma>()
+				|| input.peek::<Eq>()
+				|| input.peek::<Or>()
+				|| input.peek::<Semi>()
+				|| input.peek::<Colon>()
+				|| input.peek::<Gt>()
+				|| input.peek::<Shr>()
+				|| input.peek::<Brackets<_>>()
+				|| input.peek::<Braces<_>>()
+				|| input.peek::<As>()
+				|| input.peek::<Where>()
+		});
 		Self {
-			dot_dot: input.parse(),
-			type_path_segment: input.parse(),
-			rest: input.parse(),
+			colon_colon,
+			type_path_segment,
+			rest,
 		}
 	}
 
 	fn describe(w: &mut dyn Write) {
 		<(
-			Option<DotDot>,
+			Option<ColonColon>,
 			TypePathSegment,
-			Vec<(DotDot, TypePathSegment)>,
-		)>::describe(w)
+			Vec<(ColonColon, TypePathSegment)>,
+		)>::describe(w)?;
+		w.write_str(" before (end|`=>`|`>>`|`as`|`where`|[,=|;:>[{])");
 	}
 }
 
 #[derive(Default)]
 pub struct TypePathSegment<'a> {
 	path_ident_segment: PathIdentSegment<'a>,
-	generic_args_or_type_path_fn: Option<(Option<DotDot>, Either<GenericArgs<'a>, TypePathFn<'a>>)>,
+	generic_args_or_type_path_fn:
+		Option<(Option<ColonColon>, Either<GenericArgs<'a>, TypePathFn<'a>>)>,
 }
 
 impl<'a> Parse<'a> for TypePathSegment<'a> {
@@ -310,7 +353,7 @@ impl<'a> Parse<'a> for TypePathSegment<'a> {
 	fn describe(w: &mut dyn Write) {
 		<(
 			PathIdentSegment<'a>,
-			Option<(Option<DotDot>, Either<GenericArgs<'a>, TypePathFn<'a>>)>,
+			Option<(Option<colon_colon>, Either<GenericArgs<'a>, TypePathFn<'a>>)>,
 		)>::describe(w)
 	}
 }

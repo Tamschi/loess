@@ -5,6 +5,7 @@ use std::{
 	vec::Vec,
 };
 
+#[derive(Debug, Clone, Default)]
 pub struct DiagnosticsList<'a> {
 	diagnostics: RefCell<Vec<Diagnostic<'a>>>,
 }

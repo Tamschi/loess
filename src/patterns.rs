@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt::Write, marker::PhantomData};
 
 use proc_macro2::{Ident, Literal, Span};
 
@@ -7,8 +7,10 @@ use crate::{
 	identifiers::Identifier,
 	io::{random_access::TokenTree, Input, Parse},
 	tokens::{
-		keywords::{Mut, Ref},
-		punctuation::{At, DotDot, DotDotDot, DotDotEq, Minus, Or, Underscore},
+		keywords::{If, In, Mut, Ref},
+		punctuation::{
+			At, Comma, colon_colon, DotDotDot, DotDotEq, Eq, FatArrow, Minus, Or, Underscore,
+		},
 	},
 };
 
@@ -16,6 +18,30 @@ pub struct Pattern<'a> {
 	or: Option<Or>,
 	pattern_no_top_alt: PatternNoTopAlt<'a>,
 	rest: Vec<(Or, PatternNoTopAlt<'a>)>,
+}
+
+impl<'a> Parse<'a> for Pattern<'a> {
+	fn parse(input: &mut Input<'a>) -> Self {
+		let (or, pattern_no_top_alt, rest) = input.parse_to(|input| {
+			input.is_end()
+				|| input.peek::<FatArrow>()
+				|| input.peek::<Comma>()
+				|| input.peek::<Eq>()
+				|| input.peek::<Or>()
+				|| input.peek::<If>()
+				|| input.peek::<In>()
+		});
+		Self {
+			or,
+			pattern_no_top_alt,
+			rest,
+		}
+	}
+
+	fn describe(w: &mut dyn Write) {
+		<(Option<Or>, PatternNoTopAlt, Vec<(Or, PatternNoTopAlt)>)>::describe(w)?;
+		w.write_str(" before (end|`=>`|`,`|`=`|`|`|`if`|`in`)")
+	}
 }
 
 pub enum PatternNoTopAlt<'a> {
@@ -101,7 +127,7 @@ impl Parse<'_> for WildcardPattern {
 }
 
 pub struct RestPattern {
-	dot_dot: DotDot,
+	dot_dot: colon_colon,
 }
 
 impl Parse<'_> for RestPattern {
@@ -138,7 +164,7 @@ impl<'a> Parse<'a> for RangePattern<'a> {
 		} else if let (orp, Ok(())) = input.try_parse() {
 			Self::ObsoleteRangePattern(orp)
 		} else if let ((lower, _, upper), Ok(())) =
-			input.try_parse::<(RangePatternBound, DotDot, RangePatternBound)>()
+			input.try_parse::<(RangePatternBound, colon_colon, RangePatternBound)>()
 		{
 			todo!()
 		} else {
@@ -165,7 +191,7 @@ impl<'a> Parse<'a> for RangeInclusivePattern<'a> {
 
 pub struct RangeFromPattern<'a> {
 	lower_inclusive_bound: RangePatternBound<'a>,
-	dot_dot: DotDot,
+	dot_dot: colon_colon,
 }
 
 impl<'a> Parse<'a> for RangeFromPattern<'a> {

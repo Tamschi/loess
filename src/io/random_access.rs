@@ -2,12 +2,32 @@ use std::borrow::Cow;
 
 use proc_macro2::{extra::DelimSpan, Delimiter, Ident, Literal, Punct};
 
+use crate::help::DiagnosticsList;
+
+use super::Input;
+
 /// Copy of [`proc_macro2::TokenTree`], except using [`Group`].
 pub enum TokenTree<'a> {
 	Group(Box<Group<'a>>),
 	Ident(Ident),
 	Punct(Punct),
 	Literal(Literal),
+}
+
+impl TokenTree<'_> {
+	pub(crate) fn is_empty(&self) -> bool {
+		match self {
+			Self::Group(g) => {
+				g.delimiter == Delimiter::None
+					&& Input {
+						cursor: &*g.contents,
+						diagnostics: &DiagnosticsList::default(),
+					}
+					.is_end()
+			}
+			Self::Ident(_) | Self::Punct(_) | Self::Literal(_) => false,
+		}
+	}
 }
 
 impl From<proc_macro2::TokenTree> for TokenTree<'_> {

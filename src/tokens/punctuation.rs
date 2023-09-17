@@ -39,6 +39,7 @@ pub type DotDotEq = Punctuation<(SPunct<'.', true>, SPunct<'.', true>, SPunct<'=
 pub type Comma = Punctuation<(SPunct<',', false>,)>;
 pub type Semi = Punctuation<(SPunct<';', false>,)>;
 pub type Colon = Punctuation<(SPunct<':', false>,)>;
+pub type ColonColon = Punctuation<(SPunct<':', true>, SPunct<':', false>)>;
 pub type PathSep = Punctuation<(SPunct<':', true>, SPunct<':', false>)>;
 pub type RArrow = Punctuation<(SPunct<'-', true>, SPunct<'>', false>)>;
 pub type FatArrow = Punctuation<(SPunct<'=', true>, SPunct<'>', false>)>;

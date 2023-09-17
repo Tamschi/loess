@@ -20,6 +20,10 @@ impl<'a> Input<'a> {
 		todo!("If errors aren't suspended, create a diagnostic that evaluates with the given type's self-description.");
 		T::default()
 	}
+
+	pub fn is_end(&self) -> bool {
+		self.cursor.into_iter().all(|tt| tt.is_empty())
+	}
 }
 
 pub trait Parse<'a>: Sized {
