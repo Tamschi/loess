@@ -1,9 +1,11 @@
 [workspace]
 members = [
 	".",
-	"*/src/..",
+	# "book",
+	"loess",
+	"proc-macro-definitions",
 	"examples/*"
-]
+, "loess"]
 resolver = "2"
 
 [patch.crates-io]

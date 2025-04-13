@@ -9,4 +9,6 @@ mod old {
 	}
 }
 
-asteracea::components! {}
+asteracea::components! {
+	Empty -> web {}
+}

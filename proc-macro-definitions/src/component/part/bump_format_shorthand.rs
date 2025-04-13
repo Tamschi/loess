@@ -1,4 +1,6 @@
-use crate::component::{storage_context::ParseContext, workaround_module::Configuration, BumpFormat};
+use crate::component::{
+	storage_context::ParseContext, workaround_module::Configuration, BumpFormat,
+};
 use proc_macro2::TokenStream;
 use quote::quote_spanned;
 use syn::{parenthesized, parse::ParseStream, parse2, token::Paren, Error, LitStr, Result, Token};
