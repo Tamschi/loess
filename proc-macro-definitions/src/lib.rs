@@ -4,7 +4,16 @@ use proc_macro::TokenStream as TokenStream1;
 
 extern crate proc_macro;
 
+/// Old macro.
 mod component;
+
+/// New macro.
+mod components;
+
+#[proc_macro]
+pub fn components(input: TokenStream1) -> TokenStream1 {
+	components::components(input.into()).into()
+}
 
 #[proc_macro]
 pub fn component(input: TokenStream1) -> TokenStream1 {
