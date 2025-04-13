@@ -41,32 +41,8 @@ pub(crate) mod syn_ext;
 
 pub(crate) mod util;
 
-pub(crate) fn hook_panics() {
-	std::panic::set_hook(Box::new(|panic_info| {
-		let location = panic_info.location();
-
-		let payload = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-			s
-		} else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-			s.as_str()
-		} else {
-			"(unknown panic type)"
-		};
-		eprintln!(
-			"Asteracea proc macro panic at {} line {}\n\n{}",
-			location.map(|l| l.file()).unwrap_or("None"),
-			location
-				.map(|l| l.line().to_string())
-				.unwrap_or_else(|| "None".to_string()),
-			payload
-		);
-	}))
-}
-
 /// Macro entry point.
 pub fn component(input: TokenStream1) -> TokenStream1 {
-	hook_panics();
-
 	let component_declaration = parse_macro_input!(input as ComponentDeclaration);
 	let tokens: TokenStream2 = component_declaration
 		.into_tokens()

@@ -1,7 +1,12 @@
 #![allow(dead_code)]
 
-asteracea::component! {
-	Empty()()
+#[allow(deprecated)]
+mod old {
+	asteracea::component! {
+		Empty()()
 
-	[]
+		[]
+	}
 }
+
+asteracea::components! {}
