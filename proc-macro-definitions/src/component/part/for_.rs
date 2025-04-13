@@ -1,5 +1,5 @@
 use super::{GenerateContext, Part};
-use crate::{
+use crate::component::{
 	asteracea_ident,
 	part::LetSelf,
 	storage_configuration::{StorageConfiguration, StorageTypeConfiguration},

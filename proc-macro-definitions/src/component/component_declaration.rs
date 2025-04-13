@@ -2,7 +2,7 @@ use self::{
 	arguments::{Argument, ConstructorArgument},
 	parameter_helper_definitions::{CustomArgument, ParameterHelperDefinitions},
 };
-use crate::{
+use crate::component::{
 	asteracea_ident,
 	part::{GenerateContext, LetSelf},
 	storage_configuration::StorageTypeConfiguration,
@@ -226,7 +226,7 @@ impl Parse for ComponentDeclaration {
 					let mut ty = match injection_dyn {
 						None => Type::clone(ty),
 						Some(dyn_) => {
-							let asteracea = asteracea_ident(dyn_.span);
+							let asteracea = crate::component::asteracea_ident(dyn_.span);
 							parse_quote_spanned! {dyn_.span.resolved_at(Span::mixed_site())=>
 								<
 									<#ty as ::#asteracea::__::rhizome::sync::Extract>::Extracted
@@ -351,7 +351,7 @@ impl ComponentDeclaration {
 			callback_registrations,
 		} = self;
 
-		let asteracea = asteracea_ident(Span::call_site());
+		let asteracea = crate::component::asteracea_ident(Span::call_site());
 
 		let mut unsafe_drop_early = TokenStream::new();
 		for (name, parameter_type) in callback_registrations {

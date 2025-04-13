@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
+use crate::component::{
 	component_declaration::FieldDefinition, storage_configuration::StorageTypeConfiguration,
 };
 use proc_macro2::{Span, TokenStream};

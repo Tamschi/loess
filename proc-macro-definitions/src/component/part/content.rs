@@ -1,4 +1,4 @@
-use crate::storage_context::{ParseContext, ParseWithContext};
+use crate::component::storage_context::{ParseContext, ParseWithContext};
 use proc_macro2::{Span, TokenStream};
 use quote::quote_spanned;
 use syn::{parse::ParseStream, spanned::Spanned, Ident, Result, Token};

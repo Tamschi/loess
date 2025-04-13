@@ -1,4 +1,4 @@
-use crate::{
+use crate::component::{
 	component_declaration::FieldDefinition,
 	storage_context::{ParseContext, ParseWithContext},
 };

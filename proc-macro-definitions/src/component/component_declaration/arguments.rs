@@ -9,7 +9,7 @@ use syn::{
 use tap::Pipe;
 use unquote::unquote;
 
-use crate::{asteracea_ident, util::SinglePat};
+use crate::component::{asteracea_ident, util::SinglePat};
 
 pub struct ConstructorArgument {
 	pub capture: Capture,

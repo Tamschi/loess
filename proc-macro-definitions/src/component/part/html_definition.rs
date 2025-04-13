@@ -1,5 +1,5 @@
 use super::{GenerateContext, Part, PartKind};
-use crate::{
+use crate::component::{
 	asteracea_ident,
 	storage_context::{ParseContext, ParseWithContext},
 	util::Braced,

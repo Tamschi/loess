@@ -15,7 +15,7 @@ use syn::{
 use tap::Pipe as _;
 use unquote::unquote;
 
-use crate::{asteracea_ident, storage_context::StorageContext};
+use crate::component::{asteracea_ident, storage_context::StorageContext};
 
 /// ⟦⦃priv‖⦅Visibility⦆⦄ …⦅StorageTypeConfiguration⦆⟧
 #[allow(clippy::large_enum_variant)]
@@ -471,7 +471,7 @@ impl StorageTypeConfiguration {
 					::std::compile_error!("Asteracea can't soundly generate named generic storage context types if anything inside requires pinning :(\n(Once min_specialization lands, the required static assert against `Self: Unpin` will become available. For now, please use a `box <…>`-expression with either anonymous or manually defined storage context type to pin any child components in a heap allocation.)\n\nSee also: https://github.com/Tamschi/Asteracea/pull/31");
 				}
 			} else {
-				let asteracea = asteracea_ident(span);
+				let asteracea = crate::component::asteracea_ident(span);
 				quote_spanned! {span=>
 					::#asteracea::__::static_assertions::assert_not_impl_any!(#ident: ::std::marker::Unpin);
 				}

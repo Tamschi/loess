@@ -1,4 +1,4 @@
-use crate::syn_ext::*;
+use crate::component::syn_ext::*;
 use call2_for_syn::call2_strict;
 use proc_macro2::Span;
 use quote::quote_spanned;

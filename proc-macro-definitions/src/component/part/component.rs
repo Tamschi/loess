@@ -1,7 +1,7 @@
 use std::{collections::HashSet, iter};
 
 use super::{GenerateContext, LetSelf};
-use crate::{
+use crate::component::{
 	asteracea_ident,
 	part::Part,
 	storage_context::{ParseContext, ParseWithContext},
@@ -213,7 +213,7 @@ let render_call= {
 	quote_spanned!(*open_span=> .render(bump, #render_params)?)
 };
 
-				let asteracea = asteracea_ident(Span::mixed_site());
+				let asteracea = crate::component::asteracea_ident(Span::mixed_site());
 				let mut expr = parse2(quote!({
 					let rendered = #capture #render_call;
 
@@ -233,7 +233,7 @@ let render_call= {
 				render_params,
 				content_children,
 			} => {
-				let asteracea = asteracea_ident(*open_span);
+				let asteracea = crate::component::asteracea_ident(*open_span);
 				let binding = quote_spanned!(reference.brace_token.span.join().resolved_at(Span::mixed_site())=> let reference: ::std::pin::Pin<&_> = #reference;);
 				let bump = quote_spanned!(*open_span=> bump);
 				let render_params = parameter_struct_expression(
@@ -537,7 +537,7 @@ impl<C: Configuration> ContentChild<C> {
 			),
 		};
 
-		let asteracea = asteracea_ident(span);
+		let asteracea = crate::component::asteracea_ident(span);
 
 		let parent_parameter_tokens = parameter_struct_expression::<C, Token![->]>(
 			Some(cx),

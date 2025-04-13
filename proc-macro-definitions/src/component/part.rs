@@ -21,7 +21,7 @@ use self::{
 	component::Component, content::Content, defer::Defer, for_::For, html_comment::HtmlComment,
 	html_definition::HtmlDefinition,
 };
-use crate::{
+use crate::component::{
 	asteracea_ident,
 	storage_context::{ParseContext, ParseWithContext},
 	util::{Braced, SinglePat},
@@ -412,7 +412,7 @@ impl<C: Configuration> Part<C> {
 			Part::Defer(defer) => defer.part_tokens(cx)?,
 			Part::For(for_) => for_.part_tokens(cx)?,
 			Part::Text(lit_str) => {
-				let asteracea = asteracea_ident(lit_str.span());
+				let asteracea = crate::component::asteracea_ident(lit_str.span());
 				quote_spanned! {lit_str.span()=>
 					::#asteracea::lignin::Node::Text::<'bump, #thread_safety> {
 						text: #lit_str,
@@ -425,7 +425,7 @@ impl<C: Configuration> Part<C> {
 				todo!("`dyn if`")
 			}
 			Part::If(InitMode::Spread(_spread), if_, condition, then_part, else_, else_part) => {
-				let asteracea = asteracea_ident(if_.span);
+				let asteracea = crate::component::asteracea_ident(if_.span);
 				let then_tokens = then_part.part_tokens(cx)?;
 				let else_tokens = {
 					let else_part = else_part.part_tokens(cx)?;
@@ -472,7 +472,7 @@ impl<C: Configuration> Part<C> {
 				tokens
 			}
 			Part::Multi(bracket, m) => {
-				let asteracea = asteracea_ident(bracket.span.join());
+				let asteracea = crate::component::asteracea_ident(bracket.span.join());
 				let m = m
 					.iter()
 					.map(|part| part.part_tokens(cx))

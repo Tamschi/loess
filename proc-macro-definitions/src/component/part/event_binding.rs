@@ -1,4 +1,4 @@
-use crate::{
+use crate::component::{
 	asteracea_ident,
 	storage_context::ParseContext,
 	util::{Braced, SinglePat},
