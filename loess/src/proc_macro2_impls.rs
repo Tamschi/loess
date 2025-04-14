@@ -1,7 +1,7 @@
-use crate::{ErrorPriority, Errors, Input, PeekFrom, SimpleSpanned};
+use crate::{ErrorPriority, Errors, Input, IntoTokens, PeekFrom, SimpleSpanned};
 
 use super::{Error, PopFrom};
-use proc_macro2::{Ident, Span, TokenTree};
+use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 
 impl PopFrom for Ident {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
@@ -28,5 +28,11 @@ impl PeekFrom for Ident {
 impl SimpleSpanned for Ident {
 	fn span(&self) -> Span {
 		self.span()
+	}
+}
+
+impl IntoTokens for Ident {
+	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		tokens.extend([TokenTree::Ident(self)]);
 	}
 }

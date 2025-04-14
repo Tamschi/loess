@@ -1,5 +1,13 @@
-asteracea::component! {
-	pub Str()() -> &str
+mod old {
+	#![allow(deprecated)]
 
-	{ "Testing…" }
+	asteracea::component! {
+		pub Str()() -> &str
+
+		{ "Testing…" }
+	}
+}
+
+asteracea::components! {
+	
 }

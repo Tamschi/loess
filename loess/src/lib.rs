@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "nightly", feature(proc_macro_span))]
+
 use std::{
 	any::type_name,
 	collections::VecDeque,
@@ -34,8 +36,8 @@ impl Error {
 	}
 }
 
-impl ToTokens for Error {
-	fn to_tokens(&self, tokens: &mut TokenStream) {
+impl IntoTokens for Error {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let message = Literal::string(&self.message);
 		let span = self
 			.spans
@@ -47,9 +49,9 @@ impl ToTokens for Error {
 			.or_else(|| self.spans.first().copied())
 			.unwrap_or_else(Span::mixed_site);
 		quote_spanned! {span=>
-			::core::compile_error!(#message);
+			#root::core::compile_error!(#message);
 		}
-		.to_tokens(tokens);
+		.into_tokens(root, tokens);
 	}
 }
 
@@ -136,15 +138,40 @@ impl Errors {
 	}
 }
 
-impl ToTokens for Errors {
-	fn to_tokens(&self, tokens: &mut TokenStream) {
+pub trait IntoTokens {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>);
+
+	fn collect_tokens<T: Default + Extend<TokenTree>>(self, root: &TokenStream) -> T
+	where
+		Self: Sized,
+	{
+		let mut tokens = T::default();
+		self.into_tokens(root, &mut tokens);
+		tokens
+	}
+}
+
+impl IntoTokens for TokenTree {
+	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		tokens.extend([self])
+	}
+}
+
+impl IntoTokens for TokenStream {
+	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		tokens.extend(self);
+	}
+}
+
+impl IntoTokens for Errors {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let Some(highest_priority) = self.errors.iter().map(|error| error.priority).max() else {
 			return;
 		};
 
-		for error in self.errors.iter() {
+		for error in self.errors {
 			if error.priority == highest_priority {
-				error.to_tokens(tokens);
+				error.into_tokens(root, tokens);
 			}
 		}
 	}
@@ -153,9 +180,34 @@ impl ToTokens for Errors {
 pub struct Input {
 	pub tokens: VecDeque<TokenTree>,
 	pub end: Span,
+	_phantom: PhantomData<()>,
 }
 
 impl Input {
+	pub fn new(tokens: VecDeque<TokenTree>, after_end: Span) -> Self {
+		#[cfg(feature = "nightly")]
+		{
+			Self {
+				end: tokens
+					.back()
+					.map(|t| t.span().unwrap().end())
+					.unwrap_or(after_end.unwrap().start())
+					.into(),
+				tokens,
+				_phantom: PhantomData,
+			}
+		}
+
+		#[cfg(not(feature = "nightly"))]
+		{
+			Self {
+				tokens,
+				end: after_end,
+				_phantom: PhantomData,
+			}
+		}
+	}
+
 	pub fn pop_or_replace<'a, T, const N: usize>(
 		&'a mut self,
 		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
@@ -203,22 +255,31 @@ pub trait PopFrom {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized;
+
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
+	where
+		Self: PeekFrom + Sized,
+	{
+		Option::<Self>::pop_from(input, errors)
+	}
+}
+
+impl<T: PeekFrom + PopFrom> PopFrom for Option<T> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	where
+		Self: Sized,
+	{
+		T::peek_from(input)
+			.then(|| T::pop_from(input, errors))
+			.transpose()
+	}
 }
 
 pub trait PeekFrom {
 	fn peek_from(input: &Input) -> bool;
 }
 
-pub trait PeekPopFrom: PeekFrom + PopFrom {
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
-	where
-		Self: Sized,
-	{
-		Self::peek_from(input)
-			.then(|| Self::pop_from(input, errors))
-			.transpose()
-	}
-}
+pub trait PeekPopFrom: PeekFrom + PopFrom {}
 
 impl<T: PeekFrom + PopFrom> PeekPopFrom for T {}
 
