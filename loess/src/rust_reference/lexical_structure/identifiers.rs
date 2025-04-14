@@ -2,8 +2,8 @@ use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
 use crate::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PeekPopFrom, Placeholder, PopFrom,
-	SimpleSpanned, SpanOrFrontOfExt, next_placeholder_number,
+	Error, ErrorPriority, Errors, Input, IntoTokens, Placeholder, PopFrom, SimpleSpanned,
+	SpanOrFrontOfExt, next_placeholder_number,
 };
 
 #[derive(Debug)]

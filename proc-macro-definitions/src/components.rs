@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use component::Component;
 use loess::{Errors, Input, IntoTokens, PopFrom};
 use proc_macro2::{Span, TokenStream};
@@ -9,14 +7,12 @@ pub fn components(input: TokenStream) -> TokenStream {
 
 	let components = Vec::<Component>::pop_from(
 		&mut Input {
-			tokens: input.into_iter().collect::<VecDeque<_>>(),
+			tokens: input.into_iter().collect(),
 			end: Span::mixed_site(),
 		},
 		&mut errors,
 	)
 	.unwrap_or_default();
-
-	// dbg!((&errors, &components));
 
 	let root = TokenStream::new();
 	let mut output = TokenStream::new();

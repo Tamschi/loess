@@ -1,13 +1,14 @@
 use std::{
-	any::type_name,
 	collections::VecDeque,
 	fmt::Debug,
+	iter,
 	marker::PhantomData,
 	sync::atomic::{AtomicU64, Ordering},
 };
 
 use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
 use proc_macro2::{Literal, Punct, Span, TokenStream, TokenTree};
+use quote::quote_spanned;
 
 mod proc_macro2_impls;
 
@@ -149,6 +150,14 @@ pub trait IntoTokens {
 	}
 }
 
+impl<T: IntoTokens> IntoTokens for Option<T> {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		if let Some(value) = self {
+			value.into_tokens(root, tokens);
+		}
+	}
+}
+
 impl IntoTokens for TokenTree {
 	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		tokens.extend([self])
@@ -188,7 +197,12 @@ impl Input {
 		// This is optimisable to be essentially a no-op iff `Err`.
 		//TODO: Handle none-delimiter groups.
 		if self.tokens.len() < N {
-			Err(self.tokens.iter().map(|t| t.span()).collect::<Vec<_>>())
+			Err(self
+				.tokens
+				.iter()
+				.map(|t| t.span())
+				.chain(iter::once(self.end))
+				.collect::<Vec<_>>())
 		} else {
 			match f([(); N].map(|()| self.tokens.pop_front().expect("unreachable"))) {
 				Ok(value) => Ok(value),
@@ -237,6 +251,17 @@ pub trait PopFrom {
 	}
 }
 
+impl PopFrom for TokenTree {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	where
+		Self: Sized,
+	{
+		input.pop_or_replace(|[t]| Ok(t)).map_err(|spans| {
+			errors.push(Error::new(ErrorPriority::TOKEN, "Expected token.", spans))
+		})
+	}
+}
+
 impl<T: PeekFrom + PopFrom> PopFrom for Option<T> {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
@@ -252,12 +277,18 @@ pub trait PeekFrom {
 	fn peek_from(input: &Input) -> bool;
 }
 
+impl PeekFrom for TokenStream {
+	fn peek_from(_input: &Input) -> bool {
+		true
+	}
+}
+
 pub trait PeekPopFrom: PeekFrom + PopFrom {}
 
 impl<T: PeekFrom + PopFrom> PeekPopFrom for T {}
 
 const _: () = {
-	use std::{collections::VecDeque, fmt::Debug};
+	use std::collections::VecDeque;
 
 	use crate::{EndOfInput, Errors, PopFrom};
 
@@ -272,23 +303,21 @@ const _: () = {
 	impl<T: Default + IntoIterator<Item: PopFrom> + Extend<T::Item>> PopFrom for T
 	where
 		T: VecLike,
-		T::Item: 'static + Debug,
 	{
 		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 			let mut this = T::default();
 			while !input.is_empty() {
 				let before_len = input.len();
 
-				dbg!(type_name::<T::Item>());
-				match dbg!(T::Item::pop_from(input, errors)) {
-					Ok(item) => this.extend([dbg!(item)]),
+				match T::Item::pop_from(input, errors) {
+					Ok(item) => this.extend([item]),
 					Err(()) => {
 						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).ok();
 						return Ok(this);
 					}
 				}
 
-				if dbg!(input.len() == before_len) {
+				if input.len() == before_len {
 					EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors)
 						.expect_err("because of `while !input.is_empty()`");
 					break;
@@ -342,7 +371,7 @@ where
 	T: Debug,
 {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		Ok(Self(dbg!(T::pop_from(input, errors)).unwrap_or_default()))
+		Ok(Self(T::pop_from(input, errors).unwrap_or_default()))
 	}
 }
 
@@ -420,4 +449,3 @@ mod __ {
 }
 
 pub use __::UnwrapOrPlaceholder;
-use quote::{ToTokens, quote_spanned};
