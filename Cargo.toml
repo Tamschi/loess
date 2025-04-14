@@ -46,7 +46,6 @@ maintenance = { status = "experimental" } # This may differ between branches.
 [features]
 error-abort = [] # Reserved. Will be used to abort the process on GUI error escalation.
 force-unwind = [] # Force the use of panics for `Escalation` propagation. This may improve code size and app performance.
-nightly = ["asteracea_proc-macro-definitions/nightly"] # Better error spans at macro invocation end.
 
 [dependencies]
 asteracea_proc-macro-definitions = { path = "./proc-macro-definitions", version = "0.0.2" } # public

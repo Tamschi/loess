@@ -8,10 +8,10 @@ pub fn components(input: TokenStream) -> TokenStream {
 	let mut errors = Errors::new();
 
 	let components = Vec::<Component>::pop_from(
-		&mut Input::new(
-			input.into_iter().collect::<VecDeque<_>>(),
-			Span::mixed_site(),
-		),
+		&mut Input {
+			tokens: input.into_iter().collect::<VecDeque<_>>(),
+			end: Span::mixed_site(),
+		},
 		&mut errors,
 	)
 	.unwrap_or_default();

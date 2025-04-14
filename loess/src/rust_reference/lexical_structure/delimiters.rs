@@ -53,10 +53,10 @@ impl<T: PopFrom> PopFrom for CurlyBraces<T> {
 			.pop_or_replace(|ts| match ts {
 				[TokenTree::Group(braces)] if braces.delimiter() == Delimiter::Brace => Ok((
 					braces.delim_span(),
-					Input::new(
-						braces.stream().into_iter().collect::<VecDeque<_>>(),
-						braces.span_close(),
-					),
+					Input {
+						tokens: braces.stream().into_iter().collect::<VecDeque<_>>(),
+						end: braces.span_close(),
+					},
 				)),
 				other => Err(other),
 			})

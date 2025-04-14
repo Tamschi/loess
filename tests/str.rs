@@ -8,6 +8,4 @@ mod old {
 	}
 }
 
-asteracea::components! {
-	
-}
+asteracea::components! {}

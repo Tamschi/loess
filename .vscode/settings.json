@@ -15,8 +15,5 @@
 		"asteracea",
 		"preprocess",
 		"Punct"
-	],
-	"rust-analyzer.cargo.features": [
-		"_test"
 	]
 }

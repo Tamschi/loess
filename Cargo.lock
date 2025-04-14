@@ -358,7 +358,6 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "rustversion",
 ]
 
 [[package]]
@@ -589,9 +588,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.20"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
+checksum = "97477e48b4cf8603ad5f7aaf897467cf42ab4218a38ef76fb14c2d6773a6d6a8"
 
 [[package]]
 name = "scoped-tls"

@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "nightly", feature(proc_macro_span))]
-
 use std::{
 	any::type_name,
 	collections::VecDeque,
@@ -180,34 +178,9 @@ impl IntoTokens for Errors {
 pub struct Input {
 	pub tokens: VecDeque<TokenTree>,
 	pub end: Span,
-	_phantom: PhantomData<()>,
 }
 
 impl Input {
-	pub fn new(tokens: VecDeque<TokenTree>, after_end: Span) -> Self {
-		#[cfg(feature = "nightly")]
-		{
-			Self {
-				end: tokens
-					.back()
-					.map(|t| t.span().unwrap().end())
-					.unwrap_or(after_end.unwrap().start())
-					.into(),
-				tokens,
-				_phantom: PhantomData,
-			}
-		}
-
-		#[cfg(not(feature = "nightly"))]
-		{
-			Self {
-				tokens,
-				end: after_end,
-				_phantom: PhantomData,
-			}
-		}
-	}
-
 	pub fn pop_or_replace<'a, T, const N: usize>(
 		&'a mut self,
 		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
@@ -284,8 +257,7 @@ pub trait PeekPopFrom: PeekFrom + PopFrom {}
 impl<T: PeekFrom + PopFrom> PeekPopFrom for T {}
 
 const _: () = {
-	use std::collections::VecDeque;
-	use std::fmt::Debug;
+	use std::{collections::VecDeque, fmt::Debug};
 
 	use crate::{EndOfInput, Errors, PopFrom};
 
