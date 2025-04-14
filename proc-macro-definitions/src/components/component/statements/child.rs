@@ -8,15 +8,9 @@ use proc_macro2::TokenStream;
 use super::Statement;
 
 grammar! {
-	pub struct Child: PopFrom, IntoTokens {
+	pub struct Child: PeekFrom, PopFrom, IntoTokens {
 		pub identifier: ChildIdentifier,
 		pub children: ChildChildren,
-	}
-}
-
-impl PeekFrom for Child {
-	fn peek_from(input: &Input) -> bool {
-		ChildIdentifier::peek_from(input)
 	}
 }
 

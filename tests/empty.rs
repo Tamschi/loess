@@ -20,4 +20,18 @@ asteracea::components! {
 	async Empty8 -> web {}
 	const async Empty9 -> web {}
 	const async Empty10()[] -> web {}
+
+	Empty11 -> web {
+		{}
+	}
+	Empty12 -> web {
+		{{{{{{{{{{{{{{{{{{{{{{{{{}}}}}}}}}}}}}}}}}}}}}}}}}
+	}
+
+	Empty13 -> web {
+		;
+	}
+	Empty14 -> web {
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	}
 }

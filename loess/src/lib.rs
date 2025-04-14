@@ -514,6 +514,7 @@ macro_rules! grammar {
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis struct $name:ident$(: $(
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
 		),*)? {
@@ -524,6 +525,13 @@ macro_rules! grammar {
 	} => {
 		$vis struct $name {
 			$($field_vis $field: $type,)*
+		}
+
+		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::___::bool {
+				$crate::grammar!(@peek_first input $($type,)*)
+			}
 		}
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
@@ -547,6 +555,9 @@ macro_rules! grammar {
 
 		$crate::grammar!($($tt)*);
 	};
+	(@peek_first $input:ident $type:ty, $($rest:ty,)*) => (
+		<$type as $crate::PeekFrom>::peek_from($input);
+	);
 	{$t:tt $($tt:tt)*} => {
 		// Error
 		::core::compile_error!($crate::___::concat!("Unexpected grammar input: ", $crate::___::stringify!($t $($tt)*)));
@@ -556,6 +567,7 @@ macro_rules! grammar {
 
 #[doc(hidden)]
 pub mod ___ {
+	pub use core::primitive::bool;
 	pub use core::{concat, iter::Extend, result::Result, stringify};
 	pub use proc_macro2::{TokenStream, TokenTree};
 }

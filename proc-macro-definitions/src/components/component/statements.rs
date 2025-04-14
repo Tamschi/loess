@@ -1,7 +1,12 @@
-use loess::grammar;
+use loess::{
+	grammar,
+	rust_reference::{CurlyBraces, Semi},
+};
 
 grammar! {
 	pub enum Statement: PopFrom, IntoTokens {
+		Block(CurlyBraces<Vec<Statement>>),
+		Semi(Semi),
 		Child(child::Child),
 	} else "Expected Asteracea statement.";
 }
