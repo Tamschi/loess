@@ -1,6 +1,6 @@
 use loess::{
 	grammar,
-	grammar::{
+	rust_grammar::{
 		Async, Const, CurlyBraces, Identifier, Parentheses, RArrow, SquareBrackets, Visibility,
 	},
 	IntoTokens, SimpleSpanned,

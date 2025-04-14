@@ -12,7 +12,7 @@ use quote::quote_spanned;
 
 mod proc_macro2_impls;
 
-pub mod grammar;
+pub mod rust_grammar;
 
 #[derive(Debug)]
 pub struct Error {
@@ -530,7 +530,7 @@ macro_rules! grammar {
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
 		impl $crate::PeekFrom for $name {
 			fn peek_from(input: &$crate::Input) -> $crate::___::bool {
-				$crate::grammar!(@peek_first input $($type,)*)
+				$crate::grammar!(@peek_first $name input $($type,)*)
 			}
 		}
 
@@ -555,8 +555,11 @@ macro_rules! grammar {
 
 		$crate::grammar!($($tt)*);
 	};
-	(@peek_first $input:ident $type:ty, $($rest:ty,)*) => (
+	(@peek_first $name:ident $input:ident $type:ty, $($rest:ty,)*) => (
 		<$type as $crate::PeekFrom>::peek_from($input);
+	);
+	(@peek_first $name:ident $input:ident) => (
+		::core::compile_error!($crate::___::concat!("To implement `PeekFrom` for `", $crate::___::stringify!($name), "`, at least one field is necessary."));
 	);
 	{$t:tt $($tt:tt)*} => {
 		// Error

@@ -110,5 +110,7 @@ macro_rules! ident_token {
 	};
 }
 
-ident_token!(Const = "const" => "Expected `const`.");
 ident_token!(Async = "async" => "Expected `async`.");
+ident_token!(Const = "const" => "Expected `const`.");
+ident_token!(For = "for" => "Expected `for`.");
+ident_token!(In = "in" => "Expected `in`.");

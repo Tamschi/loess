@@ -1,6 +1,6 @@
 use loess::{
 	grammar,
-	grammar::{CurlyBraces, Semi},
+	rust_grammar::{CurlyBraces, For, In, Parentheses, Semi},
 };
 
 grammar! {

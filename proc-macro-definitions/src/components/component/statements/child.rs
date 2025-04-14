@@ -1,6 +1,6 @@
 use loess::{
 	grammar,
-	grammar::{CurlyBraces, Identifier, Semi},
+	rust_grammar::{CurlyBraces, Identifier, Semi},
 	Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom, SimpleSpanned,
 };
 use proc_macro2::TokenStream;
