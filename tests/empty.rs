@@ -10,5 +10,7 @@ mod old {
 }
 
 asteracea::components! {
-	Empty -> web {}
+	Empty -> web {a a 1}
+	Empty2 -> web {a 2 3}
+	a 4
 }

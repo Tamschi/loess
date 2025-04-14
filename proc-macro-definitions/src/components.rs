@@ -1,35 +1,23 @@
 use std::collections::VecDeque;
 
 use component::Component;
-use loess::{Error, PopFrom};
+use loess::{Errors, PopFrom};
 use proc_macro2::{Span, TokenStream};
 use quote::quote_spanned;
 
 pub fn components(input: TokenStream) -> TokenStream {
-	let mut errors = vec![];
-	let mut components = vec![];
-
 	let mut input = input.into_iter().collect::<VecDeque<_>>();
 
-	while !input.is_empty() {
-		let before_len = input.len();
+	let mut errors = Errors::new();
 
-		match Component::pop_from(&mut input, &mut errors) {
-			Ok(component) => components.push(component),
-			Err(()) => break,
-		}
+	//TODO: Greedy parsing.
+	let components = Vec::<Component>::pop_from(&mut input, &mut errors).unwrap_or_default();
 
-		if input.len() == before_len {
-			let token = input.pop_front().expect("unreachable");
-			let span = token.span().resolved_at(Span::call_site());
+	dbg!((&errors, &components));
 
-			errors.push(Error::new(format!("Unexpected token: `{token}`"), [span]));
-			break;
-		}
-	}
-
+	//TODO: Interlace errors and components?
 	quote_spanned! {Span::mixed_site()=>
-		#(#errors)*
+		#errors
 		#(#components)*
 	}
 }

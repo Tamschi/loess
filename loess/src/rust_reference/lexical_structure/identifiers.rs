@@ -3,13 +3,16 @@ use std::collections::VecDeque;
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
-use crate::{Error, Placeholder, PopFrom, SimpleSpanned, next_placeholder_number};
+use crate::{
+	Error, ErrorPriority, Errors, Placeholder, PopFrom, SimpleSpanned, next_placeholder_number,
+};
 
+#[derive(Debug)]
 pub struct Identifier(pub Ident);
 
 /// See <https://doc.rust-lang.org/stable/reference/identifiers.html?highlight=IDENTIFIER#identifiers> as of 2025-04-13.
 impl PopFrom for Identifier {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Vec<Error>) -> Result<Self, ()> {
+	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
 		let ident = Ident::pop_from(input, errors)?;
 		if (&["r#crate", "r#self", "r#super", "r#Self"])
 			.into_iter()
@@ -19,7 +22,11 @@ impl PopFrom for Identifier {
 		{
 			let span = ident.span();
 			input.push_front(TokenTree::Ident(ident));
-			Err(errors.push(Error::new("Expected Identifier.", [span])))
+			Err(errors.push(Error::new(
+				ErrorPriority::GRAMMAR,
+				"Expected Identifier.",
+				[span],
+			)))
 		} else {
 			Ok(Self(ident))
 		}

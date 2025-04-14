@@ -1,8 +1,9 @@
 use proc_macro2::{Punct, Spacing, Span, TokenTree};
 
-use crate::{Error, PopFrom, PopOrReplaceExt, WithSpanExt};
+use crate::{Error, ErrorPriority, Errors, PopFrom, PopOrReplaceExt, WithSpanExt};
 
 /// See <https://doc.rust-lang.org/stable/reference/tokens.html?highlight=arrow#punctuation> as of 2025-04-13.
+#[derive(Debug)]
 pub struct RArrow {
 	pub minus: Punct,
 	pub gt: Punct,
@@ -20,7 +21,7 @@ impl Default for RArrow {
 impl PopFrom for RArrow {
 	fn pop_from(
 		input: &mut std::collections::VecDeque<proc_macro2::TokenTree>,
-		errors: &mut Vec<crate::Error>,
+		errors: &mut Errors,
 	) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|ts| match ts {
@@ -34,6 +35,6 @@ impl PopFrom for RArrow {
 				}
 				other => Err(other),
 			})
-			.map_err(|spans| errors.push(Error::new("Expected `->`.", spans)))
+			.map_err(|spans| errors.push(Error::new(ErrorPriority::TOKEN, "Expected `->`.", spans)))
 	}
 }
