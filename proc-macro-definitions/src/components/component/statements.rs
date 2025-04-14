@@ -1,6 +1,6 @@
 use loess::{
 	grammar,
-	rust_reference::{CurlyBraces, Semi},
+	grammar::{CurlyBraces, Semi},
 };
 
 grammar! {

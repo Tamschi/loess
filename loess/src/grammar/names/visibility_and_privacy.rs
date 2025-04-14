@@ -2,7 +2,7 @@ use proc_macro2::{Ident, TokenStream, TokenTree};
 
 use crate::{
 	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, SpanOrFrontOfExt,
-	rust_reference::Parentheses,
+	grammar::Parentheses,
 };
 
 pub struct Visibility<T = TokenStream> {

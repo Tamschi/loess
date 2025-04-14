@@ -12,7 +12,7 @@ use quote::quote_spanned;
 
 mod proc_macro2_impls;
 
-pub mod rust_reference;
+pub mod grammar;
 
 #[derive(Debug)]
 pub struct Error {
