@@ -1,10 +1,9 @@
-use std::collections::VecDeque;
-
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
 use crate::{
-	Error, ErrorPriority, Errors, Placeholder, PopFrom, SimpleSpanned, next_placeholder_number,
+	Error, ErrorPriority, Errors, Input, PeekPopFrom, Placeholder, PopFrom, SimpleSpanned,
+	SpanOrFrontOfExt, next_placeholder_number,
 };
 
 #[derive(Debug)]
@@ -12,23 +11,44 @@ pub struct Identifier(pub Ident);
 
 /// See <https://doc.rust-lang.org/stable/reference/identifiers.html?highlight=IDENTIFIER#identifiers> as of 2025-04-13.
 impl PopFrom for Identifier {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
-		let ident = Ident::pop_from(input, errors)?;
-		if (&["r#crate", "r#self", "r#super", "r#Self"])
-			.into_iter()
-			.any(|s| ident == s)
-			|| is_strict_keyword(&ident)
-			|| is_reserved_keyword(&ident)
-		{
-			let span = ident.span();
-			input.push_front(TokenTree::Ident(ident));
-			Err(errors.push(Error::new(
-				ErrorPriority::GRAMMAR,
-				"Expected Identifier.",
-				[span],
-			)))
-		} else {
-			Ok(Self(ident))
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		let ident = Ident::peek_pop_from(input, errors)?;
+
+		match ident {
+			Some(ident)
+				if !(["r#crate", "r#self", "r#super", "r#Self"]
+					.into_iter()
+					.any(|s| ident == s)
+					|| is_strict_keyword(&ident)
+					|| is_reserved_keyword(&ident)) =>
+			{
+				Ok(Self(ident))
+			}
+			ident => Err({
+				let span = ident.span_or_front_of(input);
+
+				errors.push(Error::new(
+					ErrorPriority::GRAMMAR,
+					match &ident {
+						None => "Expected Identifier.".to_string(),
+						Some(ident) => {
+							if ident.to_string().starts_with("r#") {
+								format!(
+									"Expected Identifier. (`{}` cannot be a raw identifier.)",
+									&ident.to_string()[2..]
+								)
+							} else {
+								format!("Expected Identifier. (`{ident}` is a keyword.)")
+							}
+						}
+					},
+					[span],
+				));
+
+				if let Some(ident) = ident {
+					input.push_front(TokenTree::Ident(ident));
+				}
+			}),
 		}
 	}
 }

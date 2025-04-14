@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use loess::{
 	rust_reference::{CurlyBraces, Identifier, RArrow},
-	Defaulted, Error, Errors, PopFrom, SimpleSpanned,
+	Defaulted, Error, Errors, Input, PopFrom, SimpleSpanned,
 };
 use proc_macro2::{Ident, Span, TokenTree};
 use quote::{quote_spanned, ToTokens};
@@ -12,11 +12,11 @@ pub struct Component {
 	name: Identifier,
 	r_arrow: RArrow,
 	substrate: Identifier,
-	body: CurlyBraces<Vec<Ident>>,
+	body: CurlyBraces<Vec<Identifier>>,
 }
 
 impl PopFrom for Component {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		Ok(Self {
 			name: Identifier::pop_from(input, errors)?,
 			r_arrow: RArrow::pop_from(input, errors)?,

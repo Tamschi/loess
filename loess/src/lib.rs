@@ -150,17 +150,81 @@ impl ToTokens for Errors {
 	}
 }
 
+pub struct Input {
+	pub tokens: VecDeque<TokenTree>,
+	pub end: Span,
+}
+
+impl Input {
+	pub fn pop_or_replace<'a, T, const N: usize>(
+		&'a mut self,
+		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
+	) -> Result<T, impl 'a + IntoIterator<Item = Span>> {
+		// This is optimisable to be essentially a no-op iff `Err`.
+		//TODO: Handle none-delimiter groups.
+		if self.tokens.len() < N {
+			Err(self.tokens.iter().map(|t| t.span()).collect::<Vec<_>>())
+		} else {
+			match f([(); N].map(|()| self.tokens.pop_front().expect("unreachable"))) {
+				Ok(value) => Ok(value),
+				Err(ts) => {
+					let spans = ts.iter().map(|t| t.span()).collect();
+					for t in ts.into_iter().rev() {
+						self.tokens.push_front(t);
+					}
+					Err(spans)
+				}
+			}
+		}
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.tokens.is_empty()
+	}
+
+	pub fn len(&self) -> usize {
+		self.tokens.len()
+	}
+
+	pub fn front(&self) -> Option<&TokenTree> {
+		self.tokens.front()
+	}
+
+	pub fn front_span(&self) -> Span {
+		self.tokens.front().map(TokenTree::span).unwrap_or(self.end)
+	}
+
+	pub fn push_front(&mut self, t: TokenTree) {
+		self.tokens.push_front(t)
+	}
+}
+
 pub trait PopFrom {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized;
 }
 
+pub trait PeekFrom {
+	fn peek_from(input: &Input) -> bool;
+}
+
+pub trait PeekPopFrom: PeekFrom + PopFrom {
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
+	where
+		Self: Sized,
+	{
+		Self::peek_from(input)
+			.then(|| Self::pop_from(input, errors))
+			.transpose()
+	}
+}
+
+impl<T: PeekFrom + PopFrom> PeekPopFrom for T {}
+
 const _: () = {
 	use std::collections::VecDeque;
 	use std::fmt::Debug;
-
-	use proc_macro2::TokenTree;
 
 	use crate::{EndOfInput, Errors, PopFrom};
 
@@ -177,7 +241,7 @@ const _: () = {
 		T: VecLike,
 		T::Item: 'static + Debug,
 	{
-		fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
+		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 			let mut this = T::default();
 			while !input.is_empty() {
 				let before_len = input.len();
@@ -206,7 +270,7 @@ const _: () = {
 pub struct Exhaustive<T, P: ConstErrorPriority>(pub T, PhantomData<P>);
 
 impl<T: PopFrom, P: ConstErrorPriority> PopFrom for Exhaustive<T, P> {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		let value = T::pop_from(input, errors);
 		EndOfInput::<UNCONSUMED_INPUT>::pop_from(input, errors).ok();
 		Ok(Self(value?, PhantomData))
@@ -217,12 +281,12 @@ impl<T: PopFrom, P: ConstErrorPriority> PopFrom for Exhaustive<T, P> {
 pub struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
 
 impl<P: ConstErrorPriority> PopFrom for EndOfInput<P> {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.is_empty()
 			.then_some(Self(PhantomData))
 			.ok_or_else(|| {
-				let rest = input.iter().cloned().collect::<TokenStream>();
+				let rest = input.tokens.iter().cloned().collect::<TokenStream>();
 				errors.push(Error::new(
 					P::PRIORITY,
 					format!("Unconsumed tokens: `{rest}`"),
@@ -244,39 +308,8 @@ impl<T: Default + PopFrom> PopFrom for Defaulted<T>
 where
 	T: Debug,
 {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		Ok(Self(dbg!(T::pop_from(input, errors)).unwrap_or_default()))
-	}
-}
-
-pub trait PopOrReplaceExt {
-	fn pop_or_replace<'a, T, const N: usize>(
-		&'a mut self,
-		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
-	) -> Result<T, impl 'a + IntoIterator<Item = Span>>;
-}
-
-impl PopOrReplaceExt for VecDeque<TokenTree> {
-	fn pop_or_replace<'a, T, const N: usize>(
-		&'a mut self,
-		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
-	) -> Result<T, impl 'a + IntoIterator<Item = Span>> {
-		// This is optimisable to be essentially a no-op iff `Err`.
-		//TODO: Handle none-delimiter groups.
-		if self.len() < N {
-			Err(self.iter().map(|t| t.span()).collect::<Vec<_>>())
-		} else {
-			match f([(); N].map(|()| self.pop_front().expect("unreachable"))) {
-				Ok(value) => Ok(value),
-				Err(ts) => {
-					let spans = ts.iter().map(|t| t.span()).collect();
-					for t in ts.into_iter().rev() {
-						self.push_front(t);
-					}
-					Err(spans)
-				}
-			}
-		}
 	}
 }
 
@@ -303,6 +336,24 @@ pub trait Placeholder {
 
 pub trait SimpleSpanned {
 	fn span(&self) -> Span;
+}
+
+impl<T: SimpleSpanned> SimpleSpanned for &T {
+	fn span(&self) -> Span {
+		(*self).span()
+	}
+}
+
+pub trait SpanOrFrontOfExt {
+	fn span_or_front_of(&self, input: &Input) -> Span;
+}
+
+impl<T: SimpleSpanned> SpanOrFrontOfExt for Option<T> {
+	fn span_or_front_of(&self, input: &Input) -> Span {
+		self.as_ref()
+			.map(|t| t.span())
+			.unwrap_or(input.front_span())
+	}
 }
 
 mod __ {

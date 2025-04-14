@@ -4,7 +4,7 @@ use proc_macro2::{Delimiter, Group, TokenStream, TokenTree, extra::DelimSpan};
 use quote::ToTokens;
 
 use crate::{
-	Error, ErrorPriority, Errors, Exhaustive, PopFrom, PopOrReplaceExt,
+	Error, ErrorPriority, Errors, Exhaustive, Input, PopFrom,
 	error_priorities::UNCONSUMED_IN_DELIMITER,
 };
 
@@ -47,13 +47,16 @@ impl<T, E> CurlyBraces<Result<T, E>> {
 }
 
 impl<T: PopFrom> PopFrom for CurlyBraces<T> {
-	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		dbg!(());
 		let (span, mut contents) = input
 			.pop_or_replace(|ts| match ts {
 				[TokenTree::Group(braces)] if braces.delimiter() == Delimiter::Brace => Ok((
 					braces.delim_span(),
-					braces.stream().into_iter().collect::<VecDeque<_>>(),
+					Input {
+						tokens: braces.stream().into_iter().collect::<VecDeque<_>>(),
+						end: braces.span_close(),
+					},
 				)),
 				other => Err(other),
 			})
