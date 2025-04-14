@@ -19,7 +19,7 @@ impl PopFrom for Component {
 	fn pop_from(input: &mut VecDeque<TokenTree>, errors: &mut Errors) -> Result<Self, ()> {
 		Ok(Self {
 			name: Identifier::pop_from(input, errors)?,
-			r_arrow: RArrow::pop_from(input, errors).unwrap_or_default(),
+			r_arrow: RArrow::pop_from(input, errors)?,
 			substrate: Identifier::pop_from(input, errors)?,
 			body: CurlyBraces::pop_from(input, errors)?,
 		})
