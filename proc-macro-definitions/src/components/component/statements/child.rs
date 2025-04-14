@@ -1,4 +1,5 @@
 use loess::{
+	grammar,
 	rust_reference::{CurlyBraces, Identifier, Semi},
 	Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom, SimpleSpanned,
 };
@@ -6,9 +7,11 @@ use proc_macro2::TokenStream;
 
 use super::Statement;
 
-pub struct Child {
-	pub identifier: ChildIdentifier,
-	pub children: ChildChildren,
+grammar! {
+	pub struct Child: PopFrom, IntoTokens {
+		pub identifier: ChildIdentifier,
+		pub children: ChildChildren,
+	}
 }
 
 impl PeekFrom for Child {
@@ -17,19 +20,12 @@ impl PeekFrom for Child {
 	}
 }
 
-impl PopFrom for Child {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		Ok(Self {
-			identifier: ChildIdentifier::pop_from(input, errors)?,
-			children: ChildChildren::pop_from(input, errors)?,
-		})
-	}
-}
-
-pub enum ChildIdentifier {
-	Local(Identifier),
-	Substrate(Identifier),
-	Qualified(TokenStream),
+grammar! {
+	pub enum ChildIdentifier: IntoTokens {
+		Local(Identifier),
+		Substrate(Identifier),
+		Qualified(TokenStream),
+	} else "Expected child identifier.";
 }
 
 impl PeekFrom for ChildIdentifier {
@@ -71,23 +67,9 @@ impl PopFrom for ChildIdentifier {
 	}
 }
 
-pub enum ChildChildren {
-	Void(Semi),
-	Braces(CurlyBraces<Vec<Statement>>), //TODO: Named slots.
-}
-
-impl PopFrom for ChildChildren {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		Ok(if let Some(semi) = Semi::peek_pop_from(input, errors)? {
-			Self::Void(semi)
-		} else if let Some(braces) = CurlyBraces::peek_pop_from(input, errors)? {
-			Self::Braces(braces)
-		} else {
-			return Err(errors.push(Error::new(
-				ErrorPriority::GRAMMAR,
-				"Expected `;` or `{`.",
-				[input.front_span()],
-			)));
-		})
-	}
+grammar! {
+	pub enum ChildChildren: PopFrom, IntoTokens {
+		Void(Semi),
+		Braces(CurlyBraces<Vec<Statement>>), //TODO: Named slots.
+	} else "Expected `;` or `{`.";
 }

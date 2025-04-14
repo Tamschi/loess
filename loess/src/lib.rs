@@ -158,9 +158,23 @@ impl<T: IntoTokens> IntoTokens for Option<T> {
 	}
 }
 
+impl<T: IntoTokens> IntoTokens for Vec<T> {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		for value in self {
+			value.into_tokens(root, tokens);
+		}
+	}
+}
+
 impl IntoTokens for TokenTree {
 	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		tokens.extend([self])
+	}
+}
+
+impl IntoTokens for Punct {
+	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		tokens.extend([TokenTree::Punct(self)])
 	}
 }
 
@@ -289,10 +303,6 @@ impl<T> PeekFrom for Vec<T> {
 		true
 	}
 }
-
-pub trait PeekPopFrom: PeekFrom + PopFrom {}
-
-impl<T: PeekFrom + PopFrom> PeekPopFrom for T {}
 
 const _: () = {
 	use std::collections::VecDeque;
@@ -456,3 +466,96 @@ mod __ {
 }
 
 pub use __::UnwrapOrPlaceholder;
+
+#[macro_export]
+macro_rules! grammar {
+	{
+		$(#[$($attr:tt)*])*
+		$vis:vis enum $name:ident$(: $(
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+		),*)? {
+			$($variant:ident($($type:ty),*$(,)?)),*$(,)?
+		} else $error:expr;
+
+		$($tt:tt)*
+	} => {
+		$(#[$($attr)*])*
+		$vis enum $name {
+			$($variant($($type),*),)*
+		}
+
+		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
+		impl $crate::PopFrom for $name {
+			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::___::Result<Self, ()> {
+				$crate::___::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopFrom>::peek_pop_from(input, errors)?),*) {
+					Self::$variant(values)
+				} else)* {
+					return $crate::___::Result::Err(errors.push($crate::Error::new(
+						$crate::ErrorPriority::GRAMMAR,
+						$error,
+						[input.front_span()],
+					)));
+				})
+			}
+		}
+
+		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
+		impl $crate::IntoTokens for $name {
+			fn into_tokens(self, root: &$crate::___::TokenStream, tokens: &mut impl $crate::___::Extend<$crate::___::TokenTree>) {
+				match self {
+					$(Self::$variant(value) => $crate::IntoTokens::into_tokens(value, root, tokens),)*
+				}
+			}
+		}
+
+		$crate::grammar!($($tt)*);
+	};
+	{
+		$(#[$($attr:tt)*])*
+		$vis:vis struct $name:ident$(: $(
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+		),*)? {
+			$($field_vis:vis $field:ident: $type:ty),*$(,)?
+		}
+
+		$($tt:tt)*
+	} => {
+		$vis struct $name {
+			$($field_vis $field: $type,)*
+		}
+
+		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
+		impl $crate::PopFrom for $name {
+			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::___::Result<Self, ()> {
+				$crate::___::Result::Ok(Self {
+					$($field: <$type as $crate::PopFrom>::pop_from(input, errors)?,)*
+				})
+			}
+		}
+
+		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
+		impl $crate::IntoTokens for $name {
+			fn into_tokens(self, root: &$crate::___::TokenStream, tokens: &mut impl $crate::___::Extend<$crate::___::TokenTree>) {
+				let Self {
+					$($field,)*
+				} = self;
+				$($crate::IntoTokens::into_tokens($field, root, tokens);)*
+			}
+		}
+
+		$crate::grammar!($($tt)*);
+	};
+	{$t:tt $($tt:tt)*} => {
+		// Error
+		::core::compile_error!($crate::___::concat!("Unexpected grammar input: ", $crate::___::stringify!($t $($tt)*)));
+	};
+	{} => {}; // Stop.
+}
+
+#[doc(hidden)]
+pub mod ___ {
+	pub use core::{concat, iter::Extend, result::Result, stringify};
+	pub use proc_macro2::{TokenStream, TokenTree};
+}

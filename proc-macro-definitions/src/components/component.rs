@@ -1,45 +1,32 @@
 use loess::{
+	grammar,
 	rust_reference::{
 		Async, Const, CurlyBraces, Identifier, Parentheses, RArrow, SquareBrackets, Visibility,
 	},
-	Errors, Input, IntoTokens, PopFrom, SimpleSpanned,
+	IntoTokens, SimpleSpanned,
 };
-use proc_macro2::{Span, TokenStream, TokenTree};
+use proc_macro2::{TokenStream, TokenTree};
 use quote::quote_spanned;
 use statements::Statement;
 
 pub mod statements;
 
-pub struct Component {
-	visibility: Option<Visibility>,
-	r#const: Option<Const>,
-	r#async: Option<Async>,
-	name: Identifier,
-	constructor_args: Option<Parentheses>,
-	render_args: Option<SquareBrackets>,
-	r_arrow: RArrow,
-	substrate: Identifier,
-	body: CurlyBraces<Vec<Statement>>,
-}
-
-impl PopFrom for Component {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		Ok(Self {
-			visibility: Visibility::peek_pop_from(input, errors)?,
-			r#const: Const::peek_pop_from(input, errors)?,
-			r#async: Async::peek_pop_from(input, errors)?,
-			name: Identifier::pop_from(input, errors)?,
-			constructor_args: Parentheses::peek_pop_from(input, errors)?,
-			render_args: SquareBrackets::peek_pop_from(input, errors)?,
-			r_arrow: RArrow::pop_from(input, errors)?,
-			substrate: Identifier::pop_from(input, errors)?,
-			body: CurlyBraces::pop_from(input, errors)?,
-		})
+grammar! {
+	pub struct Component: PopFrom, IntoTokens {
+		pub visibility: Option<Visibility>,
+		pub r#const: Option<Const>,
+		pub r#async: Option<Async>,
+		pub name: Identifier,
+		pub constructor_args: Option<Parentheses>,
+		pub render_args: Option<SquareBrackets>,
+		pub r_arrow: RArrow,
+		pub substrate: Identifier,
+		pub body: CurlyBraces<Vec<Statement>>,
 	}
 }
 
-impl IntoTokens for Component {
-	fn into_tokens(self, root: &proc_macro2::TokenStream, tokens: &mut impl Extend<TokenTree>) {
+impl Component {
+	pub fn transform(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let Self {
 			visibility,
 			r#const,

@@ -18,7 +18,7 @@ pub fn components(input: TokenStream) -> TokenStream {
 	let mut output = TokenStream::new();
 	errors.into_tokens(&root, &mut output);
 	for component in components {
-		component.into_tokens(&root, &mut output)
+		component.transform(&root, &mut output)
 	}
 	output
 }

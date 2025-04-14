@@ -33,6 +33,13 @@ impl PopFrom for RArrow {
 	}
 }
 
+impl IntoTokens for RArrow {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens);
+		self.1.into_tokens(root, tokens);
+	}
+}
+
 pub struct Semi(pub Punct);
 
 impl Default for Semi {
@@ -60,6 +67,12 @@ impl PopFrom for Semi {
 			.map_err(|spans| {
 				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `;`.", spans))
 			})
+	}
+}
+
+impl IntoTokens for Semi {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens)
 	}
 }
 
