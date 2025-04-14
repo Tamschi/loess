@@ -76,11 +76,11 @@ impl ErrorPriority {
 		Self(self.0.next_down())
 	}
 
-	const TOKEN: Self = Self::new(0.);
-	const GRAMMAR: Self = Self::new(0.);
-	const UNCONSUMED_AFTER_REPEATS: Self = Self::new(-1.);
-	const UNCONSUMED_IN_DELIMITER: Self = Self::new(-2.);
-	const UNCONSUMED_INPUT: Self = Self::new(-3.);
+	pub const TOKEN: Self = Self::new(0.);
+	pub const GRAMMAR: Self = Self::new(0.);
+	pub const UNCONSUMED_AFTER_REPEATS: Self = Self::new(-1.);
+	pub const UNCONSUMED_IN_DELIMITER: Self = Self::new(-2.);
+	pub const UNCONSUMED_INPUT: Self = Self::new(-3.);
 }
 
 pub mod error_priorities {
@@ -278,6 +278,13 @@ pub trait PeekFrom {
 }
 
 impl PeekFrom for TokenStream {
+	fn peek_from(_input: &Input) -> bool {
+		true
+	}
+}
+
+/// **Always** succeeds.
+impl<T> PeekFrom for Vec<T> {
 	fn peek_from(_input: &Input) -> bool {
 		true
 	}

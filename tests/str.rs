@@ -7,5 +7,3 @@ mod old {
 		{ "Testing…" }
 	}
 }
-
-asteracea::components! {}

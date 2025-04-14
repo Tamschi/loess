@@ -8,12 +8,13 @@ use crate::{
 };
 
 macro_rules! delimiter_struct {
-	($name:ident, $delimiter:expr) => {
-		pub struct $name<T> {
+	($name:ident, $delimiter:expr, $error:literal) => {
+		pub struct $name<T = TokenStream> {
 			pub span: DelimSpan,
 			pub contents: T,
 		}
 
+		/// Checks for the delimiters **and contents**.
 		impl<T: PeekFrom> PeekFrom for $name<T> {
 			fn peek_from(input: &Input) -> bool {
 				match input.front() {
@@ -74,7 +75,7 @@ macro_rules! delimiter_struct {
 						other => Err(other),
 					})
 					.map_err(|spans| {
-						errors.push(Error::new(ErrorPriority::TOKEN, "Expected `{…}`.", spans))
+						errors.push(Error::new(ErrorPriority::TOKEN, $error, spans))
 					})?;
 
 				Ok(Self {
@@ -98,6 +99,6 @@ macro_rules! delimiter_struct {
 	};
 }
 
-delimiter_struct!(CurlyBraces, Delimiter::Brace);
-delimiter_struct!(SquareBrackets, Delimiter::Bracket);
-delimiter_struct!(Parentheses, Delimiter::Parenthesis);
+delimiter_struct!(CurlyBraces, Delimiter::Brace, "Expected `{`.");
+delimiter_struct!(SquareBrackets, Delimiter::Bracket, "Expected `[`.");
+delimiter_struct!(Parentheses, Delimiter::Parenthesis, "Expected `(`.");

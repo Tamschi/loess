@@ -2,12 +2,26 @@ use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
 use crate::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, Placeholder, PopFrom, SimpleSpanned,
+	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, Placeholder, PopFrom, SimpleSpanned,
 	SpanOrFrontOfExt, next_placeholder_number,
 };
 
 #[derive(Debug)]
 pub struct Identifier(pub Ident);
+
+impl PeekFrom for Identifier {
+	fn peek_from(input: &Input) -> bool {
+		matches!(
+			input.front(),
+			Some(TokenTree::Ident(ident))
+				if !(["r#crate", "r#self", "r#super", "r#Self"]
+					.into_iter()
+					.any(|s| ident == s)
+					|| is_strict_keyword(&ident)
+					|| is_reserved_keyword(&ident)),
+		)
+	}
+}
 
 /// See <https://doc.rust-lang.org/stable/reference/identifiers.html?highlight=IDENTIFIER#identifiers> as of 2025-04-13.
 impl PopFrom for Identifier {
