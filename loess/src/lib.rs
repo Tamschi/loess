@@ -1,5 +1,5 @@
 use std::{
-	any::{TypeId, type_name},
+	any::type_name,
 	collections::VecDeque,
 	fmt::Debug,
 	marker::PhantomData,

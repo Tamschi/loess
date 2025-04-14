@@ -35,6 +35,6 @@ impl PopFrom for RArrow {
 				}
 				other => Err(other),
 			})
-			.map_err(|spans| errors.push(Error::new(ErrorPriority::TOKEN, "Expected `->`.", spans)))
+			.map_err(|spans| errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `->`.", spans)))
 	}
 }
