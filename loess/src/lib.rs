@@ -572,7 +572,6 @@ macro_rules! grammar {
 
 #[doc(hidden)]
 pub mod __ {
-	pub use core::primitive::bool;
-	pub use core::{concat, iter::Extend, result::Result, stringify};
+	pub use core::{concat, iter::Extend, primitive::bool, result::Result, stringify};
 	pub use proc_macro2::{TokenStream, TokenTree};
 }
