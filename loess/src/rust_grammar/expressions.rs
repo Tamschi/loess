@@ -7,6 +7,9 @@ use syn::{
 
 use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PopFrom, grammar};
 
+mod literals;
+pub use literals::*;
+
 grammar! {
 	pub struct Expression: IntoTokens {
 		syn: Expr,

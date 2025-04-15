@@ -1,9 +1,13 @@
 use std::collections::VecDeque;
+use std::{
+	any::TypeId,
+	panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
+};
 
 use proc_macro2::{Delimiter, Group, TokenStream, TokenTree, extra::DelimSpan};
 
 use crate::{
-	Error, ErrorPriority, Errors, Exhaustive, Input, IntoTokens, PeekFrom, PopFrom,
+	Error, ErrorPriority, Errors, Exhaustive, HandledPanic, Input, IntoTokens, PeekFrom, PopFrom,
 	error_priorities::UNCONSUMED_IN_DELIMITER,
 };
 
@@ -65,11 +69,11 @@ macro_rules! delimiter_struct {
 			fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 				let (span, mut contents) = input
 					.pop_or_replace(|ts| match ts {
-						[TokenTree::Group(braces)] if braces.delimiter() == $delimiter => Ok((
-							braces.delim_span(),
+						[TokenTree::Group(group)] if group.delimiter() == $delimiter => Ok((
+							group.delim_span(),
 							Input {
-								tokens: braces.stream().into_iter().collect::<VecDeque<_>>(),
-								end: braces.span_close(),
+								tokens: group.stream().into_iter().collect::<VecDeque<_>>(),
+								end: group.span_close(),
 							},
 						)),
 						other => Err(other),
@@ -78,14 +82,42 @@ macro_rules! delimiter_struct {
 						errors.push(Error::new(ErrorPriority::TOKEN, $error, spans))
 					})?;
 
-				Ok(Self {
-					span,
-					contents: Exhaustive::<T, UNCONSUMED_IN_DELIMITER>::pop_from(
-						&mut contents,
-						errors,
-					)?
-					.0,
-				})
+				match catch_unwind(AssertUnwindSafe(|| {
+					Ok(Self {
+						span,
+						contents: Exhaustive::<T, UNCONSUMED_IN_DELIMITER>::pop_from(
+							&mut contents,
+							errors,
+						)?
+						.0,
+					})
+				})) {
+					Ok(result) => result,
+					Err(panic) => {
+						errors.push(Error::new(
+							ErrorPriority::PANIC,
+							&format!(
+								concat!("bailing from ", stringify!($name), " due to panic: {:?}"),
+								if panic.as_ref().is::<HandledPanic>() {
+									resume_unwind(panic)
+								} else if let Some(message) =
+									panic.as_ref().downcast_ref::<String>()
+								{
+									message.clone()
+								} else if let Some(message) =
+									panic.as_ref().downcast_ref::<&'static str>()
+								{
+									message.to_string()
+								} else {
+									// Unhandled panic type.
+									resume_unwind(panic)
+								}
+							),
+							[contents.front_span()],
+						));
+						resume_unwind(Box::new(HandledPanic));
+					}
+				}
 			}
 		}
 

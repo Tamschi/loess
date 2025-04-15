@@ -76,6 +76,7 @@ impl ErrorPriority {
 		Self(self.0.next_down())
 	}
 
+	pub const PANIC: Self = Self::new(0.);
 	pub const TOKEN: Self = Self::new(0.);
 	pub const GRAMMAR: Self = Self::new(0.);
 	pub const UNCONSUMED_AFTER_REPEATS: Self = Self::new(-1.);
@@ -87,6 +88,12 @@ pub mod error_priorities {
 	#![allow(non_camel_case_types)]
 
 	use crate::{ConstErrorPriority, ErrorPriority};
+
+	#[derive(Debug)]
+	pub enum PANIC {}
+	impl ConstErrorPriority for PANIC {
+		const PRIORITY: ErrorPriority = ErrorPriority::TOKEN;
+	}
 
 	#[derive(Debug)]
 	pub enum TOKEN {}
@@ -474,6 +481,7 @@ macro_rules! grammar {
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis enum $name:ident$(: $(
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
 		),*)? {
@@ -485,6 +493,14 @@ macro_rules! grammar {
 		$(#[$($attr)*])*
 		$vis enum $name {
 			$($variant($($type),*),)*
+		}
+
+		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				false
+				$(|| $crate::grammar!(@peek_first $name input $($type,)*))*
+			}
 		}
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
@@ -557,6 +573,39 @@ macro_rules! grammar {
 
 		$crate::grammar!($($tt)*);
 	};
+	{
+		$(#[$($attr:tt)*])*
+		$vis:vis struct $name:ident$(: $(
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+		),*)? (
+			$($field_vis:vis $type:ty),*$(,)?
+		);
+
+		$($tt:tt)*
+	} => {
+		$vis struct $name (
+			$($field_vis $type,)*
+		);
+
+		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				$crate::grammar!(@peek_first $name input $($type,)*)
+			}
+		}
+
+		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
+		impl $crate::PopFrom for $name {
+			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok(Self (
+					$(<$type as $crate::PopFrom>::pop_from(input, errors)?,)*
+				))
+			}
+		}
+
+		$crate::grammar!($($tt)*);
+	};
 	(@peek_first $name:ident $input:ident $type:ty, $($rest:ty,)*) => (
 		<$type as $crate::PeekFrom>::peek_from($input);
 	);
@@ -575,3 +624,5 @@ pub mod __ {
 	pub use core::{concat, iter::Extend, primitive::bool, result::Result, stringify};
 	pub use proc_macro2::{TokenStream, TokenTree};
 }
+
+pub struct HandledPanic;
