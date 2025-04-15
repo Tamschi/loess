@@ -5,11 +5,12 @@ use loess::{
 };
 use proc_macro2::TokenStream;
 
-use super::Statement;
+use super::{Statement, Storage};
 
 grammar! {
 	pub struct Child: PeekFrom, PopFrom, IntoTokens {
 		pub identifier: ChildIdentifier,
+		pub storage: Option<Storage>,
 		pub children: ChildChildren,
 	}
 }

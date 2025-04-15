@@ -1,14 +1,82 @@
+use std::boxed;
+
 use loess::{
-	grammar,
-	rust_grammar::{CurlyBraces, For, In, Parentheses, Semi},
+	grammar, rust_grammar::{
+		As, Box, Colon, CurlyBraces, Dot, For, Identifier, In, Parentheses, SelfLowercase, Semi,
+		Struct, Visibility,
+	}, Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom
 };
+use proc_macro2::TokenStream;
 
 grammar! {
-	pub enum Statement: PopFrom, IntoTokens {
+	pub struct Statement: PopFrom, IntoTokens {
+		// pub outer_attributes: Greedy<OuterAttribute>,
+		pub statement: Statement_,
+	}
+
+	pub enum Statement_: PopFrom, IntoTokens {
+		// ParenFor(ParenFor),
 		Block(CurlyBraces<Vec<Statement>>),
+		Box(BoxStatement),
 		Semi(Semi),
 		Child(child::Child),
 	} else "Expected Asteracea statement.";
 }
 
 mod child;
+
+// grammar! {
+// 	pub struct ParenFor: PeekFrom, PopFrom, IntoTokens {
+// 		pub paren_for: Parentheses<For>,
+// 		pub pattern: Pattern,
+// 		pub r#in: In,
+// 		pub expression: ExpressionExceptStructExpression,
+// 		pub block: CurlyBraces<Vec<Statement>>,
+// 	}
+// }
+
+grammar! {
+	pub struct BoxStatement: PeekFrom, PopFrom, IntoTokens {
+		pub r#box: Box,
+		pub storage: Option<Storage>,
+		pub statement: boxed::Box<Statement>,
+	}
+
+	pub struct Storage: PeekFrom, IntoTokens {
+		pub r#as: As,
+		pub visibility: Option<Visibility>,
+		pub self_: SelfLowercase,
+		pub dot: Dot,
+		pub identifier: Identifier,
+		pub storage_type: Option<StorageType>,
+	}
+
+	pub struct StorageType: PeekFrom, PopFrom, IntoTokens {
+		pub colon: Colon,
+		pub r#struct: Option<Struct>,
+		pub identifier: Identifier,
+	}
+}
+
+impl PopFrom for Storage {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		let storage = Self {
+			r#as: As::pop_from(input, errors)?,
+			visibility: Option::<Visibility>::pop_from(input, errors)?,
+			self_: SelfLowercase::pop_from(input, errors)?,
+			dot: Dot::pop_from(input, errors)?,
+			identifier: Identifier::pop_from(input, errors)?,
+			storage_type: Option::<StorageType>::pop_from(input, errors)?,
+		};
+
+		if !CurlyBraces::<TokenStream>::peek_from(input) && !Semi::peek_from(input) {
+			errors.push(Error::new(
+				ErrorPriority::GRAMMAR,
+				"Storage must be followed by `{` or `;`.",
+				[input.front_span()],
+			))
+		}
+
+		Ok(storage)
+	}
+}

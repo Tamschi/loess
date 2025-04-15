@@ -76,6 +76,122 @@ impl IntoTokens for Semi {
 	}
 }
 
+pub struct Or(pub Punct);
+
+impl Default for Or {
+	fn default() -> Self {
+		Self(Punct::new('|', Spacing::Alone).with_span(Span::mixed_site()))
+	}
+}
+
+impl PeekFrom for Or {
+	fn peek_from(input: &Input) -> bool {
+		matches!(
+			input.front(),
+			Some(TokenTree::Punct(or)) if or.as_char() == '|' && or.spacing() == Spacing::Alone,
+		)
+	}
+}
+
+impl PopFrom for Or {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|ts| match ts {
+				[TokenTree::Punct(or)] if or.as_char() == '|' && or.spacing() == Spacing::Alone => {
+					Ok(Self(or))
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `|`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for Or {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens)
+	}
+}
+
+pub struct Dot(pub Punct);
+
+impl Default for Dot {
+	fn default() -> Self {
+		Self(Punct::new('.', Spacing::Alone).with_span(Span::mixed_site()))
+	}
+}
+
+impl PeekFrom for Dot {
+	fn peek_from(input: &Input) -> bool {
+		matches!(
+			input.front(),
+			Some(TokenTree::Punct(or)) if or.as_char() == '.' && or.spacing() == Spacing::Alone,
+		)
+	}
+}
+
+impl PopFrom for Dot {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|ts| match ts {
+				[TokenTree::Punct(or)] if or.as_char() == '.' && or.spacing() == Spacing::Alone => {
+					Ok(Self(or))
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `.`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for Dot {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens)
+	}
+}
+
+pub struct Colon(pub Punct);
+
+impl Default for Colon {
+	fn default() -> Self {
+		Self(Punct::new(':', Spacing::Alone).with_span(Span::mixed_site()))
+	}
+}
+
+impl PeekFrom for Colon {
+	fn peek_from(input: &Input) -> bool {
+		matches!(
+			input.front(),
+			Some(TokenTree::Punct(colon)) if colon.as_char() == ':' && colon.spacing() == Spacing::Alone,
+		)
+	}
+}
+
+impl PopFrom for Colon {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|ts| match ts {
+				[TokenTree::Punct(colon)]
+					if colon.as_char() == ':' && colon.spacing() == Spacing::Alone =>
+				{
+					Ok(Self(colon))
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `:`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for Colon {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens)
+	}
+}
+
 macro_rules! ident_token {
 	($name:ident = $str:literal => $error:literal) => {
 		pub struct $name(pub Ident);
@@ -110,7 +226,11 @@ macro_rules! ident_token {
 	};
 }
 
+ident_token!(As = "as" => "Expected `as`.");
 ident_token!(Async = "async" => "Expected `async`.");
+ident_token!(Box = "box" => "Expected `box`.");
 ident_token!(Const = "const" => "Expected `const`.");
 ident_token!(For = "for" => "Expected `for`.");
 ident_token!(In = "in" => "Expected `in`.");
+ident_token!(SelfLowercase = "self" => "Expected `self`.");
+ident_token!(Struct = "struct" => "Expected `struct`.");

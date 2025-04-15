@@ -276,6 +276,27 @@ impl PopFrom for TokenTree {
 	}
 }
 
+impl PopFrom for TokenStream {
+	fn pop_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, ()> {
+		Ok(input.tokens.drain(..).collect())
+	}
+}
+
+impl<T: PopFrom> PopFrom for Box<T> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	where
+		Self: Sized,
+	{
+		Ok(Box::new(T::pop_from(input, errors)?))
+	}
+}
+
+impl<T: IntoTokens> IntoTokens for Box<T> {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		(*self).into_tokens(root, tokens)
+	}
+}
+
 impl<T: PeekFrom + PopFrom> PopFrom for Option<T> {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
@@ -309,24 +330,38 @@ const _: () = {
 
 	use crate::{EndOfInput, Errors, PopFrom};
 
-	trait VecLike: Default + IntoIterator + Extend<Self::Item> {}
-	impl<T> VecLike for Vec<T> {}
-	impl<T> VecLike for VecDeque<T> {}
-	impl VecLike for TokenStream {}
-
-	/// Sadly, lack of specialisation requires this to be scoped.
-	///
-	/// This implementation applies to: [`Vec`], [`VecDeque`]
-	impl<T: Default + IntoIterator<Item: PopFrom> + Extend<T::Item>> PopFrom for T
-	where
-		T: VecLike,
-	{
+	impl<T: PopFrom> PopFrom for Vec<T> {
 		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-			let mut this = T::default();
+			let mut this = vec![];
 			while !input.is_empty() {
 				let before_len = input.len();
 
-				match T::Item::pop_from(input, errors) {
+				match T::pop_from(input, errors) {
+					Ok(item) => this.extend([item]),
+					Err(()) => {
+						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).ok();
+						return Ok(this);
+					}
+				}
+
+				if input.len() == before_len {
+					EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors)
+						.expect_err("because of `while !input.is_empty()`");
+					break;
+				}
+			}
+
+			Ok(this)
+		}
+	}
+
+	impl<T: PopFrom> PopFrom for VecDeque<T> {
+		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+			let mut this = Self::default();
+			while !input.is_empty() {
+				let before_len = input.len();
+
+				match T::pop_from(input, errors) {
 					Ok(item) => this.extend([item]),
 					Err(()) => {
 						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).ok();
