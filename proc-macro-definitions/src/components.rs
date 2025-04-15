@@ -21,7 +21,7 @@ pub fn components(input: TokenStream) -> TokenStream {
 			Err(panic) => errors.push(Error::new(
 				ErrorPriority::PANIC,
 				&format!(
-					"macro panicked: {:?}",
+					"proc macro panicked: {:?}",
 					if panic.as_ref().is::<HandledPanic>() {
 						break 'panic_to_error;
 					} else if let Some(message) = panic.as_ref().downcast_ref::<String>() {
