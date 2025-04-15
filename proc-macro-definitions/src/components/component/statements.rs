@@ -18,7 +18,7 @@ grammar! {
 		Block(CurlyBraces<Vec<Statement>>),
 		Box(BoxStatement),
 		Semi(Semi),
-		Str(AnyStringLiteral),
+		Str(FormattedStr),
 		Transclusion(Transclusion),
 		Child(child::Child),
 	} else "Expected Asteracea statement.";
@@ -64,6 +64,14 @@ grammar! {
 		pub colon: Colon,
 		pub r#struct: Option<Struct>,
 		pub identifier: Identifier,
+	}
+
+	/// Note: `format!` is not emitted if literal doesn't contain curly braces
+	///        and `format_args` is [`None`].
+	pub struct FormattedStr: PeekFrom, PopFrom, IntoTokens {
+		pub literal: AnyStringLiteral,
+		pub format_args: Option<Parentheses>,
+		pub semi: Semi,
 	}
 
 	pub struct Transclusion: PeekFrom, PopFrom, IntoTokens {

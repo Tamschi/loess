@@ -70,45 +70,46 @@ mod old {
 asteracea::components! {
 	pub ForImplicit -> web {
 		for i in [1, 2, 3, 4, 5i32] {
-			!"{}"(i)
+			"{}"(i);
 		}
 	}
 
 	pub ForImplicitSelector -> web {
 		for i: u8 in 1..=5 {
-			!"{}"(i)
+			"{}"(i);
 		}
 	}
 
 	pub ForImplicitItemType -> web {
 		for i keyed i => u8 in 1..=5 {
-			!"{}"(i)
+			"{}"(i);
 		}
 	}
 
 	pub ForKeyTypeOnly -> web {
 		for i => u8 in &[1, 2, 3, 4, 5] {
-			!"{}"(i)
+			"{}"(i);
 		}
 	}
 
 	pub ForExplicit -> web {
 		for i: u8 keyed i => u8 in [1, 2, 3, 4, 5] {
-			!"{}"(i)
+			"{}"(i);
 		}
 	}
 
 	pub ForUntyped -> web {
 		for i keyed i in [1, 2, 3, 4, 5] {
-			!"{}"(i)
+			"{}"(i);
 		}
 	}
 
 	pub Split -> web {
 		for c in "This is a test.".split(' ') {
 			li {
-				!"{:?}"(c)
-			} "\n"
+				"{:?}"(c);
+			}
+			"\n";
 		}
 	}
 
