@@ -1,6 +1,6 @@
 use loess::{
 	grammar,
-	rust_grammar::{CurlyBraces, Identifier, Parentheses, Semi, SquareBrackets},
+	rust_grammar::{Await, CurlyBraces, Dot, Identifier, Parentheses, Semi, SquareBrackets},
 	Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom, SimpleSpanned,
 };
 use proc_macro2::TokenStream;
@@ -11,9 +11,15 @@ grammar! {
 	pub struct Child: PeekFrom, PopFrom, IntoTokens {
 		pub identifier: ChildIdentifier,
 		pub new_args: Option<Parentheses>,
+		pub dot_await: Option<DotAwait>,
 		pub render_args: Option<SquareBrackets>,
 		pub storage: Option<Storage>,
 		pub children: ChildChildren,
+	}
+
+	pub struct DotAwait: PeekFrom, PopFrom, IntoTokens {
+		pub dot: Dot,
+		pub r#await: Await,
 	}
 }
 

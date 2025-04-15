@@ -1,12 +1,18 @@
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
-use crate::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, SimpleSpanned,
-	SpanOrFrontOfExt,
-};
+use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, SimpleSpanned};
 
-#[derive(Debug)]
+/// ( [XID_Start] [XID_Continue]<sup>*</sup> | `_`[XID_Continue]<sup>+</sup> )
+/// <sub>except for `r#crate`, `r#self`, `r#super`, `r#Self` and [strict] and [reserved] keywords </sub>
+///
+/// Note that neither `_` nor `r#_` are IDENTIFIERs.
+///
+/// [XID_Start]: http://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%3AXID_Start%3A%5D&abb=on&g=&i=
+/// [XID_Continue]: http://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%3AXID_Continue%3A%5D&abb=on&g=&i=
+/// [strict]: https://doc.rust-lang.org/stable/reference/keywords.html#strict-keywords
+/// [reserved]: https://doc.rust-lang.org/stable/reference/keywords.html#reserved-keywords
+#[derive(Clone)]
 pub struct Identifier(pub Ident);
 
 impl PeekFrom for Identifier {
@@ -38,30 +44,27 @@ impl PopFrom for Identifier {
 			{
 				Ok(Self(ident))
 			}
-			ident => Err({
-				let span = ident.span_or_front_of(input);
-
+			ident => Err(if let Some(ident) = ident {
 				errors.push(Error::new(
 					ErrorPriority::GRAMMAR,
-					match &ident {
-						None => "Expected Identifier.".to_string(),
-						Some(ident) => {
-							if ident.to_string().starts_with("r#") {
-								format!(
-									"Expected Identifier. (`{}` cannot be a raw identifier.)",
-									&ident.to_string()[2..]
-								)
-							} else {
-								format!("Expected Identifier. (`{ident}` is a keyword.)")
-							}
-						}
+					if ident.to_string().starts_with("r#") {
+						format!(
+							"Expected Identifier. (`{}` cannot be a raw identifier.)",
+							&ident.to_string()[2..]
+						)
+					} else {
+						format!("Expected Identifier. (`{ident}` is a keyword.)")
 					},
-					[span],
+					[ident.span()],
 				));
 
-				if let Some(ident) = ident {
-					input.push_front(TokenTree::Ident(ident));
-				}
+				input.push_front(TokenTree::Ident(ident));
+			} else {
+				errors.push(Error::new(
+					ErrorPriority::GRAMMAR,
+					"Expected Identifier.",
+					[input.front_span()],
+				));
 			}),
 		}
 	}
@@ -86,6 +89,10 @@ impl ToTokens for Identifier {
 impl SimpleSpanned for Identifier {
 	fn span(&self) -> Span {
 		self.0.span()
+	}
+
+	fn set_span(&mut self, span: Span) {
+		self.0.set_span(span)
 	}
 }
 

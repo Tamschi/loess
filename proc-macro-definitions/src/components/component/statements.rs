@@ -5,7 +5,7 @@ use loess::{
 	rust_grammar::{
 		AnyStringLiteral, As, Box, Colon, CurlyBraces, Dot, DotDot, Expression,
 		ExpressionExceptStructExpression, For, Identifier, In, Parentheses, Pattern, SelfLowercase,
-		Semi, Struct, Visibility,
+		Semi, SquareBrackets, Statement as RustStatement, Struct, Visibility,
 	},
 	Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom,
 };
@@ -13,6 +13,8 @@ use proc_macro2::TokenStream;
 
 grammar! {
 	pub enum Statement: PopFrom, IntoTokens {
+		ParenBrace(Parentheses<CurlyBraces<Vec<RustStatement>>>),
+		BracketBrace(SquareBrackets<CurlyBraces<Vec<RustStatement>>>),
 		For(ForLoop),
 		ParenFor(ParenForLoop),
 		Block(CurlyBraces<Vec<Statement>>),

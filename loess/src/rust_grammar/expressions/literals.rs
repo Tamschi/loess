@@ -3,10 +3,20 @@ use proc_macro2::{Literal, TokenTree};
 use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, grammar};
 
 grammar! {
+	/// `"`[…]`"`
+	///
+	/// […]: https://doc.rust-lang.org/stable/reference/tokens.html#string-literals
+	#[derive(Clone)]
 	pub struct StringLiteral(pub Literal);
+
+	/// `r`​`#`<sup>n ≥ 0</sup>`"`[…]`"`​`#`<sup>n</sup>
+	///
+	/// […]: https://doc.rust-lang.org/stable/reference/tokens.html#raw-string-literals
+	#[derive(Clone)]
 	pub struct RawStringLiteral(pub Literal);
 
-	pub enum AnyStringLiteral: PeekFrom, PopFrom, IntoTokens {
+	#[derive(Clone)]
+	pub enum AnyStringLiteral: doc, PeekFrom, PopFrom, IntoTokens {
 		Plain(StringLiteral),
 		Raw(RawStringLiteral),
 	} else "Expected &str literal.";

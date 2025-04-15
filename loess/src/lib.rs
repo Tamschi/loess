@@ -1,20 +1,27 @@
-use std::{
-	collections::VecDeque,
-	fmt::Debug,
-	iter,
-	marker::PhantomData,
-	sync::atomic::{AtomicU64, Ordering},
-};
+//! <details><summary>README / Quick Start (click to expand)</summary>
+//!
+#![doc = include_str!("../README.md")]
+//!
+//! </details>
+//! TODO
 
-use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
-use proc_macro2::{Literal, Punct, Span, TokenStream, TokenTree};
+#![warn(clippy::pedantic, missing_docs)]
+
+use std::{collections::VecDeque, fmt::Debug, iter, marker::PhantomData};
+
+use error_priorities::UNCONSUMED_AFTER_REPEATS;
+use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 use quote::quote_spanned;
 
 mod proc_macro2_impls;
 
 pub mod rust_grammar;
 
-#[derive(Debug)]
+/// A [`Span`]-located proc macro error with [`ErrorPriority`].  
+/// Usually submitted through [`Errors::push`].
+///
+/// Opaque, but can be expanded into [`compile_error!`] through [`IntoTokens`].
+#[derive(Debug, Clone)]
 pub struct Error {
 	priority: ErrorPriority,
 	message: String,
@@ -22,6 +29,7 @@ pub struct Error {
 }
 
 impl Error {
+	#[allow(missing_docs)]
 	pub fn new(
 		priority: ErrorPriority,
 		message: impl Into<String>,
@@ -35,6 +43,7 @@ impl Error {
 	}
 }
 
+/// Emits [`compile_error!`].
 impl IntoTokens for Error {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let message = Literal::string(&self.message);
@@ -54,7 +63,7 @@ impl IntoTokens for Error {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Errors {
 	errors: Vec<Error>,
 }
@@ -84,42 +93,49 @@ impl ErrorPriority {
 	pub const UNCONSUMED_INPUT: Self = Self::new(-3.);
 }
 
+/// [`ConstErrorPriority`] types for use with [`Exhaustive`] and [`EndOfInput`].
 pub mod error_priorities {
 	#![allow(non_camel_case_types)]
 
 	use crate::{ConstErrorPriority, ErrorPriority};
 
-	#[derive(Debug)]
+	/// [`ErrorPriority::PANIC`]
+	#[derive(Clone)]
 	pub enum PANIC {}
 	impl ConstErrorPriority for PANIC {
 		const PRIORITY: ErrorPriority = ErrorPriority::TOKEN;
 	}
 
-	#[derive(Debug)]
+	/// [`ErrorPriority::TOKEN`]
+	#[derive(Clone)]
 	pub enum TOKEN {}
 	impl ConstErrorPriority for TOKEN {
 		const PRIORITY: ErrorPriority = ErrorPriority::TOKEN;
 	}
 
-	#[derive(Debug)]
+	/// [`ErrorPriority::GRAMMAR`]
+	#[derive(Clone)]
 	pub enum GRAMMAR {}
 	impl ConstErrorPriority for GRAMMAR {
 		const PRIORITY: ErrorPriority = ErrorPriority::GRAMMAR;
 	}
 
-	#[derive(Debug)]
+	/// [`ErrorPriority::UNCONSUMED_AFTER_REPEATS`]
+	#[derive(Clone)]
 	pub enum UNCONSUMED_AFTER_REPEATS {}
 	impl ConstErrorPriority for UNCONSUMED_AFTER_REPEATS {
 		const PRIORITY: ErrorPriority = ErrorPriority::UNCONSUMED_AFTER_REPEATS;
 	}
 
-	#[derive(Debug)]
+	/// [`ErrorPriority::UNCONSUMED_IN_DELIMITER`]
+	#[derive(Clone)]
 	pub enum UNCONSUMED_IN_DELIMITER {}
 	impl ConstErrorPriority for UNCONSUMED_IN_DELIMITER {
 		const PRIORITY: ErrorPriority = ErrorPriority::UNCONSUMED_IN_DELIMITER;
 	}
 
-	#[derive(Debug)]
+	/// [`ErrorPriority::UNCONSUMED_INPUT`]
+	#[derive(Clone)]
 	pub enum UNCONSUMED_INPUT {}
 	impl ConstErrorPriority for UNCONSUMED_INPUT {
 		const PRIORITY: ErrorPriority = ErrorPriority::UNCONSUMED_INPUT;
@@ -173,24 +189,6 @@ impl<T: IntoTokens> IntoTokens for Vec<T> {
 	}
 }
 
-impl IntoTokens for TokenTree {
-	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		tokens.extend([self])
-	}
-}
-
-impl IntoTokens for Punct {
-	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		tokens.extend([TokenTree::Punct(self)])
-	}
-}
-
-impl IntoTokens for TokenStream {
-	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		tokens.extend(self);
-	}
-}
-
 impl IntoTokens for Errors {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let Some(highest_priority) = self.errors.iter().map(|error| error.priority).max() else {
@@ -205,8 +203,20 @@ impl IntoTokens for Errors {
 	}
 }
 
+/// Input [`tokens`](`Input::tokens`) with [`end`](`Input::end`)-[`Span`].  
+/// For use with [`PeekFrom`] and [`PopFrom`].
+///
+/// Also has some convenience methods.
+#[derive(Clone)]
 pub struct Input {
+	#[allow(missing_docs)]
 	pub tokens: VecDeque<TokenTree>,
+	/// This currently is usually a "one-token-past-the-end"-[`Span`].  
+	/// Top-level input should default to [`Span::call_site()`].
+	///
+	/// If [`Span::end`] is stabilised, then that will be a better option and should be used instead where applicable.
+	///
+	/// [`Span::end`]: https://doc.rust-lang.org/stable/proc_macro/struct.Span.html#method.end
 	pub end: Span,
 }
 
@@ -238,26 +248,32 @@ impl Input {
 		}
 	}
 
+	#[allow(missing_docs)]
 	pub fn is_empty(&self) -> bool {
 		self.tokens.is_empty()
 	}
 
+	#[allow(missing_docs)]
 	pub fn len(&self) -> usize {
 		self.tokens.len()
 	}
 
+	#[allow(missing_docs)]
 	pub fn front(&self) -> Option<&TokenTree> {
 		self.tokens.front()
 	}
 
+	/// Returns the frontmost token's [`Span`] or else [`self.end`](`Input::end`).
 	pub fn front_span(&self) -> Span {
 		self.tokens.front().map(TokenTree::span).unwrap_or(self.end)
 	}
 
+	#[allow(missing_docs)]
 	pub fn push_front(&mut self, t: TokenTree) {
 		self.tokens.push_front(t)
 	}
 
+	#[allow(missing_docs)]
 	pub fn prepend(
 		&mut self,
 		tokens: impl IntoIterator<Item = TokenTree, IntoIter: DoubleEndedIterator>,
@@ -268,33 +284,36 @@ impl Input {
 	}
 }
 
+/// Consumes from [`Input`] to create <code>[`Result`]&lt;Self, ()></code> and emit to [`Errors`].
 pub trait PopFrom {
+	/// Tries to parse `Self` from an [`Input`], optionally emitting to [`Errors`].
+	///
+	/// # Returns
+	///
+	/// ## <code>[`Ok`]::&lt;Self, _></code>
+	///
+	/// Parsing either succeeded or its failure was recoverable.
+	///
+	/// There <em style=font-style:normal;font-variant:small-caps>may</em> be new [`Errors`]!
+	///
+	/// ## <code>[`Err`]::&lt;_, ()></code>
+	///
+	/// Parsing failed unrecoverably.
+	///
+	/// It <em style=font-style:normal;font-variant:small-caps>may</em> still be recovered further up the call chain,
+	/// but there <em style=font-style:normal;font-variant:small-caps>should</em> be new [`Errors`] at this point!
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized;
 
+	/// Convenience function for <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.
+	///
+	/// This is used by [`grammar!`]-generated enum parsers.
 	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
 	where
 		Self: PeekFrom + Sized,
 	{
 		Option::<Self>::pop_from(input, errors)
-	}
-}
-
-impl PopFrom for TokenTree {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
-	where
-		Self: Sized,
-	{
-		input.pop_or_replace(|[t]| Ok(t)).map_err(|spans| {
-			errors.push(Error::new(ErrorPriority::TOKEN, "Expected token.", spans))
-		})
-	}
-}
-
-impl PopFrom for TokenStream {
-	fn pop_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, ()> {
-		Ok(input.tokens.drain(..).collect())
 	}
 }
 
@@ -324,11 +343,28 @@ impl<T: PeekFrom + PopFrom> PopFrom for Option<T> {
 	}
 }
 
+/// Determines if `Self` may be be parseable from an [`Input`].  
+/// This is often a cursory check!
+///
+/// Used for variant selection in <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.  
+/// Does **not** affect <code>[`Vec`]&lt;Self></code> or <code>[`VecDeque`]&lt;Self></code> parsing, which is exhaustive.
+///
+/// Also enables [`PopFrom::peek_pop_from`] for `Self`, which is used in [`grammar!`]-generated enum parsers.
 pub trait PeekFrom {
+	/// # Returns
+	///
+	/// ## [`true`]
+	///
+	/// [`PopFrom::pop_from`] <em style=font-style:normal;font-variant:small-caps>may</em> still fail and/or push to [`Errors`].
+	///
+	/// ## [`false`]
+	///
+	/// [`PopFrom::pop_from`] <em style=font-style:normal;font-variant:small-caps>should</em> fail **and** push to [`Errors`].
 	fn peek_from(input: &Input) -> bool;
 }
 
-impl PeekFrom for TokenStream {
+/// **Always** succeeds.
+impl<T> PeekFrom for Option<T> {
 	fn peek_from(_input: &Input) -> bool {
 		true
 	}
@@ -336,6 +372,13 @@ impl PeekFrom for TokenStream {
 
 /// **Always** succeeds.
 impl<T> PeekFrom for Vec<T> {
+	fn peek_from(_input: &Input) -> bool {
+		true
+	}
+}
+
+/// **Always** succeeds.
+impl<T> PeekFrom for VecDeque<T> {
 	fn peek_from(_input: &Input) -> bool {
 		true
 	}
@@ -361,8 +404,9 @@ const _: () = {
 				}
 
 				if input.len() == before_len {
-					EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors)
-						.expect_err("because of `while !input.is_empty()`");
+					assert!(
+						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).is_err()
+					);
 					break;
 				}
 			}
@@ -386,8 +430,9 @@ const _: () = {
 				}
 
 				if input.len() == before_len {
-					EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors)
-						.expect_err("because of `while !input.is_empty()`");
+					assert!(
+						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).is_err()
+					);
 					break;
 				}
 			}
@@ -397,19 +442,29 @@ const _: () = {
 	}
 };
 
+/// Doesn't fail to parse but emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`] after `T`.
+#[derive(Clone)]
 pub struct Exhaustive<T, P: ConstErrorPriority>(pub T, PhantomData<P>);
 
 impl<T: PopFrom, P: ConstErrorPriority> PopFrom for Exhaustive<T, P> {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		let value = T::pop_from(input, errors);
-		EndOfInput::<UNCONSUMED_INPUT>::pop_from(input, errors).ok();
+		EndOfInput::<P>::pop_from(input, errors).ok();
 		Ok(Self(value?, PhantomData))
 	}
 }
 
-#[derive(Debug)]
+impl<T: IntoTokens, P: ConstErrorPriority> IntoTokens for Exhaustive<T, P> {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens)
+	}
+}
+
+/// Fails to parse and emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`].
+#[derive(Clone)]
 pub struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
 
+/// Fails iff the [`Input`] isn't empty.
 impl<P: ConstErrorPriority> PopFrom for EndOfInput<P> {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
@@ -426,61 +481,49 @@ impl<P: ConstErrorPriority> PopFrom for EndOfInput<P> {
 	}
 }
 
-pub struct Defaulted<T>(pub T);
+/// Has a single [`Span`].
+pub trait SimpleSpanned {
+	#[allow(missing_docs)]
+	fn span(&self) -> Span;
 
-impl<T> Defaulted<T> {
-	pub fn into_inner(self) -> T {
-		self.0
-	}
-}
+	#[allow(missing_docs)]
+	fn set_span(&mut self, span: Span);
 
-impl<T: Default + PopFrom> PopFrom for Defaulted<T>
-where
-	T: Debug,
-{
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		Ok(Self(T::pop_from(input, errors).unwrap_or_default()))
-	}
-}
-
-trait WithSpanExt {
-	fn with_span(self, span: Span) -> Self;
-}
-
-impl WithSpanExt for Punct {
-	fn with_span(mut self, span: Span) -> Self {
+	#[allow(missing_docs)]
+	fn with_span(mut self, span: Span) -> Self
+	where
+		Self: Sized,
+	{
 		self.set_span(span);
 		self
 	}
 }
 
-pub trait SimpleSpanned {
-	fn span(&self) -> Span;
-}
-
-impl<T: SimpleSpanned> SimpleSpanned for &T {
-	fn span(&self) -> Span {
-		(*self).span()
-	}
-}
-
-pub trait SpanOrFrontOfExt {
-	fn span_or_front_of(&self, input: &Input) -> Span;
-}
-
-impl<T: SimpleSpanned> SpanOrFrontOfExt for Option<T> {
-	fn span_or_front_of(&self, input: &Input) -> Span {
-		self.as_ref()
-			.map(|t| t.span())
-			.unwrap_or(input.front_span())
-	}
-}
-
+/// ```
+/// use loess::{
+/// 	grammar,
+/// 	rust_grammar::{Identifier, Parentheses, SquareBrackets, Visibility},
+/// };
+/// use proc_macro2::TokenTree;
+///
+/// grammar! {
+/// 	///
+/// 	/// Has auto-documented grammar.
+/// 	#[derive(Clone)]
+/// 	pub enum Alternatives: doc, PeekFrom, PopFrom, IntoTokens {
+/// 		Identifier(Identifier),
+/// 		Paren(Parentheses), // Can be used as generic too.
+/// 		Bracket(SquareBrackets<Vec<TokenTree>>),
+/// 		Vis(Option<Visibility>), // Must always be last, as peeking `Option` always succeeds.
+/// 	} else "Expected Alternative.";
+/// }
+/// ```
 #[macro_export]
 macro_rules! grammar {
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis enum $name:ident$(: $(
+			$(doc $(@ $doc:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
@@ -490,6 +533,7 @@ macro_rules! grammar {
 
 		$($tt:tt)*
 	} => {
+		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::grammar!(@enum_doc [$([$($type,)*])*]))]
 		$(#[$($attr)*])*
 		$vis enum $name {
 			$($variant($($type),*),)*
@@ -609,10 +653,26 @@ macro_rules! grammar {
 		$crate::grammar!($($tt)*);
 	};
 	(@peek_first $name:ident $input:ident $type:ty, $($rest:ty,)*) => (
-		<$type as $crate::PeekFrom>::peek_from($input);
+		<$type as $crate::PeekFrom>::peek_from($input)
 	);
 	(@peek_first $name:ident $input:ident) => (
-		::core::compile_error!($crate::__::concat!("To implement `PeekFrom` for `", $crate::__::stringify!($name), "`, at least one field is necessary."));
+		::core::compile_error!($crate::__::concat!("To implement `PeekFrom` for `", $crate::__::stringify!($name), "`, at least one field is necessary."))
+	);
+	(@enum_doc []) => (
+		// Empty.
+		""
+	);
+	(@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*]) => (
+		// Start.
+		$crate::grammar!(@enum_doc [$([$($type,)*])*] [$("[`", $crate::__::stringify!($type0), "`] ", )*])
+	);
+	(@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*] [$($output:tt)*]) => (
+		// Continue.
+		$crate::grammar!(@enum_doc [$([$($type,)*])*] [$($output)* "| ", $("[`", $crate::__::stringify!($type0), "`] ", )*])
+	);
+	(@enum_doc [] [$($output:tt)*]) => (
+		// End.
+		$crate::__::concat!($($output)*)
 	);
 	{$t:tt $($tt:tt)*} => {
 		// Error

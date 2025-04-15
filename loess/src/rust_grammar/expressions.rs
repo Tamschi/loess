@@ -11,11 +11,15 @@ mod literals;
 pub use literals::*;
 
 grammar! {
-	pub struct Expression: IntoTokens {
+	/// Opaque implementation. Contributions welcome!
+	#[derive(Clone)]
+	pub struct Expression {
 		syn: Expr,
 	}
 
-	pub struct ExpressionExceptStructExpression: IntoTokens {
+	/// Opaque implementation. Contributions welcome!
+	#[derive(Clone)]
+	pub struct ExpressionExceptStructExpression {
 		syn: Expr,
 	}
 }
@@ -40,7 +44,7 @@ impl PopFrom for Expression {
 		let (this, rest) = parse.parse2(tokens).map_err(|error| {
 			errors.push(Error::new(
 				ErrorPriority::GRAMMAR,
-				"Expected Expression except StructExpression.",
+				"Expected Expression.",
 				[error_span],
 			));
 		})?;
@@ -82,8 +86,14 @@ impl PopFrom for ExpressionExceptStructExpression {
 	}
 }
 
-impl IntoTokens for Expr {
+impl IntoTokens for Expression {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		self.into_token_stream().into_tokens(root, tokens);
+		self.syn.into_token_stream().into_tokens(root, tokens);
+	}
+}
+
+impl IntoTokens for ExpressionExceptStructExpression {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.syn.into_token_stream().into_tokens(root, tokens);
 	}
 }

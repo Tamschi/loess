@@ -1,14 +1,30 @@
-async fn delayed() {}
+mod old {
+	#![allow(deprecated, dead_code)]
 
-asteracea::component! {
-	async Child()()
+	pub(crate) async fn delayed() {}
 
-	let self._nothing: () = delayed().await;
-	[]
+	asteracea::component! {
+		async Child()()
+
+		let self._nothing: () = delayed().await;
+		[]
+	}
+
+	asteracea::component! {
+		pub async Parent()() -> Sync
+
+		<*Child.await>
+	}
 }
 
-asteracea::component! {
-	pub async Parent()() -> Sync
+pub async fn delayed() {}
 
-	<*Child.await>
+asteracea::components! {
+	async Child -> web {
+		({ delayed().await; })
+	}
+
+	pub async Parent -> web {
+		Child.await;
+	}
 }

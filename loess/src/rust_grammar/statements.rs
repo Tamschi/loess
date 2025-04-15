@@ -1,7 +1,7 @@
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
-	Pat,
+	Stmt,
 	parse::{Parse, ParseStream, Parser},
 };
 
@@ -10,17 +10,17 @@ use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PopFrom, grammar};
 grammar! {
 	/// Opaque implementation. Contributions welcome!
 	#[derive(Clone)]
-	pub struct Pattern {
-		syn: Pat,
+	pub struct Statement {
+		syn: Stmt,
 	}
 }
 
-impl PopFrom for Pattern {
+impl PopFrom for Statement {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		fn parse(input: ParseStream) -> syn::Result<(Pattern, TokenStream)> {
+		fn parse(input: ParseStream) -> syn::Result<(Statement, TokenStream)> {
 			Ok((
-				Pattern {
-					syn: Pat::parse_multi_with_leading_vert(input)?,
+				Statement {
+					syn: Stmt::parse(input)?,
 				},
 				TokenStream::parse(input)?,
 			))
@@ -35,7 +35,7 @@ impl PopFrom for Pattern {
 		let (this, rest) = parse.parse2(tokens).map_err(|error| {
 			errors.push(Error::new(
 				ErrorPriority::GRAMMAR,
-				"Expected Expression except StructExpression.",
+				"Expected Statement.",
 				[error_span],
 			));
 		})?;
@@ -45,7 +45,7 @@ impl PopFrom for Pattern {
 	}
 }
 
-impl IntoTokens for Pattern {
+impl IntoTokens for Statement {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		self.syn.into_token_stream().into_tokens(root, tokens);
 	}

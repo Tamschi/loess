@@ -1,8 +1,9 @@
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 
-use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, WithSpanExt};
+use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, SimpleSpanned};
 
-/// See <https://doc.rust-lang.org/stable/reference/tokens.html?highlight=arrow#punctuation> as of 2025-04-13.
+/// `->`
+#[derive(Clone)]
 pub struct RArrow(pub Punct, pub Punct);
 
 impl Default for RArrow {
@@ -40,6 +41,8 @@ impl IntoTokens for RArrow {
 	}
 }
 
+/// `..`
+#[derive(Clone)]
 pub struct DotDot(pub Punct, pub Punct);
 
 impl Default for DotDot {
@@ -86,6 +89,8 @@ impl IntoTokens for DotDot {
 	}
 }
 
+/// `;`
+#[derive(Clone)]
 pub struct Semi(pub Punct);
 
 impl Default for Semi {
@@ -122,6 +127,8 @@ impl IntoTokens for Semi {
 	}
 }
 
+/// `|`
+#[derive(Clone)]
 pub struct Or(pub Punct);
 
 impl Default for Or {
@@ -160,6 +167,8 @@ impl IntoTokens for Or {
 	}
 }
 
+/// `.`
+#[derive(Clone)]
 pub struct Dot(pub Punct);
 
 impl Default for Dot {
@@ -200,6 +209,8 @@ impl IntoTokens for Dot {
 	}
 }
 
+/// `:`
+#[derive(Clone)]
 pub struct Colon(pub Punct);
 
 impl Default for Colon {
@@ -241,7 +252,9 @@ impl IntoTokens for Colon {
 }
 
 macro_rules! ident_token {
-	($name:ident = $str:literal => $error:literal) => {
+	($name:ident = $str:literal) => {
+		#[doc = concat!("`", $str, "`")]
+		#[derive(Clone)]
 		pub struct $name(pub Ident);
 
 		impl PeekFrom for $name {
@@ -261,7 +274,7 @@ macro_rules! ident_token {
 						other => Err(other),
 					})
 					.map_err(|spans| {
-						errors.push(Error::new(ErrorPriority::TOKEN, $error, spans))
+						errors.push(Error::new(ErrorPriority::TOKEN, concat!("Expected `", $str, "`."), spans))
 					})
 			}
 		}
@@ -274,11 +287,13 @@ macro_rules! ident_token {
 	};
 }
 
-ident_token!(As = "as" => "Expected `as`.");
-ident_token!(Async = "async" => "Expected `async`.");
-ident_token!(Box = "box" => "Expected `box`.");
-ident_token!(Const = "const" => "Expected `const`.");
-ident_token!(For = "for" => "Expected `for`.");
-ident_token!(In = "in" => "Expected `in`.");
-ident_token!(SelfLowercase = "self" => "Expected `self`.");
-ident_token!(Struct = "struct" => "Expected `struct`.");
+ident_token!(As = "as");
+ident_token!(Async = "async");
+ident_token!(Await = "await");
+ident_token!(Box = "box");
+ident_token!(Const = "const");
+ident_token!(For = "for");
+ident_token!(In = "in");
+ident_token!(Pub = "pub");
+ident_token!(SelfLowercase = "self");
+ident_token!(Struct = "struct");

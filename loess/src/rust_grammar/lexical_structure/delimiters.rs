@@ -1,6 +1,5 @@
-use std::collections::VecDeque;
 use std::{
-	any::TypeId,
+	collections::VecDeque,
 	panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
 };
 
@@ -12,9 +11,13 @@ use crate::{
 };
 
 macro_rules! delimiter_struct {
-	($name:ident, $delimiter:expr, $error:literal) => {
+	($name:ident, $delimiter:expr, $opening:literal $closing:literal) => {
+		#[doc = concat!('`', $opening, "` [`T`](`TokenStream`) `", $closing, '`')]
+		#[derive(Clone)]
 		pub struct $name<T = TokenStream> {
+			#[allow(missing_docs)]
 			pub span: DelimSpan,
+			#[allow(missing_docs)]
 			pub contents: T,
 		}
 
@@ -34,6 +37,7 @@ macro_rules! delimiter_struct {
 		}
 
 		impl<T> $name<T> {
+			#[doc = concat!("Maps <code>self.[contents](`", stringify!($name), "::contents`)</code> using `f`.")]
 			pub fn map<U>(self, f: impl FnOnce(T) -> U) -> $name<U> {
 				let Self { span, contents } = self;
 				$name {
@@ -42,6 +46,7 @@ macro_rules! delimiter_struct {
 				}
 			}
 
+			#[doc = concat!("Tries to map <code>self.[contents](`", stringify!($name), "::contents`)</code> using `f`.")]
 			pub fn try_map<U, E>(
 				self,
 				f: impl FnOnce(T) -> Result<U, E>,
@@ -56,6 +61,7 @@ macro_rules! delimiter_struct {
 		}
 
 		impl<T, E> $name<Result<T, E>> {
+			#[doc = concat!("Lifts an inner [`Result`] out of `self`. (The [`", stringify!($name), "`] \"sinks\" into the variants.)")]
 			pub fn transpose(self) -> Result<$name<T>, $name<E>> {
 				let Self { span, contents } = self;
 				match contents {
@@ -79,7 +85,11 @@ macro_rules! delimiter_struct {
 						other => Err(other),
 					})
 					.map_err(|spans| {
-						errors.push(Error::new(ErrorPriority::TOKEN, $error, spans))
+						errors.push(Error::new(
+							ErrorPriority::TOKEN,
+							concat!("Expected `", $opening, "`."),
+							spans,
+						))
 					})?;
 
 				match catch_unwind(AssertUnwindSafe(|| {
@@ -136,6 +146,6 @@ macro_rules! delimiter_struct {
 	};
 }
 
-delimiter_struct!(CurlyBraces, Delimiter::Brace, "Expected `{`.");
-delimiter_struct!(SquareBrackets, Delimiter::Bracket, "Expected `[`.");
-delimiter_struct!(Parentheses, Delimiter::Parenthesis, "Expected `(`.");
+delimiter_struct!(CurlyBraces, Delimiter::Brace, '{' '}');
+delimiter_struct!(SquareBrackets, Delimiter::Bracket, '[' ']');
+delimiter_struct!(Parentheses, Delimiter::Parenthesis, '(' ')');
