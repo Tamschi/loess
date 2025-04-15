@@ -20,7 +20,6 @@ impl PeekFrom for StringLiteral {
 
 impl PopFrom for StringLiteral {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		todo!("PopFrom for StringLiteral");
 		input
 			.pop_or_replace(|t| match t {
 				[TokenTree::Literal(literal)] if literal.to_string().starts_with('"') => {
