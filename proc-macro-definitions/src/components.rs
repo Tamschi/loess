@@ -29,7 +29,12 @@ pub fn components(input: TokenStream) -> TokenStream {
 					} else if let Some(message) = panic.as_ref().downcast_ref::<&'static str>() {
 						message.to_string()
 					} else {
-						"(unhandled panic type)".to_string()
+						errors.push(Error::new(
+							ErrorPriority::PANIC,
+							"proc macro panicked (trace of unhandled panic type)",
+							[input.front_span()],
+						));
+						break 'panic_to_error;
 					}
 				),
 				[input.front_span()],

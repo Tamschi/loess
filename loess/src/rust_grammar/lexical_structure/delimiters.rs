@@ -110,6 +110,11 @@ macro_rules! delimiter_struct {
 									message.to_string()
 								} else {
 									// Unhandled panic type.
+									errors.push(Error::new(
+										ErrorPriority::PANIC,
+										"proc macro panicked (trace of unhandled panic type)",
+										[contents.front_span()],
+									));
 									resume_unwind(panic)
 								}
 							),
