@@ -1,41 +1,42 @@
 use std::boxed;
 
 use loess::{
-	grammar, rust_grammar::{
-		As, Box, Colon, CurlyBraces, Dot, For, Identifier, In, Parentheses, SelfLowercase, Semi,
-		Struct, Visibility,
-	}, Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom
+	grammar,
+	rust_grammar::{
+		As, Box, Colon, CurlyBraces, Dot, DotDot, Expression, ExpressionExceptStructExpression,
+		For, Identifier, In, Parentheses, Pattern, SelfLowercase, Semi, Struct, Visibility,
+	},
+	Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom,
 };
 use proc_macro2::TokenStream;
 
 grammar! {
 	pub struct Statement: PopFrom, IntoTokens {
-		// pub outer_attributes: Greedy<OuterAttribute>,
 		pub statement: Statement_,
 	}
 
 	pub enum Statement_: PopFrom, IntoTokens {
-		// ParenFor(ParenFor),
+		ParenFor(ParenFor),
 		Block(CurlyBraces<Vec<Statement>>),
 		Box(BoxStatement),
 		Semi(Semi),
+		Transclusion(Transclusion),
 		Child(child::Child),
 	} else "Expected Asteracea statement.";
 }
 
 mod child;
 
-// grammar! {
-// 	pub struct ParenFor: PeekFrom, PopFrom, IntoTokens {
-// 		pub paren_for: Parentheses<For>,
-// 		pub pattern: Pattern,
-// 		pub r#in: In,
-// 		pub expression: ExpressionExceptStructExpression,
-// 		pub block: CurlyBraces<Vec<Statement>>,
-// 	}
-// }
-
 grammar! {
+	pub struct ParenFor: PeekFrom, PopFrom, IntoTokens {
+		// pub outer_attributes: Greedy<OuterAttribute>,
+		pub paren_for: Parentheses<For>,
+		pub pattern: Pattern,
+		pub r#in: In,
+		pub expression: ExpressionExceptStructExpression,
+		pub block: CurlyBraces<Vec<Statement>>,
+	}
+	
 	pub struct BoxStatement: PeekFrom, PopFrom, IntoTokens {
 		pub r#box: Box,
 		pub storage: Option<Storage>,
@@ -55,6 +56,12 @@ grammar! {
 		pub colon: Colon,
 		pub r#struct: Option<Struct>,
 		pub identifier: Identifier,
+	}
+
+	pub struct Transclusion: PeekFrom, PopFrom, IntoTokens {
+		pub dot_dot: DotDot,
+		pub expression: Expression,
+		pub semi: Semi,
 	}
 }
 

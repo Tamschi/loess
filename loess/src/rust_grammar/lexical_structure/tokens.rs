@@ -40,6 +40,52 @@ impl IntoTokens for RArrow {
 	}
 }
 
+pub struct DotDot(pub Punct, pub Punct);
+
+impl Default for DotDot {
+	fn default() -> Self {
+		Self(
+			Punct::new('.', Spacing::Joint).with_span(Span::mixed_site()),
+			Punct::new('.', Spacing::Alone).with_span(Span::mixed_site()),
+		)
+	}
+}
+
+impl PeekFrom for DotDot {
+	fn peek_from(input: &Input) -> bool {
+		matches!(
+			(input.front(), input.tokens.get(1)),
+			(Some(TokenTree::Punct(dot0)), Some(TokenTree::Punct(dot1))) if dot0.as_char() == '.' && dot0.spacing() == Spacing::Joint && dot1.as_char() == '.',
+		)
+	}
+}
+
+impl PopFrom for DotDot {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|ts| match ts {
+				[TokenTree::Punct(minus), TokenTree::Punct(gt)]
+					if minus.as_char() == '.'
+						&& minus.spacing() == Spacing::Joint
+						&& gt.as_char() == '.' =>
+				{
+					Ok(Self(minus, gt))
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `..`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for DotDot {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens);
+		self.1.into_tokens(root, tokens);
+	}
+}
+
 pub struct Semi(pub Punct);
 
 impl Default for Semi {
@@ -126,7 +172,7 @@ impl PeekFrom for Dot {
 	fn peek_from(input: &Input) -> bool {
 		matches!(
 			input.front(),
-			Some(TokenTree::Punct(or)) if or.as_char() == '.' && or.spacing() == Spacing::Alone,
+			Some(TokenTree::Punct(dot)) if dot.as_char() == '.' && dot.spacing() == Spacing::Alone,
 		)
 	}
 }
@@ -135,8 +181,10 @@ impl PopFrom for Dot {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|ts| match ts {
-				[TokenTree::Punct(or)] if or.as_char() == '.' && or.spacing() == Spacing::Alone => {
-					Ok(Self(or))
+				[TokenTree::Punct(dot)]
+					if dot.as_char() == '.' && dot.spacing() == Spacing::Alone =>
+				{
+					Ok(Self(dot))
 				}
 				other => Err(other),
 			})

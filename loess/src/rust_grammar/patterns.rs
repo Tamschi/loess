@@ -1,21 +1,50 @@
-use crate::grammar;
+use proc_macro2::{TokenStream, TokenTree};
+use quote::ToTokens;
+use syn::{
+	Pat,
+	parse::{Parse, ParseStream, Parser},
+};
 
-use super::Or;
+use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PopFrom, grammar};
 
 grammar! {
-	pub struct Pattern: PopFrom, IntoTokens {
-		pub or: Option<Or>,
-		pub first: PatternNoTopAlt,
-		pub further: Greedy<Vec<Pattern_>>,
+	pub struct Pattern {
+		syn: Pat,
 	}
+}
 
-	pub struct Pattern_: PopFrom, IntoTokens {
-		pub or: Or,
-		pub pattern: PatternNoTopAlt,
+impl PopFrom for Pattern {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		fn parse(input: ParseStream) -> syn::Result<(Pattern, TokenStream)> {
+			Ok((
+				Pattern {
+					syn: Pat::parse_multi_with_leading_vert(input)?,
+				},
+				TokenStream::parse(input)?,
+			))
+		}
+
+		let error_span = input
+			.front_span()
+			.join(input.end)
+			.unwrap_or(input.front_span());
+
+		let tokens = input.tokens.drain(..).collect::<TokenStream>().into();
+		let (this, rest) = parse.parse2(tokens).map_err(|error| {
+			errors.push(Error::new(
+				ErrorPriority::GRAMMAR,
+				"Expected Expression except StructExpression.",
+				[error_span],
+			));
+		})?;
+
+		input.prepend(rest.into_iter().collect::<Vec<_>>());
+		Ok(this)
 	}
+}
 
-	pub enum PatternNoTopAlt: PopFrom, IntoTokens {
-		PatternWithoutRange(PatternWithoutRange),
-        RangePattern(RangePattern),
-	} else "Expected Pattern.";
+impl IntoTokens for Pattern {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.syn.into_token_stream().into_tokens(root, tokens);
+	}
 }

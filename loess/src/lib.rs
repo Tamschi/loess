@@ -250,6 +250,15 @@ impl Input {
 	pub fn push_front(&mut self, t: TokenTree) {
 		self.tokens.push_front(t)
 	}
+
+	pub fn prepend(
+		&mut self,
+		tokens: impl IntoIterator<Item = TokenTree, IntoIter: DoubleEndedIterator>,
+	) {
+		for t in tokens.into_iter().rev() {
+			self.push_front(t);
+		}
+	}
 }
 
 pub trait PopFrom {
