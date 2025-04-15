@@ -438,16 +438,6 @@ impl WithSpanExt for Punct {
 	}
 }
 
-static PLACEHOLDER_COUNT: AtomicU64 = AtomicU64::new(1);
-
-pub fn next_placeholder_number() -> u64 {
-	PLACEHOLDER_COUNT.fetch_add(1, Ordering::Relaxed)
-}
-
-pub trait Placeholder {
-	fn placeholder() -> Self;
-}
-
 pub trait SimpleSpanned {
 	fn span(&self) -> Span;
 }
@@ -470,38 +460,6 @@ impl<T: SimpleSpanned> SpanOrFrontOfExt for Option<T> {
 	}
 }
 
-mod __ {
-	use crate::Placeholder;
-
-	trait Sealed {}
-
-	#[allow(private_bounds)]
-	pub trait UnwrapOrPlaceholder: Sealed {
-		type Output: Placeholder;
-		fn unwrap_or_placeholder(self) -> Self::Output;
-	}
-
-	impl<T: Placeholder> Sealed for Option<T> {}
-	impl<T: Placeholder> UnwrapOrPlaceholder for Option<T> {
-		type Output = T;
-
-		fn unwrap_or_placeholder(self) -> Self::Output {
-			self.unwrap_or_else(T::placeholder)
-		}
-	}
-
-	impl<T: Placeholder> Sealed for Result<T, ()> {}
-	impl<T: Placeholder> UnwrapOrPlaceholder for Result<T, ()> {
-		type Output = T;
-
-		fn unwrap_or_placeholder(self) -> Self::Output {
-			self.unwrap_or_else(|()| T::placeholder())
-		}
-	}
-}
-
-pub use __::UnwrapOrPlaceholder;
-
 #[macro_export]
 macro_rules! grammar {
 	{
@@ -522,11 +480,11 @@ macro_rules! grammar {
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopFrom for $name {
-			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::___::Result<Self, ()> {
-				$crate::___::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopFrom>::peek_pop_from(input, errors)?),*) {
+			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopFrom>::peek_pop_from(input, errors)?),*) {
 					Self::$variant(values)
 				} else)* {
-					return $crate::___::Result::Err(errors.push($crate::Error::new(
+					return $crate::__::Result::Err(errors.push($crate::Error::new(
 						$crate::ErrorPriority::GRAMMAR,
 						$error,
 						[input.front_span()],
@@ -537,7 +495,7 @@ macro_rules! grammar {
 
 		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
 		impl $crate::IntoTokens for $name {
-			fn into_tokens(self, root: &$crate::___::TokenStream, tokens: &mut impl $crate::___::Extend<$crate::___::TokenTree>) {
+			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
 				match self {
 					$(Self::$variant(value) => $crate::IntoTokens::into_tokens(value, root, tokens),)*
 				}
@@ -564,15 +522,15 @@ macro_rules! grammar {
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
 		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &$crate::Input) -> $crate::___::bool {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
 				$crate::grammar!(@peek_first $name input $($type,)*)
 			}
 		}
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopFrom for $name {
-			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::___::Result<Self, ()> {
-				$crate::___::Result::Ok(Self {
+			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok(Self {
 					$($field: <$type as $crate::PopFrom>::pop_from(input, errors)?,)*
 				})
 			}
@@ -580,7 +538,7 @@ macro_rules! grammar {
 
 		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
 		impl $crate::IntoTokens for $name {
-			fn into_tokens(self, root: &$crate::___::TokenStream, tokens: &mut impl $crate::___::Extend<$crate::___::TokenTree>) {
+			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
 				let Self {
 					$($field,)*
 				} = self;
@@ -594,17 +552,17 @@ macro_rules! grammar {
 		<$type as $crate::PeekFrom>::peek_from($input);
 	);
 	(@peek_first $name:ident $input:ident) => (
-		::core::compile_error!($crate::___::concat!("To implement `PeekFrom` for `", $crate::___::stringify!($name), "`, at least one field is necessary."));
+		::core::compile_error!($crate::__::concat!("To implement `PeekFrom` for `", $crate::__::stringify!($name), "`, at least one field is necessary."));
 	);
 	{$t:tt $($tt:tt)*} => {
 		// Error
-		::core::compile_error!($crate::___::concat!("Unexpected grammar input: ", $crate::___::stringify!($t $($tt)*)));
+		::core::compile_error!($crate::__::concat!("Unexpected grammar input: ", $crate::__::stringify!($t $($tt)*)));
 	};
 	{} => {}; // Stop.
 }
 
 #[doc(hidden)]
-pub mod ___ {
+pub mod __ {
 	pub use core::primitive::bool;
 	pub use core::{concat, iter::Extend, result::Result, stringify};
 	pub use proc_macro2::{TokenStream, TokenTree};

@@ -2,8 +2,8 @@ use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
 use crate::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, Placeholder, PopFrom, SimpleSpanned,
-	SpanOrFrontOfExt, next_placeholder_number,
+	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, SimpleSpanned,
+	SpanOrFrontOfExt,
 };
 
 #[derive(Debug)]
@@ -86,15 +86,6 @@ impl ToTokens for Identifier {
 impl SimpleSpanned for Identifier {
 	fn span(&self) -> Span {
 		self.0.span()
-	}
-}
-
-impl Placeholder for Identifier {
-	fn placeholder() -> Self {
-		Self(Ident::new(
-			&format!("PLACEHOLDER_IDENTIFIER_{}", next_placeholder_number()),
-			Span::mixed_site(),
-		))
 	}
 }
 
