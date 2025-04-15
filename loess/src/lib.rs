@@ -541,6 +541,7 @@ macro_rules! grammar {
 
 		$($tt:tt)*
 	} => {
+		$(#[$($attr)*])*
 		$vis struct $name {
 			$($field_vis $field: $type,)*
 		}
@@ -584,6 +585,7 @@ macro_rules! grammar {
 
 		$($tt:tt)*
 	} => {
+		$(#[$($attr)*])*
 		$vis struct $name (
 			$($field_vis $type,)*
 		);
