@@ -97,7 +97,7 @@ macro_rules! delimiter_struct {
 						errors.push(Error::new(
 							ErrorPriority::PANIC,
 							&format!(
-								concat!("bailing from ", stringify!($name), " due to panic: {:?}"),
+								"macro panicked: {:?}",
 								if panic.as_ref().is::<HandledPanic>() {
 									resume_unwind(panic)
 								} else if let Some(message) =
