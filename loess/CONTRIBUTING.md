@@ -40,3 +40,12 @@ cargo test -p loess --features opaque_rust_grammar
 ```
 
 Tests outside the opaque grammar module <em style=font-style:normal;font-variant:small-caps>must not</em> require Syn.
+
+## Publishing
+
+Publish with:
+
+```sh
+cargo publish --dry-run --locked -p loess -F opaque_rust_grammar
+cargo publish --locked -p loess -F opaque_rust_grammar
+```
