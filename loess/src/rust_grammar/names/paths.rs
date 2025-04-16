@@ -1,7 +1,7 @@
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
-	Stmt,
+	Path,
 	parse::{Parse, ParseStream, Parser},
 };
 
@@ -10,24 +10,24 @@ use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, 
 grammar! {
 	/// Opaque implementation. Contributions welcome!
 	#[derive(Clone)]
-	pub struct Statement {
-		syn: Stmt,
+	pub struct SimplePath {
+		syn: Path,
 	}
 }
 
 /// For now, **always** succeeds.
-impl PeekFrom for Statement {
+impl PeekFrom for SimplePath {
 	fn peek_from(_input: &Input) -> bool {
 		true
 	}
 }
 
-impl PopFrom for Statement {
+impl PopFrom for SimplePath {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		fn parse(input: ParseStream) -> syn::Result<(Statement, TokenStream)> {
+		fn parse(input: ParseStream) -> syn::Result<(SimplePath, TokenStream)> {
 			Ok((
-				Statement {
-					syn: Stmt::parse(input)?,
+				SimplePath {
+					syn: Path::parse_mod_style(input)?,
 				},
 				TokenStream::parse(input)?,
 			))
@@ -42,7 +42,7 @@ impl PopFrom for Statement {
 		let (this, rest) = parse.parse2(tokens).map_err(|error| {
 			errors.push(Error::new(
 				ErrorPriority::GRAMMAR,
-				"Expected Statement.",
+				"Expected SimplePath.",
 				[error_span],
 			));
 		})?;
@@ -52,7 +52,7 @@ impl PopFrom for Statement {
 	}
 }
 
-impl IntoTokens for Statement {
+impl IntoTokens for SimplePath {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		self.syn.into_token_stream().into_tokens(root, tokens);
 	}

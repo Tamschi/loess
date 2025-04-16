@@ -12,7 +12,7 @@ use loess::{
 use proc_macro2::TokenStream;
 
 grammar! {
-	pub enum Statement: PopFrom, IntoTokens {
+	pub enum Statement: PeekFrom, PopFrom, IntoTokens {
 		ParenBrace(Parentheses<CurlyBraces<Vec<RustStatement>>>),
 		BracketBrace(SquareBrackets<CurlyBraces<Vec<RustStatement>>>),
 		For(ForLoop),

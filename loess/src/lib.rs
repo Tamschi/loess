@@ -7,9 +7,16 @@
 
 #![warn(clippy::pedantic, missing_docs)]
 
-use std::{collections::VecDeque, fmt::Debug, iter, marker::PhantomData};
+use std::{
+	any::Any,
+	collections::VecDeque,
+	fmt::Debug,
+	iter,
+	marker::PhantomData,
+	panic::{AssertUnwindSafe, RefUnwindSafe, UnwindSafe, catch_unwind},
+};
 
-use error_priorities::UNCONSUMED_AFTER_REPEATS;
+use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
 use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 use quote::quote_spanned;
 
@@ -63,6 +70,9 @@ impl IntoTokens for Error {
 	}
 }
 
+/// A collection of [`Error`]s submitted during e.g. parsing with [`PopFrom`].  
+/// Only the set of [`Error`]s with the highest [`ErrorPriority`] is emitted as
+/// [`compile_error!`] through [`IntoTokens`].
 #[derive(Debug, Clone)]
 pub struct Errors {
 	errors: Vec<Error>,
@@ -72,6 +82,7 @@ pub struct Errors {
 pub struct ErrorPriority(f64);
 
 pub trait ConstErrorPriority {
+	#[allow(missing_docs)]
 	const PRIORITY: ErrorPriority;
 }
 
@@ -85,11 +96,17 @@ impl ErrorPriority {
 		Self(self.0.next_down())
 	}
 
+	#[allow(missing_docs)]
 	pub const PANIC: Self = Self::new(0.);
+	#[allow(missing_docs)]
 	pub const TOKEN: Self = Self::new(0.);
+	#[allow(missing_docs)]
 	pub const GRAMMAR: Self = Self::new(0.);
+	#[allow(missing_docs)]
 	pub const UNCONSUMED_AFTER_REPEATS: Self = Self::new(-1.);
+	#[allow(missing_docs)]
 	pub const UNCONSUMED_IN_DELIMITER: Self = Self::new(-2.);
+	#[allow(missing_docs)]
 	pub const UNCONSUMED_INPUT: Self = Self::new(-3.);
 }
 
@@ -151,10 +168,12 @@ impl Ord for ErrorPriority {
 }
 
 impl Errors {
+	#[allow(missing_docs)]
 	pub fn new() -> Self {
 		Self { errors: vec![] }
 	}
 
+	#[allow(missing_docs)]
 	pub fn push(&mut self, error: Error) {
 		self.errors.push(error)
 	}
@@ -237,11 +256,9 @@ impl Input {
 		} else {
 			match f([(); N].map(|()| self.tokens.pop_front().expect("unreachable"))) {
 				Ok(value) => Ok(value),
-				Err(ts) => {
-					let spans = ts.iter().map(|t| t.span()).collect();
-					for t in ts.into_iter().rev() {
-						self.tokens.push_front(t);
-					}
+				Err(tts) => {
+					let spans = tts.iter().map(|t| t.span()).collect();
+					self.prepend(tts);
 					Err(spans)
 				}
 			}
@@ -350,6 +367,8 @@ impl<T: PeekFrom + PopFrom> PopFrom for Option<T> {
 /// Does **not** affect <code>[`Vec`]&lt;Self></code> or <code>[`VecDeque`]&lt;Self></code> parsing, which is exhaustive.
 ///
 /// Also enables [`PopFrom::peek_pop_from`] for `Self`, which is used in [`grammar!`]-generated enum parsers.
+///
+/// Intentionally not implemented for [`Option`], as it would always match, which is too error-prone.
 pub trait PeekFrom {
 	/// # Returns
 	///
@@ -363,24 +382,17 @@ pub trait PeekFrom {
 	fn peek_from(input: &Input) -> bool;
 }
 
-/// **Always** succeeds.
-impl<T> PeekFrom for Option<T> {
-	fn peek_from(_input: &Input) -> bool {
-		true
+/// Succeeds if input is empty, otherwise peeks `T`.
+impl<T: PeekFrom> PeekFrom for Vec<T> {
+	fn peek_from(input: &Input) -> bool {
+		input.is_empty() || T::peek_from(input)
 	}
 }
 
-/// **Always** succeeds.
-impl<T> PeekFrom for Vec<T> {
-	fn peek_from(_input: &Input) -> bool {
-		true
-	}
-}
-
-/// **Always** succeeds.
-impl<T> PeekFrom for VecDeque<T> {
-	fn peek_from(_input: &Input) -> bool {
-		true
+/// Succeeds if input is empty, otherwise peeks `T`.
+impl<T: PeekFrom> PeekFrom for VecDeque<T> {
+	fn peek_from(input: &Input) -> bool {
+		input.is_empty() || T::peek_from(input)
 	}
 }
 
@@ -499,12 +511,17 @@ pub trait SimpleSpanned {
 	}
 }
 
+/// Parser- and printer-generator macro.
+///
 /// ```
 /// use loess::{
 /// 	grammar,
-/// 	rust_grammar::{Identifier, Parentheses, SquareBrackets, Visibility},
+/// 	rust_grammar::{
+/// 		Identifier, Let, Parentheses, Statement,
+/// 		SquareBrackets, Visibility,
+/// 	},
 /// };
-/// use proc_macro2::TokenTree;
+/// use proc_macro2::{Ident, TokenTree};
 ///
 /// grammar! {
 /// 	///
@@ -512,12 +529,35 @@ pub trait SimpleSpanned {
 /// 	#[derive(Clone)]
 /// 	pub enum Alternatives: doc, PeekFrom, PopFrom, IntoTokens {
 /// 		Identifier(Identifier),
-/// 		Paren(Parentheses), // Can be used as generic too.
+/// 		Paren(Parentheses),
 /// 		Bracket(SquareBrackets<Vec<TokenTree>>),
-/// 		Vis(Option<Visibility>), // Must always be last, as peeking `Option` always succeeds.
+/// 		Vis(Visibility),
 /// 	} else "Expected Alternative.";
+///
+/// 	#[derive(Clone)]
+/// 	/// `visibility` can't be first, as `Option` isn't `PeekFrom`.
+/// 	/// However, `Visibility` itself is `PeekFrom` (checking for `pub`).
+/// 	///
+/// 	/// Fields are parsed and emitted in order.
+/// 	pub struct StructuredSequence: PeekFrom, PopFrom, IntoTokens {
+/// 		pub r#let: Let,
+/// 		pub visibility: Option<Visibility>,
+/// 		pub paren_ident: Parentheses<Ident>,
+/// 		pub statements: Vec<Statement>,
+/// 	}
+///
+/// 	#[derive(Clone)]
+/// 	/// Generated implementations for tuple structs are currently the most limited.
+/// 	pub struct TupleSequence: PeekFrom, PopFrom (
+/// 		pub Let,
+/// 		pub Option<StructuredSequence>,
+/// 		pub Parentheses<Ident>,
+/// 		pub Vec<Statement>,
+/// 	);
 /// }
 /// ```
+///
+/// [`grammar!`] is fully hygienic and uses `$crate`, so can rename dependencies freely.
 #[macro_export]
 macro_rules! grammar {
 	{
@@ -687,4 +727,305 @@ pub mod __ {
 	pub use proc_macro2::{TokenStream, TokenTree};
 }
 
+/// Loess intercepts [`String`] and <code>&'static [str]</code> panics in group tokens to
+/// report their message via [`Error`] on the frontmost [`Input`] token instead.
+///
+/// In order to avoid duplicate reporting, [`HandledPanic`] is substituted when unwinding
+/// is resumed. This type can be detected and ignored by further panic handlers on the
+/// call stack.
+///
+/// To catch the top-level unwind and report panics from outside any groups, you can use
+/// one of [`parse_all_input`], [`parse_all_input_with`], [`parse_all_input_with_infallible`] and
+/// [`catch_macro_unwind`], in order of decreasing convenience.
 pub struct HandledPanic;
+
+pub fn catch_macro_unwind<'a, T>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+	f: impl 'a + UnwindSafe + FnOnce(&mut Input, &mut Errors) -> T,
+) -> Result<T, ()> {
+	catch_macro_unwind_impl(input, errors, f)
+}
+
+/// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
+fn catch_macro_unwind_impl<'a, T>(
+	input: &mut Input,
+	errors: &mut Errors,
+	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> T,
+) -> Result<T, ()> {
+	fn handle_panic(input: &mut Input, errors: &mut Errors, panic: Box<dyn Any + Send>) {
+		errors.push(Error::new(
+			ErrorPriority::PANIC,
+			&format!(
+				"proc macro panicked: {:?}",
+				if panic.as_ref().is::<HandledPanic>() {
+					return;
+				} else if let Some(message) = panic.as_ref().downcast_ref::<String>() {
+					message.clone()
+				} else if let Some(message) = panic.as_ref().downcast_ref::<&'static str>() {
+					message.to_string()
+				} else {
+					return errors.push(Error::new(
+						ErrorPriority::PANIC,
+						"proc macro panicked",
+						[input.front_span()],
+					));
+				}
+			),
+			[input.front_span()],
+		))
+	}
+
+	catch_unwind(AssertUnwindSafe(|| f(input, errors))).map_err(|panic| {
+		handle_panic(input, errors, panic);
+	})
+}
+
+/// Conveniently parses remaining [`Input`] through `f` without catching [`Err`],
+/// catching and submitting panics to the given [`Errors`]:
+///
+/// ```
+/// use loess::{parse_all_input_with_infallible, Errors, Input, IntoTokens, PopFrom};
+/// use proc_macro2::{Span, TokenStream, TokenTree};
+///
+/// fn macro_impl(input: TokenStream) -> TokenStream {
+/// 	let mut input = Input {
+/// 		tokens: input.into_iter().collect(),
+/// 		end: Span::call_site(),
+/// 	};
+/// 	let mut errors = Errors::new();
+///
+/// 	let tts = parse_all_input_with_infallible(
+/// 			&mut input,
+/// 			&mut errors,
+/// 			|input, errors| TokenTree::pop_from(input, errors).expect("infallible"),
+/// 		).collect::<Vec<_>>(); // Checks for exhaustiveness.
+///
+/// 	let root = TokenStream::new(); // See `IntoTokens`.
+/// 	let mut output = TokenStream::new();
+/// 	errors.into_tokens(&root, &mut output);
+///
+/// 	// Emit your output here:
+/// 	tts.into_tokens(&root, &mut output);
+///
+/// 	output
+/// }
+/// ```
+///
+/// You can call [`.next()`](`Iterator::next`) instead of [`.collect()`](`Iterator::collect`)
+/// to parse a single value exhaustively into an [`Option`]:
+///
+/// ```
+/// use loess::{parse_all_input_with_infallible, Errors, Input, IntoTokens, PopFrom};
+/// use proc_macro2::{Span, TokenStream, TokenTree};
+///
+/// fn macro_impl(input: TokenStream) -> TokenStream {
+/// 	let mut input = Input {
+/// 		tokens: input.into_iter().collect(),
+/// 		end: Span::call_site(),
+/// 	};
+/// 	let mut errors = Errors::new();
+///
+/// 	let tt = parse_all_input_with_infallible(
+/// 			&mut input,
+/// 			&mut errors,
+/// 			|input, errors| TokenTree::pop_from(input, errors).expect("infallible"),
+/// 		).next(); // Checks for exhaustiveness.
+///
+/// 	let root = TokenStream::new(); // See `IntoTokens`.
+/// 	let mut output = TokenStream::new();
+///
+/// 	// Make sure to emit `errors` unconditionally,
+/// 	// ideally before other output.
+/// 	errors.into_tokens(&root, &mut output);
+///
+/// 	if let Some(tt) = tt {
+/// 		// Emit your output here:
+/// 		tt.into_tokens(&root, &mut output);
+/// 	};
+///
+/// 	output
+/// }
+/// ```
+pub fn parse_all_input_with_infallible<'a, T>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> T,
+) -> impl 'a + Iterator<Item = T> {
+	parse_all_input_with_infallible_impl(input, errors, f)
+}
+
+/// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
+fn parse_all_input_with_infallible_impl<'a, T>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> T,
+) -> impl 'a + Iterator<Item = T> {
+	struct Iter<'a, F> {
+		input: &'a mut Input,
+		errors: &'a mut Errors,
+		f: F,
+	}
+
+	impl<'a, T, F: 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> T> Iterator for Iter<'a, F> {
+		type Item = T;
+
+		fn next(&mut self) -> Option<Self::Item> {
+			if self.input.is_empty() {
+				None
+			} else {
+				match catch_macro_unwind_impl(self.input, self.errors, &mut self.f) {
+					Ok(ok) => Some(ok),
+					Err(()) => None,
+				}
+			}
+		}
+	}
+
+	impl<'a, F> Drop for Iter<'a, F> {
+		/// [`Iter`] borrows the [`Errors`] exclusively, so this will be called before that's turned into output.
+		fn drop(&mut self) {
+			EndOfInput::<UNCONSUMED_INPUT>::pop_from(self.input, self.errors).ok();
+		}
+	}
+
+	Iter { input, errors, f }
+}
+
+/// Conveniently parses remaining [`Input`] through `f`,
+/// catching and submitting panics to the given [`Errors`]:
+///
+/// ```
+/// use loess::{parse_all_input_with, Errors, Input, IntoTokens, PopFrom};
+/// use proc_macro2::{Span, TokenStream, TokenTree};
+///
+/// fn macro_impl(input: TokenStream) -> TokenStream {
+/// 	let mut input = Input {
+/// 		tokens: input.into_iter().collect(),
+/// 		end: Span::call_site(),
+/// 	};
+/// 	let mut errors = Errors::new();
+///
+/// 	let tts = parse_all_input_with(&mut input, &mut errors, TokenTree::pop_from)
+/// 		.collect::<Vec<_>>(); // Checks for exhaustiveness.
+///
+/// 	let root = TokenStream::new(); // See `IntoTokens`.
+/// 	let mut output = TokenStream::new();
+/// 	errors.into_tokens(&root, &mut output);
+///
+/// 	// Emit your output here:
+/// 	tts.into_tokens(&root, &mut output);
+///
+/// 	output
+/// }
+/// ```
+///
+/// You can call [`.next()`](`Iterator::next`) instead of [`.collect()`](`Iterator::collect`)
+/// to parse a single value exhaustively into an [`Option`]:
+///
+/// ```
+/// use loess::{parse_all_input_with, Errors, Input, IntoTokens, PopFrom};
+/// use proc_macro2::{Span, TokenStream, TokenTree};
+///
+/// fn macro_impl(input: TokenStream) -> TokenStream {
+/// 	let mut input = Input {
+/// 		tokens: input.into_iter().collect(),
+/// 		end: Span::call_site(),
+/// 	};
+/// 	let mut errors = Errors::new();
+///
+/// 	let tt = parse_all_input_with(&mut input, &mut errors, TokenTree::pop_from)
+/// 		.next(); // Checks for exhaustiveness.
+///
+/// 	let root = TokenStream::new(); // See `IntoTokens`.
+/// 	let mut output = TokenStream::new();
+///
+/// 	// Make sure to emit `errors` unconditionally,
+/// 	// ideally before other output.
+/// 	errors.into_tokens(&root, &mut output);
+///
+/// 	if let Some(tt) = tt {
+/// 		// Emit your output here:
+/// 		tt.into_tokens(&root, &mut output);
+/// 	};
+///
+/// 	output
+/// }
+/// ```
+pub fn parse_all_input_with<'a, T: 'a>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> Result<T, ()>,
+) -> impl 'a + Iterator<Item = T> {
+	parse_all_input_with_infallible_impl(input, errors, f).map_while(|item| match item {
+		Ok(ok) => Some(ok),
+		Err(()) => None,
+	})
+}
+
+/// Conveniently parses remaining [`Input`] through [`PopFrom`],
+/// catching and submitting panics to the given [`Errors`]:
+///
+/// ```
+/// use loess::{parse_all_input, Errors, Input, IntoTokens};
+/// use proc_macro2::{Span, TokenStream, TokenTree};
+///
+/// fn macro_impl(input: TokenStream) -> TokenStream {
+/// 	let mut input = Input {
+/// 		tokens: input.into_iter().collect(),
+/// 		end: Span::call_site(),
+/// 	};
+/// 	let mut errors = Errors::new();
+///
+/// 	let tts: Vec<TokenTree> = parse_all_input(&mut input, &mut errors)
+/// 		.collect(); // Checks for exhaustiveness.
+///
+/// 	let root = TokenStream::new(); // See `IntoTokens`.
+/// 	let mut output = TokenStream::new();
+/// 	errors.into_tokens(&root, &mut output);
+///
+/// 	// Emit your output here:
+/// 	tts.into_tokens(&root, &mut output);
+///
+/// 	output
+/// }
+/// ```
+///
+/// You can call [`.next()`](`Iterator::next`) instead of [`.collect()`](`Iterator::collect`)
+/// to parse a single value exhaustively into an [`Option`]:
+///
+/// ```
+/// use loess::{parse_all_input, Errors, Input, IntoTokens};
+/// use proc_macro2::{Span, TokenStream, TokenTree};
+///
+/// fn macro_impl(input: TokenStream) -> TokenStream {
+/// 	let mut input = Input {
+/// 		tokens: input.into_iter().collect(),
+/// 		end: Span::call_site(),
+/// 	};
+/// 	let mut errors = Errors::new();
+///
+/// 	let tt: Option<TokenTree> = parse_all_input(&mut input, &mut errors)
+/// 		.next(); // Checks for exhaustiveness.
+///
+/// 	let root = TokenStream::new(); // See `IntoTokens`.
+/// 	let mut output = TokenStream::new();
+///
+/// 	// Make sure to emit `errors` unconditionally,
+/// 	// ideally before other output.
+/// 	errors.into_tokens(&root, &mut output);
+///
+/// 	if let Some(tt) = tt {
+/// 		// Emit your output here:
+/// 		tt.into_tokens(&root, &mut output);
+/// 	};
+///
+/// 	output
+/// }
+/// ```
+pub fn parse_all_input<'a, T: 'a + PopFrom>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+) -> impl 'a + Iterator<Item = T> {
+	parse_all_input_with(input, errors, T::pop_from)
+}

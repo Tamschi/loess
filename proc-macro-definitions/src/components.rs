@@ -7,7 +7,7 @@ use proc_macro2::{Span, TokenStream};
 pub fn components(input: TokenStream) -> TokenStream {
 	let mut input = Input {
 		tokens: input.into_iter().collect(),
-		end: Span::mixed_site(),
+		end: Span::call_site(),
 	};
 
 	let mut errors = Errors::new();
@@ -15,7 +15,9 @@ pub fn components(input: TokenStream) -> TokenStream {
 	let mut components = vec![];
 	'panic_to_error: {
 		match catch_unwind(AssertUnwindSafe(|| {
-			components = Vec::<Component>::pop_from(&mut input, &mut errors).unwrap_or_default()
+			while !input.is_empty() {
+				components = Vec::<Component>::pop_from(&mut input, &mut errors).unwrap_or_default()
+			}
 		})) {
 			Ok(()) => (),
 			Err(panic) => errors.push(Error::new(
@@ -31,7 +33,7 @@ pub fn components(input: TokenStream) -> TokenStream {
 					} else {
 						errors.push(Error::new(
 							ErrorPriority::PANIC,
-							"proc macro panicked (trace of unhandled panic type)",
+							"proc macro panicked",
 							[input.front_span()],
 						));
 						break 'panic_to_error;

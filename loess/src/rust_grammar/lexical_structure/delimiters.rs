@@ -74,7 +74,7 @@ macro_rules! delimiter_struct {
 		impl<T: PopFrom> PopFrom for $name<T> {
 			fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 				let (span, mut contents) = input
-					.pop_or_replace(|ts| match ts {
+					.pop_or_replace(|tts| match tts {
 						[TokenTree::Group(group)] if group.delimiter() == $delimiter => Ok((
 							group.delim_span(),
 							Input {
