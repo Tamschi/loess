@@ -237,7 +237,6 @@ fn macro_impl(input: TokenStream) -> TokenStream {
         struct Grammar: PopFrom {}
     }
 
-    //TODO: Check for whether input wasn't advanced!
     // Checks for exhaustiveness.
     let parsed = parse_all(&mut input, &mut errors).next();
     let mut output = errors.collect_tokens(&root);

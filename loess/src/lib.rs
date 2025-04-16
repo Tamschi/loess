@@ -35,6 +35,7 @@ use std::{
 	fmt::Debug,
 	iter,
 	marker::PhantomData,
+	mem,
 	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
 };
 
@@ -272,7 +273,6 @@ impl Errors {
 /// 		struct Grammar: PopFrom {}
 /// 	}
 ///
-/// 	//TODO: Check for whether input wasn't advanced!
 /// 	// Checks for exhaustiveness.
 /// 	let parsed = parse_all(&mut input, &mut errors).next();
 /// 	let mut output = errors.collect_tokens(&root);
@@ -950,7 +950,12 @@ pub fn parse_once<'a, T: PopFrom>(input: &'a mut Input, errors: &'a mut Errors) 
 /// Low-level function that parses remaining [`Input`] through [`FnMut`] without also catching [`Err(())`](`Err`),
 /// catching and submitting panics to the given [`Errors`].
 ///
-/// Yields [`None`] on panic.
+/// # Yields <sub>in order of precedence</sub>
+///
+/// [`None`] once after the previous call's `f` call didn't change `input`'s length (to break out of stalls),  
+/// [`None`] when `input` is empty,  
+/// [`None`] when `f` panics,  
+/// [`Some`] otherwise.
 ///
 /// ```
 /// use loess::{parse_all_with_infallible, Errors, Input, IntoTokens, PopFrom};
@@ -1031,19 +1036,24 @@ fn parse_all_with_infallible_impl<'a, T>(
 		input: &'a mut Input,
 		errors: &'a mut Errors,
 		f: F,
+		stalled: bool,
 	}
 
 	impl<'a, T, F: 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> T> Iterator for Iter<'a, F> {
 		type Item = T;
 
 		fn next(&mut self) -> Option<Self::Item> {
-			if self.input.is_empty() {
+			if mem::take(&mut self.stalled) || self.input.is_empty() {
 				None
 			} else {
-				match parse_once_with_infallible_impl(self.input, self.errors, &mut self.f) {
-					Ok(ok) => Some(ok),
-					Err(()) => None,
-				}
+				let before_len = self.input.len();
+				let next =
+					match parse_once_with_infallible_impl(self.input, self.errors, &mut self.f) {
+						Ok(ok) => Some(ok),
+						Err(()) => None,
+					};
+				self.stalled = self.input.len() == before_len;
+				next
 			}
 		}
 	}
@@ -1055,13 +1065,23 @@ fn parse_all_with_infallible_impl<'a, T>(
 		}
 	}
 
-	Iter { input, errors, f }
+	Iter {
+		input,
+		errors,
+		f,
+		stalled: false,
+	}
 }
 
 /// Parses remaining [`Input`] through [`FnMut`],
 /// catching and submitting panics to the given [`Errors`].
 ///
-/// Yields [`None`] on [`Err(())`](`Err`) or panic.
+/// # Yields <sub>in order of precedence</sub>
+///
+/// [`None`] once after the previous call's `f` call didn't change `input`'s length (to break out of stalls),  
+/// [`None`] when `input` is empty,  
+/// [`None`] when `f` returns [`Err(())`](`Err`) or panics,  
+/// [`Some`] otherwise.
 ///
 /// ```
 /// use loess::{parse_all_with, Errors, Input, IntoTokens, PopFrom};
@@ -1132,7 +1152,12 @@ pub fn parse_all_with<'a, T: 'a>(
 /// Conveniently parses remaining [`Input`] through [`PopFrom`],
 /// catching and submitting panics to the given [`Errors`].
 ///
-/// Yields [`None`] when [`PopFrom::pop_from`] returns [`Err(())`](`Err`) or panics.
+/// # Yields <sub>in order of precedence</sub>
+///
+/// [`None`] once after the previous call's [`PopFrom::pop_from`] didn't change `input`'s length (to break out of stalls),  
+/// [`None`] when `input` is empty,  
+/// [`None`] when [`PopFrom::pop_from`] returns [`Err(())`](`Err`) or panics,  
+/// [`Some`] otherwise.
 ///
 /// ```
 /// use loess::{parse_all, Errors, Input, IntoTokens};
