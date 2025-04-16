@@ -4,7 +4,7 @@ Loess is a parser library and parser generator for proc macros.
 
 ```rust
 use loess::{
-    grammar, parse_all_input, Input, Errors, PeekFrom, PopFrom, IntoTokens,
+    grammar, parse_all, Input, Errors, PeekFrom, PopFrom, IntoTokens,
     rust_grammar::{ // With the `"rust_grammar"` feature.
         Await, CurlyBraces, Dot, Identifier, Parentheses, Semi, SquareBrackets,
     }
@@ -65,7 +65,7 @@ fn macro_impl(input: TokenStream) -> TokenStream {
 
     // Turns panics into located errors and checks for exhaustiveness.
     // (Errors for unconsumed input have low priority to avoid distractions.)
-    let children: Vec<Child> = parse_all_input(
+    let children: Vec<Child> = parse_all(
             &mut Input {
                 // This is a plain `VecDeque<TokenTree>`.
                 tokens: input.into_iter().collect(),
@@ -77,7 +77,11 @@ fn macro_impl(input: TokenStream) -> TokenStream {
             &mut errors,
         ).collect();
 
-    // You can also step through `Input` via `::peek_from`, `::pop_from` and `::peek_pop_from`.
+    // You can also step through `Input` via for `parse_once…` functions, but you should
+    // always use a `parse_all…` function last to check for unconsumed input.
+
+    // Of course you can also generate a top-level grammar implementation and then write
+    // `parse_all(…).next();` instead! (Make sure to emit errors before you exit on `None`.)
 
     let root = TokenStream::new();
     let mut output = TokenStream::new();
