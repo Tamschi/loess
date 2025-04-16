@@ -80,9 +80,6 @@ fn macro_impl(input: TokenStream) -> TokenStream {
     // You can also step through `Input` via for `parse_once…` functions, but you should
     // always use a `parse_all…` function last to check for unconsumed input.
 
-    // Of course you can also generate a top-level grammar implementation and then write
-    // `parse_all(…).next();` instead! (Make sure to emit errors before you exit on `None`.)
-
     let root = TokenStream::new();
     let mut output = TokenStream::new();
 
@@ -91,11 +88,46 @@ fn macro_impl(input: TokenStream) -> TokenStream {
         // Mainly for wrapped macros that have access to `$crate`.
         //
         // Iff not empty, `Errors` assumes that `core` is reexported there.
-        &TokenStream::new(),
+        &root,
         &mut output,
     );
 
     // You can emit your output step-by-step, or exit early after emitting `errors`.
+    children.into_tokens(&root, &mut output);
+
+    output
+}
+
+// Alternatively:
+
+fn macro_impl2(input: TokenStream) -> TokenStream {
+    let mut errors = Errors::new();
+
+    let root = TokenStream::new();
+
+    grammar! {
+        struct Grammar: PopFrom (
+            Identifier,
+            CurlyBraces<Vec<Child>>,
+        );
+    }
+
+    let Some(Grammar(name, children)) = parse_all(
+            &mut Input {
+                // This is a plain `VecDeque<TokenTree>`.
+                tokens: input.into_iter().collect(),
+
+                // Used to locate errors if the end of input was reached unexpectedly.
+                // Nightly macros can use `Span::end` to get a better error location.
+                end: Span::call_site(),
+            },
+            &mut errors,
+        ).next() else { return errors.collect_tokens(&root); };
+
+    let mut output = errors.collect_tokens(&root);
+
+    // Emit your output step-by-step.
+    name.into_tokens(&root, &mut output);
     children.into_tokens(&root, &mut output);
 
     output
@@ -112,7 +144,7 @@ Here's what to expect:
 
 - A reasonably powerful parser-generator.
 
-  `grammar!` can emit documentation (for enums), `PeekFrom`, `PopFrom` and `IntoTokens` implementations on grammar types.
+  `grammar!` can emit documentation (for enums) and `PeekFrom`, `PopFrom` and `IntoTokens` implementations on grammar types.
 
 - **Really** good error reporting from proc macros implemented with Loess, *by default*.
 

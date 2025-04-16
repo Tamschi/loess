@@ -798,8 +798,7 @@ pub mod __ {
 /// either in order of decreasing convenience.
 pub struct HandledPanic;
 
-/// Low-level non-repeating unwind-catcher that reports panics to the given [`Errors`],
-/// located at <code>input.[front_span()](`Input::front_span`)</code> at the time.
+/// Low-level [`FnOnce`]-unwind-catcher that reports panics to the given [`Errors`] without also catching [`Err(())`](`Err`).
 ///
 /// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
 /// <code>[parse_all_with_infallible](input, errors, f).[next()](`Iterator::next`)</code> instead.
@@ -845,8 +844,7 @@ fn parse_once_with_infallible_impl<'a, T>(
 	})
 }
 
-/// Non-repeating unwind-catcher that reports panics to the given [`Errors`],
-/// located at <code>input.[front_span()](`Input::front_span`)</code> at the time.
+/// [`FnOnce`]-unwind-catcher that reports panics to the given [`Errors`].
 ///
 /// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
 /// <code>[parse_all_with](input, errors, f).[next()](`Iterator::next`)</code> instead.
@@ -870,8 +868,7 @@ fn parse_once_with_impl<'a, T>(
 	}
 }
 
-/// Convenient non-repeating unwind-catcher that reports panics to the given [`Errors`],
-/// located at <code>input.[front_span()](`Input::front_span`)</code> at the time.
+/// Convenient non-repeating [`PopFrom::pop_from`]-unwind-catcher that reports panics to the given [`Errors`].
 ///
 /// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
 /// <code>[parse_all](input, errors).[next()](`Iterator::next`)</code> instead.
@@ -879,8 +876,10 @@ pub fn parse_once<'a, T: PopFrom>(input: &'a mut Input, errors: &'a mut Errors) 
 	parse_once_with_impl(input, errors, T::pop_from)
 }
 
-/// Conveniently parses remaining [`Input`] through `f` without catching [`Err`],
-/// catching and submitting panics to the given [`Errors`]:
+/// Low-level function that parses remaining [`Input`] through [`FnMut`] without also catching [`Err(())`](`Err`),
+/// catching and submitting panics to the given [`Errors`].
+///
+/// Yields [`None`] on panic.
 ///
 /// ```
 /// use loess::{parse_all_with_infallible, Errors, Input, IntoTokens, PopFrom};
@@ -924,23 +923,21 @@ pub fn parse_once<'a, T: PopFrom>(input: &'a mut Input, errors: &'a mut Errors) 
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tt = parse_all_with_infallible(
+/// 	let root = TokenStream::new(); // See `IntoTokens`.
+///
+/// 	let Some(tt) = parse_all_with_infallible(
 /// 			&mut input,
 /// 			&mut errors,
 /// 			|input, errors| TokenTree::pop_from(input, errors).expect("infallible"),
-/// 		).next(); // Checks for exhaustiveness.
-///
-/// 	let root = TokenStream::new(); // See `IntoTokens`.
-/// 	let mut output = TokenStream::new();
+/// 		).next() // Checks for exhaustiveness.
+/// 		else { return errors.collect_tokens(&root) };
 ///
 /// 	// Make sure to emit `errors` unconditionally,
 /// 	// ideally before other output.
-/// 	errors.into_tokens(&root, &mut output);
+/// 	let mut output = errors.collect_tokens(&root);
 ///
-/// 	if let Some(tt) = tt {
-/// 		// Emit your output here:
-/// 		tt.into_tokens(&root, &mut output);
-/// 	};
+/// 	// Emit your output here:
+/// 	tt.into_tokens(&root, &mut output);
 ///
 /// 	output
 /// }
@@ -990,8 +987,10 @@ fn parse_all_with_infallible_impl<'a, T>(
 	Iter { input, errors, f }
 }
 
-/// Conveniently parses remaining [`Input`] through `f`,
-/// catching and submitting panics to the given [`Errors`]:
+/// Parses remaining [`Input`] through [`FnMut`],
+/// catching and submitting panics to the given [`Errors`].
+///
+/// Yields [`None`] on [`Err(())`](`Err`) or panic.
 ///
 /// ```
 /// use loess::{parse_all_with, Errors, Input, IntoTokens, PopFrom};
@@ -1032,20 +1031,18 @@ fn parse_all_with_infallible_impl<'a, T>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tt = parse_all_with(&mut input, &mut errors, TokenTree::pop_from)
-/// 		.next(); // Checks for exhaustiveness.
-///
 /// 	let root = TokenStream::new(); // See `IntoTokens`.
-/// 	let mut output = TokenStream::new();
+///
+/// 	let Some(tt) = parse_all_with(&mut input, &mut errors, TokenTree::pop_from)
+/// 		.next() // Checks for exhaustiveness.
+/// 		else { return errors.collect_tokens(&root) };
 ///
 /// 	// Make sure to emit `errors` unconditionally,
 /// 	// ideally before other output.
-/// 	errors.into_tokens(&root, &mut output);
+/// 	let mut output = errors.collect_tokens(&root);
 ///
-/// 	if let Some(tt) = tt {
-/// 		// Emit your output here:
-/// 		tt.into_tokens(&root, &mut output);
-/// 	};
+/// 	// Emit your output here:
+/// 	tt.into_tokens(&root, &mut output);
 ///
 /// 	output
 /// }
@@ -1062,7 +1059,9 @@ pub fn parse_all_with<'a, T: 'a>(
 }
 
 /// Conveniently parses remaining [`Input`] through [`PopFrom`],
-/// catching and submitting panics to the given [`Errors`]:
+/// catching and submitting panics to the given [`Errors`].
+///
+/// Yields [`None`] when [`PopFrom::pop_from`] returns [`Err(())`](`Err`) or panics.
 ///
 /// ```
 /// use loess::{parse_all, Errors, Input, IntoTokens};
@@ -1103,20 +1102,18 @@ pub fn parse_all_with<'a, T: 'a>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tt: Option<TokenTree> = parse_all(&mut input, &mut errors)
-/// 		.next(); // Checks for exhaustiveness.
-///
 /// 	let root = TokenStream::new(); // See `IntoTokens`.
-/// 	let mut output = TokenStream::new();
+///
+/// 	let Some(tt) = parse_all::<TokenTree>(&mut input, &mut errors)
+/// 		.next() // Checks for exhaustiveness.
+/// 		else { return errors.collect_tokens(&root) };
 ///
 /// 	// Make sure to emit `errors` unconditionally,
 /// 	// ideally before other output.
-/// 	errors.into_tokens(&root, &mut output);
+/// 	let mut output = errors.collect_tokens(&root);
 ///
-/// 	if let Some(tt) = tt {
-/// 		// Emit your output here:
-/// 		tt.into_tokens(&root, &mut output);
-/// 	};
+/// 	// Emit your output here:
+/// 	tt.into_tokens(&root, &mut output);
 ///
 /// 	output
 /// }
