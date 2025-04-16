@@ -1,9 +1,31 @@
-//! <details><summary>README / Quick Start (click to expand)</summary>
+//! <details><summary>README / Example (click to expand)</summary>
 //!
 #![doc = include_str!("../README.md")]
 //!
 //! </details>
-//! TODO
+//!
+//! In most cases you'll want to:
+//!
+//! 1. generate grammar implementations with [`grammar!`] (You can also easily implement parts manually.),
+//! 2. step through the input with [`parse_once`], [`parse_once_with`] and/or [`parse_once_with_infallible`] and
+//! 3. consume the last of the input with [`parse_all`], [`parse_all_with`] or [`parse_all_with_infallible`].
+//!
+//! You can call either [`Iterator::collect`] (for repeats) or [`Iterator::next`] (for one value) on the last step.
+//!
+//! # Features
+//!
+//! None are default, as DSL macros might not need Rust's grammar at all.
+//!
+//! ## `"rust_grammar"`
+//!
+//! Enables [`rust_grammar`].
+//!
+//! ## `"opaque_rust_grammar"` <sub>enables `"rust_grammar"`, depends on `syn`</sub>
+//!
+//! Adds additional opaque Rust grammar DTOs, to consume, paste and clone for example
+//! Statements and Patterns.
+//!
+//! These preliminary implementations are [Syn](https://docs.rs/syn)-based and can't be inspected.
 
 #![warn(clippy::pedantic, missing_docs)]
 
@@ -13,7 +35,7 @@ use std::{
 	fmt::Debug,
 	iter,
 	marker::PhantomData,
-	panic::{AssertUnwindSafe, RefUnwindSafe, UnwindSafe, catch_unwind},
+	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
 };
 
 use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
@@ -22,6 +44,7 @@ use quote::quote_spanned;
 
 mod proc_macro2_impls;
 
+#[cfg(any(doc, feature = "rust_grammar"))]
 pub mod rust_grammar;
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  
@@ -50,7 +73,8 @@ impl Error {
 	}
 }
 
-/// Emits [`compile_error!`].
+/// Emits [`compile_error!`].  
+/// **Expects `root` to re-export [`core`] if not empty.**
 impl IntoTokens for Error {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let message = Literal::string(&self.message);
@@ -70,17 +94,22 @@ impl IntoTokens for Error {
 	}
 }
 
-/// A collection of [`Error`]s submitted during e.g. parsing with [`PopFrom`].  
-/// Only the set of [`Error`]s with the highest [`ErrorPriority`] is emitted as
-/// [`compile_error!`] through [`IntoTokens`].
+/// A collection of [`Error`]s submitted during e.g. parsing with [`PopFrom`].
+///
+/// Only the set of [`Error`]s with the highest [`ErrorPriority`] is pasted as [`compile_error!`]s through [`IntoTokens`].
 #[derive(Debug, Clone)]
 pub struct Errors {
 	errors: Vec<Error>,
 }
 
+/// An opaque [`Error`] priority.
+///
+/// To reduce noise from cascading errors within the generated parser,
+/// only the [`Error`]s with the respective highest priority are pasted by [`Errors`].
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct ErrorPriority(f64);
 
+/// [`ErrorPriority`] as generic type argument.
 pub trait ConstErrorPriority {
 	#[allow(missing_docs)]
 	const PRIORITY: ErrorPriority;
@@ -92,7 +121,17 @@ impl ErrorPriority {
 		Self(value)
 	}
 
-	pub const fn next_lower(self) -> Self {
+	/// Constructs a priority ever so slightly higher than `self`.
+	///
+	/// [`Error`]s with that priority *hide* [`Error`]s with `self` when [`Errors`] is pasted.
+	pub const fn next_higher(&self) -> Self {
+		Self(self.0.next_up())
+	}
+
+	/// Constructs a priority ever so slightly higher than `self`.
+	///
+	/// [`Error`]s with that priority *are hidden by* [`Error`]s with `self` when [`Errors`] is pasted.
+	pub const fn next_lower(&self) -> Self {
 		Self(self.0.next_down())
 	}
 
@@ -208,6 +247,8 @@ impl<T: IntoTokens> IntoTokens for Vec<T> {
 	}
 }
 
+/// Emits [`compile_error!`]s, but oly those with the highest [`ErrorPriority`].  
+/// **Expects `root` to re-export [`core`] if not empty.**
 impl IntoTokens for Errors {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let Some(highest_priority) = self.errors.iter().map(|error| error.priority).max() else {
@@ -240,11 +281,21 @@ pub struct Input {
 }
 
 impl Input {
+	/// Convenience method to match against an array of [`TokenTree`]s.
+	///
+	/// This is mostly for [`PopFrom`] implementations.  
+	/// Grammar consumers should call <code>Token::[pop_from](`PopFrom::pop_from`)</code> instead.
+	///
+	/// # Returns
+	///
+	/// If `self` is too short or `f` returns [`Err`],
+	/// respective [`Span`]s to create an [`Error`] with.
+	///
+	/// Iff `self` is too short, <code>self.[end](`Input::end`)</code> is included.
 	pub fn pop_or_replace<'a, T, const N: usize>(
 		&'a mut self,
 		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
 	) -> Result<T, impl 'a + IntoIterator<Item = Span>> {
-		// This is optimisable to be essentially a no-op iff `Err`.
 		//TODO: Handle none-delimiter groups.
 		if self.tokens.len() < N {
 			Err(self
@@ -516,12 +567,11 @@ pub trait SimpleSpanned {
 /// ```
 /// use loess::{
 /// 	grammar,
-/// 	rust_grammar::{
-/// 		Identifier, Let, Parentheses, Statement,
-/// 		SquareBrackets, Visibility,
+/// 	rust_grammar::{ // With the `"rust_grammar"` feature.
+/// 		Identifier, Let, Parentheses, SquareBrackets, Visibility,
 /// 	},
 /// };
-/// use proc_macro2::{Ident, TokenTree};
+/// use proc_macro2::{Ident, TokenTree, Punct};
 ///
 /// grammar! {
 /// 	///
@@ -543,7 +593,7 @@ pub trait SimpleSpanned {
 /// 		pub r#let: Let,
 /// 		pub visibility: Option<Visibility>,
 /// 		pub paren_ident: Parentheses<Ident>,
-/// 		pub statements: Vec<Statement>,
+/// 		pub vec_punct: Vec<Punct>,
 /// 	}
 ///
 /// 	#[derive(Clone)]
@@ -552,7 +602,7 @@ pub trait SimpleSpanned {
 /// 		pub Let,
 /// 		pub Option<StructuredSequence>,
 /// 		pub Parentheses<Ident>,
-/// 		pub Vec<Statement>,
+/// 		pub Vec<Punct>,
 /// 	);
 /// }
 /// ```
@@ -567,17 +617,19 @@ macro_rules! grammar {
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
-		),*)? {
-			$($variant:ident($($type:ty),*$(,)?)),*$(,)?
-		} else $error:expr;
+		),*)? {$(
+			$(#[$($variant_attr:tt)*])*
+			$variant:ident($($type:ty),*$(,)?)
+		),*$(,)?} else $error:expr;
 
 		$($tt:tt)*
 	} => {
 		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::grammar!(@enum_doc [$([$($type,)*])*]))]
 		$(#[$($attr)*])*
-		$vis enum $name {
-			$($variant($($type),*),)*
-		}
+		$vis enum $name {$(
+			$(#[$($variant_attr)*])*
+			$variant($($type),*),
+		)*}
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
 		impl $crate::PeekFrom for $name {
@@ -619,16 +671,18 @@ macro_rules! grammar {
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
-		),*)? {
-			$($field_vis:vis $field:ident: $type:ty),*$(,)?
-		}
+		),*)? {$(
+			$(#[$($field_attr:tt)*])*
+			$field_vis:vis $field:ident: $type:ty
+		),*$(,)?}
 
 		$($tt:tt)*
 	} => {
 		$(#[$($attr)*])*
-		$vis struct $name {
-			$($field_vis $field: $type,)*
-		}
+		$vis struct $name {$(
+			$(#[$($field_attr)*])*
+			$field_vis $field: $type,
+		)*}
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
 		impl $crate::PeekFrom for $name {
@@ -663,16 +717,18 @@ macro_rules! grammar {
 		$vis:vis struct $name:ident$(: $(
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
-		),*)? (
-			$($field_vis:vis $type:ty),*$(,)?
-		);
+		),*)? ($(
+			$(#[$($field_attr:tt)*])*
+			$field_vis:vis $type:ty
+		),*$(,)?);
 
 		$($tt:tt)*
 	} => {
 		$(#[$($attr)*])*
-		$vis struct $name (
-			$($field_vis $type,)*
-		);
+		$vis struct $name ($(
+			$(#[$($field_attr)*])*
+			$field_vis $type,
+		)*);
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
 		impl $crate::PeekFrom for $name {
@@ -727,28 +783,36 @@ pub mod __ {
 	pub use proc_macro2::{TokenStream, TokenTree};
 }
 
+/// A substitute panic that isn't reported as [`Error`]. **(Read for panic handling info!)**
+///
 /// Loess intercepts [`String`] and <code>&'static [str]</code> panics in group tokens to
-/// report their message via [`Error`] on the frontmost [`Input`] token instead.
+/// report their message via [`Error`] on the locally frontmost [`Input`] token instead.
 ///
 /// In order to avoid duplicate reporting, [`HandledPanic`] is substituted when unwinding
 /// is resumed. This type can be detected and ignored by further panic handlers on the
 /// call stack.
 ///
 /// To catch the top-level unwind and report panics from outside any groups, you can use
-/// one of [`parse_all_input`], [`parse_all_input_with`], [`parse_all_input_with_infallible`] and
-/// [`catch_macro_unwind`], in order of decreasing convenience.
+/// one of [`parse_all`], [`parse_all_with`] and [`parse_all_with_infallible`] or
+/// [`parse_once`], [`parse_once_with`] and [`parse_once_with_infallible`],
+/// either in order of decreasing convenience.
 pub struct HandledPanic;
 
-pub fn catch_macro_unwind<'a, T>(
+/// Low-level non-repeating unwind-catcher that reports panics to the given [`Errors`],
+/// located at <code>input.[front_span()](`Input::front_span`)</code> at the time.
+///
+/// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
+/// <code>[parse_all_with_infallible](input, errors, f).[next()](`Iterator::next`)</code> instead.
+pub fn parse_once_with_infallible<'a, T>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
 	f: impl 'a + UnwindSafe + FnOnce(&mut Input, &mut Errors) -> T,
 ) -> Result<T, ()> {
-	catch_macro_unwind_impl(input, errors, f)
+	parse_once_with_infallible_impl(input, errors, f)
 }
 
 /// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
-fn catch_macro_unwind_impl<'a, T>(
+fn parse_once_with_infallible_impl<'a, T>(
 	input: &mut Input,
 	errors: &mut Errors,
 	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> T,
@@ -781,11 +845,45 @@ fn catch_macro_unwind_impl<'a, T>(
 	})
 }
 
+/// Non-repeating unwind-catcher that reports panics to the given [`Errors`],
+/// located at <code>input.[front_span()](`Input::front_span`)</code> at the time.
+///
+/// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
+/// <code>[parse_all_with](input, errors, f).[next()](`Iterator::next`)</code> instead.
+pub fn parse_once_with<'a, T>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+	f: impl 'a + UnwindSafe + FnOnce(&mut Input, &mut Errors) -> Result<T, ()>,
+) -> Result<T, ()> {
+	parse_once_with_impl(input, errors, f)
+}
+
+/// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
+fn parse_once_with_impl<'a, T>(
+	input: &mut Input,
+	errors: &mut Errors,
+	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> Result<T, ()>,
+) -> Result<T, ()> {
+	match parse_once_with_infallible_impl(input, errors, f) {
+		Ok(ok) => ok,
+		Err(()) => Err(()),
+	}
+}
+
+/// Convenient non-repeating unwind-catcher that reports panics to the given [`Errors`],
+/// located at <code>input.[front_span()](`Input::front_span`)</code> at the time.
+///
+/// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
+/// <code>[parse_all](input, errors).[next()](`Iterator::next`)</code> instead.
+pub fn parse_once<'a, T: PopFrom>(input: &'a mut Input, errors: &'a mut Errors) -> Result<T, ()> {
+	parse_once_with_impl(input, errors, T::pop_from)
+}
+
 /// Conveniently parses remaining [`Input`] through `f` without catching [`Err`],
 /// catching and submitting panics to the given [`Errors`]:
 ///
 /// ```
-/// use loess::{parse_all_input_with_infallible, Errors, Input, IntoTokens, PopFrom};
+/// use loess::{parse_all_with_infallible, Errors, Input, IntoTokens, PopFrom};
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
 /// fn macro_impl(input: TokenStream) -> TokenStream {
@@ -795,7 +893,7 @@ fn catch_macro_unwind_impl<'a, T>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tts = parse_all_input_with_infallible(
+/// 	let tts = parse_all_with_infallible(
 /// 			&mut input,
 /// 			&mut errors,
 /// 			|input, errors| TokenTree::pop_from(input, errors).expect("infallible"),
@@ -816,7 +914,7 @@ fn catch_macro_unwind_impl<'a, T>(
 /// to parse a single value exhaustively into an [`Option`]:
 ///
 /// ```
-/// use loess::{parse_all_input_with_infallible, Errors, Input, IntoTokens, PopFrom};
+/// use loess::{parse_all_with_infallible, Errors, Input, IntoTokens, PopFrom};
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
 /// fn macro_impl(input: TokenStream) -> TokenStream {
@@ -826,7 +924,7 @@ fn catch_macro_unwind_impl<'a, T>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tt = parse_all_input_with_infallible(
+/// 	let tt = parse_all_with_infallible(
 /// 			&mut input,
 /// 			&mut errors,
 /// 			|input, errors| TokenTree::pop_from(input, errors).expect("infallible"),
@@ -847,16 +945,16 @@ fn catch_macro_unwind_impl<'a, T>(
 /// 	output
 /// }
 /// ```
-pub fn parse_all_input_with_infallible<'a, T>(
+pub fn parse_all_with_infallible<'a, T>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
 	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> T,
 ) -> impl 'a + Iterator<Item = T> {
-	parse_all_input_with_infallible_impl(input, errors, f)
+	parse_all_with_infallible_impl(input, errors, f)
 }
 
 /// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
-fn parse_all_input_with_infallible_impl<'a, T>(
+fn parse_all_with_infallible_impl<'a, T>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
 	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> T,
@@ -874,7 +972,7 @@ fn parse_all_input_with_infallible_impl<'a, T>(
 			if self.input.is_empty() {
 				None
 			} else {
-				match catch_macro_unwind_impl(self.input, self.errors, &mut self.f) {
+				match parse_once_with_infallible_impl(self.input, self.errors, &mut self.f) {
 					Ok(ok) => Some(ok),
 					Err(()) => None,
 				}
@@ -896,7 +994,7 @@ fn parse_all_input_with_infallible_impl<'a, T>(
 /// catching and submitting panics to the given [`Errors`]:
 ///
 /// ```
-/// use loess::{parse_all_input_with, Errors, Input, IntoTokens, PopFrom};
+/// use loess::{parse_all_with, Errors, Input, IntoTokens, PopFrom};
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
 /// fn macro_impl(input: TokenStream) -> TokenStream {
@@ -906,7 +1004,7 @@ fn parse_all_input_with_infallible_impl<'a, T>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tts = parse_all_input_with(&mut input, &mut errors, TokenTree::pop_from)
+/// 	let tts = parse_all_with(&mut input, &mut errors, TokenTree::pop_from)
 /// 		.collect::<Vec<_>>(); // Checks for exhaustiveness.
 ///
 /// 	let root = TokenStream::new(); // See `IntoTokens`.
@@ -924,7 +1022,7 @@ fn parse_all_input_with_infallible_impl<'a, T>(
 /// to parse a single value exhaustively into an [`Option`]:
 ///
 /// ```
-/// use loess::{parse_all_input_with, Errors, Input, IntoTokens, PopFrom};
+/// use loess::{parse_all_with, Errors, Input, IntoTokens, PopFrom};
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
 /// fn macro_impl(input: TokenStream) -> TokenStream {
@@ -934,7 +1032,7 @@ fn parse_all_input_with_infallible_impl<'a, T>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tt = parse_all_input_with(&mut input, &mut errors, TokenTree::pop_from)
+/// 	let tt = parse_all_with(&mut input, &mut errors, TokenTree::pop_from)
 /// 		.next(); // Checks for exhaustiveness.
 ///
 /// 	let root = TokenStream::new(); // See `IntoTokens`.
@@ -952,12 +1050,12 @@ fn parse_all_input_with_infallible_impl<'a, T>(
 /// 	output
 /// }
 /// ```
-pub fn parse_all_input_with<'a, T: 'a>(
+pub fn parse_all_with<'a, T: 'a>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
 	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> Result<T, ()>,
 ) -> impl 'a + Iterator<Item = T> {
-	parse_all_input_with_infallible_impl(input, errors, f).map_while(|item| match item {
+	parse_all_with_infallible_impl(input, errors, f).map_while(|item| match item {
 		Ok(ok) => Some(ok),
 		Err(()) => None,
 	})
@@ -967,7 +1065,7 @@ pub fn parse_all_input_with<'a, T: 'a>(
 /// catching and submitting panics to the given [`Errors`]:
 ///
 /// ```
-/// use loess::{parse_all_input, Errors, Input, IntoTokens};
+/// use loess::{parse_all, Errors, Input, IntoTokens};
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
 /// fn macro_impl(input: TokenStream) -> TokenStream {
@@ -977,7 +1075,7 @@ pub fn parse_all_input_with<'a, T: 'a>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tts: Vec<TokenTree> = parse_all_input(&mut input, &mut errors)
+/// 	let tts: Vec<TokenTree> = parse_all(&mut input, &mut errors)
 /// 		.collect(); // Checks for exhaustiveness.
 ///
 /// 	let root = TokenStream::new(); // See `IntoTokens`.
@@ -995,7 +1093,7 @@ pub fn parse_all_input_with<'a, T: 'a>(
 /// to parse a single value exhaustively into an [`Option`]:
 ///
 /// ```
-/// use loess::{parse_all_input, Errors, Input, IntoTokens};
+/// use loess::{parse_all, Errors, Input, IntoTokens};
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
 /// fn macro_impl(input: TokenStream) -> TokenStream {
@@ -1005,7 +1103,7 @@ pub fn parse_all_input_with<'a, T: 'a>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tt: Option<TokenTree> = parse_all_input(&mut input, &mut errors)
+/// 	let tt: Option<TokenTree> = parse_all(&mut input, &mut errors)
 /// 		.next(); // Checks for exhaustiveness.
 ///
 /// 	let root = TokenStream::new(); // See `IntoTokens`.
@@ -1023,9 +1121,9 @@ pub fn parse_all_input_with<'a, T: 'a>(
 /// 	output
 /// }
 /// ```
-pub fn parse_all_input<'a, T: 'a + PopFrom>(
+pub fn parse_all<'a, T: 'a + PopFrom>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
 ) -> impl 'a + Iterator<Item = T> {
-	parse_all_input_with(input, errors, T::pop_from)
+	parse_all_with(input, errors, T::pop_from)
 }

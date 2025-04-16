@@ -35,9 +35,9 @@ impl PopFrom for RArrow {
 }
 
 impl IntoTokens for RArrow {
-	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		self.0.into_tokens(root, tokens);
-		self.1.into_tokens(root, tokens);
+	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		let Self(minus, gt) = self;
+		tokens.extend([minus.into(), gt.into()])
 	}
 }
 
@@ -83,9 +83,9 @@ impl PopFrom for DotDot {
 }
 
 impl IntoTokens for DotDot {
-	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		self.0.into_tokens(root, tokens);
-		self.1.into_tokens(root, tokens);
+	fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		let Self(dot0, dot1) = self;
+		tokens.extend([dot0.into(), dot1.into()])
 	}
 }
 

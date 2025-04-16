@@ -21,14 +21,17 @@ grammar! {
 		pub dot: Dot,
 		pub r#await: Await,
 	}
-}
 
-grammar! {
 	pub enum ChildIdentifier: IntoTokens {
 		Local(Identifier),
 		Substrate(Identifier),
 		Qualified(TokenStream),
 	} else "Expected child identifier.";
+
+	pub enum ChildChildren: PopFrom, IntoTokens {
+		Void(Semi),
+		Braces(CurlyBraces<Vec<Statement>>), //TODO: Named slots.
+	} else "Expected `;` or `{`.";
 }
 
 impl PeekFrom for ChildIdentifier {
@@ -68,11 +71,4 @@ impl PopFrom for ChildIdentifier {
 			},
 		)
 	}
-}
-
-grammar! {
-	pub enum ChildChildren: PopFrom, IntoTokens {
-		Void(Semi),
-		Braces(CurlyBraces<Vec<Statement>>), //TODO: Named slots.
-	} else "Expected `;` or `{`.";
 }

@@ -1,4 +1,4 @@
-//! Contains tokens representing the stable Rust programming language,
+//! With `"rust_grammar"`: Tokens representing the stable Rust programming language,
 //! closely following [The Rust Reference](https://doc.rust-lang.org/stable/reference/).
 //!
 //! Corrections in that regard are not automatically considered breaking changes,
@@ -6,8 +6,12 @@
 //!
 //! Breaking changes to the API are considered breaking as normal.
 //!
-//! *Note that unstable grammar may be accidentally accepted in some cases, especially where parsing is temporarily delegated to [Syn](`syn`).*  
+//! *Note that unstable grammar may be accidentally accepted in some cases, especially where parsing is temporarily delegated to [Syn](https://docs.rs/syn).*  
 //! ***Ceasing to accept unstable grammar is not by itself considered a breaking change for Loess.***
+//!
+//! Additional tokens are available with the `"opaque_rust_grammar"` feature,
+//! but enabling it pulls in part of [Syn](https://docs.rs/syn),
+//! which considerably increases build times.
 
 mod expressions;
 pub use expressions::*;
@@ -18,8 +22,7 @@ pub use lexical_structure::*;
 mod names;
 pub use names::*;
 
-mod patterns;
-pub use patterns::*;
-
-mod statements;
-pub use statements::*;
+#[cfg(feature = "opaque_rust_grammar")]
+mod opaque_rust_grammar;
+#[cfg(feature = "opaque_rust_grammar")]
+pub use opaque_rust_grammar::*;

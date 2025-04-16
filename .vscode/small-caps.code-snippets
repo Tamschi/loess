@@ -16,7 +16,7 @@
 	// 	"description": "Log output to console"
 	// }
 	"Small-caps": {
-		"scope": "rust",
+		"scope": "markdown,rust",
 		"prefix": "smallcaps",
 		"body": [
 			"<em style=font-style:normal;font-variant:small-caps>$1</em>$2"
