@@ -2,6 +2,50 @@
 
 Loess is a parser library and parser generator for proc macros.
 
+Here's what to expect:
+
+- A simple, flexible API. Loess is relatively unopinionated about how or what you parse, and you can construct (and destructure) `Input` at any time.
+
+- Shallow parsing (by default). For tokens with groups, like `Visibility`, you can opt into deeper (or customised!) parsing via generics.
+
+- Public fields and one-time validation. The parser checks token specifics once when processing input, but trusts you otherwise.
+
+- A reasonably powerful parser-generator.
+
+  `grammar!` can emit documentation (for enums) and `PeekFrom`, `PopFrom` and `IntoTokens` implementations on grammar types.
+
+- **Really** good error reporting from proc macros implemented with Loess, *by default*.
+
+  This includes locating panics relative to the proc macro input, instead of squiggling the whole macro.
+
+- Lenient and partial parsing. The parsers can continue (after reporting an error) when a repeating parse fails in a delimited group.
+
+  You can use this property to still emit as much output as possible, which avoids cascading errors.
+
+- Low-allocation workflow.
+
+  Loess can (usually) move tokens from input to output without cloning them. (You can still clone all grammar types explicitly.)
+
+- Some bugs. For example, none-delimited groups aren't handled yet, which can cause issues when generating macro input with a `macro_rules!` macro.
+
+Here's what not to expect:
+
+- Complete coverage of Rust's grammar. In fact, Loess really makes no attempt at all in this regard, since I only implement what I need.
+
+  In particular, unstable grammar is generally out of scope of the included parsers. (Loess can help you supply it yourself!)
+
+- A Syn-replacement (at least not soon). While there's no public interaction with Syn, some optional grammar tokens are for now opaque and do defer to Syn when enabled.
+
+- `Debug`-implementations. They aren't that useful here in my experience, but they increase compile-times.
+
+- Absence of major version bumps. Rust's grammar is a moving target and Loess's grammar tokens aren't marked `#[non_exhaustive]` for ease of use.
+
+  However, shallow parsing should make upgrades fairly painless and errors should alert you specifically to grammar changes that are relevant to you.
+
+## Examples
+
+<details><summary>(click to expand code block)</summary>
+
 ```rust
 use loess::{
     grammar, parse_all, Input, Errors, PeekFrom, PopFrom, IntoTokens,
@@ -134,42 +178,76 @@ fn macro_impl2(input: TokenStream) -> TokenStream {
 }
 ```
 
-Here's what to expect:
+</details>
 
-- A simple, flexible API. Loess is relatively unopinionated about how or what you parse, and you can construct (and destructure) `Input` at any time.
+## Using `$crate` for full caller independence
 
-- Shallow parsing (by default). For tokens with groups, like `Visibility`, you can opt into deeper (or customised!) parsing via generics.
+`loess::IntoTokens`-methods take an (optionally empty) `root: &TokenStream` parameter,
+which all emitted fully qualified paths <em style=font-style:normal;font-variant:small-caps>should</em> be prefixed with.
 
-- Public fields and one-time validation. The parser checks token specifics once when processing input, but trusts you otherwise.
+In combination with a wrapper crate: This achieves full isolation regarding caller dependencies:
 
-- A reasonably powerful parser-generator.
+<details><summary>(click to expand code blocks)</summary>
 
-  `grammar!` can emit documentation (for enums) and `PeekFrom`, `PopFrom` and `IntoTokens` implementations on grammar types.
+<!-- These code blocks also appear on `IntoTokens`,
+the first one with some hidden lines to make it compile. -->
 
-- **Really** good error reporting from proc macros implemented with Loess, *by default*.
+```rust ,ignore
+// wrapper crate
 
-  This includes locating panics relative to the proc macro input, instead of squiggling the whole macro.
+#[macro_export]
+macro_rules! my_macro {
+    ($($tt:tt)*) => ( $crate::__::my_macro!([$crate] $($tt)*) );
+}
 
-- Lenient and partial parsing. The parsers can continue (after reporting an error) when a repeating parse fails in a delimited group.
+pub mod __ {
+    pub use core; // Expected by `Errors`.
+    pub use my_macro_impl::my_macro;
+}
+```
 
-  You can use this property to still emit as much output as possible, which avoids cascading errors.
+```rust
+// my_macro_impl (proc macro)
 
-- Low-allocation workflow.
+use loess::{
+    grammar, parse_once, parse_all,
+    Errors, Input, IntoTokens,
+    rust_grammar::{SquareBrackets},
+};
+use proc_macro2::{Span, TokenStream, TokenTree};
 
-  Loess can (usually) move tokens from input to output without cloning them. (You can still clone all grammar types explicitly.)
+// […]
 
-- Some bugs. For example, none-delimited groups aren't handled yet, which can cause issues when generating macro input with a `macro_rules!` macro.
+fn macro_impl(input: TokenStream) -> TokenStream {
+    let mut input = Input {
+        tokens: input.into_iter().collect(),
+        end: Span::call_site(),
+    };
+    let mut errors = Errors::new();
 
-Here's what not to expect:
+    // `root` is implicitly a `TokenStream`.
+    let Ok(SquareBrackets { contents: root, .. }) = parse_once(
+            &mut input,
+            &mut errors,
+        ) else { return errors.collect_tokens(&TokenStream::new()) };
 
-- Complete coverage of Rust's grammar. In fact, Loess really makes no attempt at all in this regard, since I only implement what I need.
+    grammar! {
+        /// This represents your complete input grammar.
+        /// This here is a placeholder, so it's empty.
+        struct Grammar: PopFrom {}
+    }
 
-  In particular, unstable grammar is generally out of scope of the included parsers. (Loess can help you supply it yourself!)
+    //TODO: Check for whether input wasn't advanced!
+    // Checks for exhaustiveness.
+    let parsed = parse_all(&mut input, &mut errors).next();
+    let mut output = errors.collect_tokens(&root);
 
-- A Syn-replacement (at least not soon). While there's no public interaction with Syn, some optional grammar DTOs are for now opaque and do defer to Syn when enabled.
+    if let Some(Grammar {}) = parsed {
+        // Emit your output here.
+    }
 
-- `Debug`-implementations. They aren't that useful here in my experience, but they increase compile-times.
+    output
+}
+```
 
-- Absence of major version bumps. Rust's grammar is a moving target and Loess's grammar DTOs aren't marked `#[non_exhaustive]` for ease of use.
-
-  However, shallow parsing should make upgrades fairly painless and errors should alert you specifically to grammar changes that are relevant to you.
+</details>

@@ -22,7 +22,7 @@
 //!
 //! ## `"opaque_rust_grammar"` <sub>enables `"rust_grammar"`, depends on `syn`</sub>
 //!
-//! Adds additional opaque Rust grammar DTOs, to consume, paste and clone for example
+//! Adds additional opaque Rust grammar tokens, to consume, paste and clone for example
 //! Statements and Patterns.
 //!
 //! These preliminary implementations are [Syn](https://docs.rs/syn)-based and can't be inspected.
@@ -218,9 +218,80 @@ impl Errors {
 	}
 }
 
+/// Spreads `self` into its contained or representative [`TokenTree`]s.
+///
+/// This trait's methods accept a <code>root: &[TokenStream]</code> (which may be empty).
+/// This `root` <em style=font-style:normal;font-variant:small-caps>should</em> be emitted
+/// before each fully qualified path, which helps wrapped macros be consumer-dependency independent:
+///
+/// ```
+/// // wrapper crate
+///
+/// #[macro_export]
+/// macro_rules! my_macro {
+/// 	($($tt:tt)*) => ( $crate::__::my_macro!([$crate] $($tt)*) );
+/// }
+///
+/// pub mod __ {
+/// 	pub use core; // Expected by `Errors`.
+/// 	pub use my_macro_impl::my_macro;
+///
+/// 	# /// Ignore this! It's here just to make this test compile.
+/// 	# mod my_macro_impl { pub use crate::my_macro as my_macro; }
+/// }
+/// ```
+///
+/// ```
+/// // my_macro_impl (proc macro)
+///
+/// use loess::{
+/// 	grammar, parse_once, parse_all,
+/// 	Errors, Input, IntoTokens,
+/// 	rust_grammar::{SquareBrackets},
+/// };
+/// use proc_macro2::{Span, TokenStream, TokenTree};
+///
+/// // […]
+///
+/// fn macro_impl(input: TokenStream) -> TokenStream {
+/// 	let mut input = Input {
+/// 		tokens: input.into_iter().collect(),
+/// 		end: Span::call_site(),
+/// 	};
+/// 	let mut errors = Errors::new();
+///
+/// 	// `root` is implicitly a `TokenStream`.
+/// 	let Ok(SquareBrackets { contents: root, .. }) = parse_once(
+/// 			&mut input,
+/// 			&mut errors,
+/// 		) else { return errors.collect_tokens(&TokenStream::new()) };
+///
+/// 	grammar! {
+/// 		/// This represents your complete input grammar.
+/// 		/// This here is a placeholder, so it's empty.
+/// 		struct Grammar: PopFrom {}
+/// 	}
+///
+/// 	//TODO: Check for whether input wasn't advanced!
+/// 	// Checks for exhaustiveness.
+/// 	let parsed = parse_all(&mut input, &mut errors).next();
+/// 	let mut output = errors.collect_tokens(&root);
+///
+/// 	if let Some(Grammar {}) = parsed {
+/// 		// Emit your output here.
+/// 	}
+///
+/// 	output
+/// }
+/// ```
 pub trait IntoTokens {
+	/// Emit `self`'s tokens into `tokens` while referencing `root`.
+	///
+	/// `root` <em style=font-style:normal;font-variant:small-caps>should</em> be prefixed to
+	/// any fully qualified paths that are emitted by `self`.
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>);
 
+	/// Convenience methods to emit `self`'s tokens into a new `T`.
 	fn collect_tokens<T: Default + Extend<TokenTree>>(self, root: &TokenStream) -> T
 	where
 		Self: Sized,
