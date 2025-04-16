@@ -13,7 +13,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["proc-macro", "grammar", "parser", "generator"]
 categories = ["development-tools::procedural-macro-helpers"]
 
-publish = false
+publish = true
 
 [features]
 rust_grammar = []
