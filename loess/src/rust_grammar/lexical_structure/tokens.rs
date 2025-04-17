@@ -15,6 +15,16 @@ impl Default for RArrow {
 	}
 }
 
+/// `->`
+impl PeekFrom for RArrow {
+	fn peek_from(input: &Input) -> bool {
+		input.peek(|tts| {
+			matches!(tts, [TokenTree::Punct(minus), TokenTree::Punct(gt)]
+			if minus.as_char() == '-' && minus.spacing() == Spacing::Joint && gt.as_char() == '>')
+		})
+	}
+}
+
 impl PopFrom for RArrow {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
@@ -54,12 +64,13 @@ impl Default for DotDot {
 	}
 }
 
+/// `..`
 impl PeekFrom for DotDot {
 	fn peek_from(input: &Input) -> bool {
-		matches!(
-			(input.front(), input.tokens.get(1)),
-			(Some(TokenTree::Punct(dot0)), Some(TokenTree::Punct(dot1))) if dot0.as_char() == '.' && dot0.spacing() == Spacing::Joint && dot1.as_char() == '.',
-		)
+		input.peek(|tts| {
+			matches!(tts, [TokenTree::Punct(dot0), TokenTree::Punct(dot1)]
+			if dot0.as_char() == '.' && dot0.spacing() == Spacing::Joint && dot1.as_char() == '.')
+		})
 	}
 }
 
@@ -99,6 +110,7 @@ impl Default for Semi {
 	}
 }
 
+/// `;`
 impl PeekFrom for Semi {
 	fn peek_from(input: &Input) -> bool {
 		matches!(
@@ -137,6 +149,7 @@ impl Default for Comma {
 	}
 }
 
+/// `,`
 impl PeekFrom for Comma {
 	fn peek_from(input: &Input) -> bool {
 		matches!(
@@ -175,6 +188,7 @@ impl Default for Or {
 	}
 }
 
+/// `|`
 impl PeekFrom for Or {
 	fn peek_from(input: &Input) -> bool {
 		matches!(
@@ -215,6 +229,7 @@ impl Default for Dot {
 	}
 }
 
+/// `.`
 impl PeekFrom for Dot {
 	fn peek_from(input: &Input) -> bool {
 		matches!(
@@ -257,6 +272,7 @@ impl Default for Colon {
 	}
 }
 
+/// `:`
 impl PeekFrom for Colon {
 	fn peek_from(input: &Input) -> bool {
 		matches!(
@@ -295,6 +311,7 @@ macro_rules! ident_token {
 		#[derive(Clone)]
 		pub struct $name(pub Ident);
 
+		#[doc = concat!("`", $str, "`")]
 		impl PeekFrom for $name {
 			fn peek_from(input: &Input) -> bool {
 				matches!(input.front(), Some(TokenTree::Ident(ident)) if ident == $str)

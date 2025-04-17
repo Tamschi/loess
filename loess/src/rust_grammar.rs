@@ -9,7 +9,7 @@
 //! *Note that unstable grammar may be accidentally accepted in some cases, especially where parsing is temporarily delegated to [Syn](https://docs.rs/syn).*  
 //! ***Ceasing to accept unstable grammar is not by itself considered a breaking change for Loess.***
 //!
-//! Additional tokens are available with the `"opaque_rust_grammar"` feature,
+//! Additional tokens (opaque implementations) are available with the `"opaque_rust_grammar"` feature,
 //! but enabling it pulls in part of [Syn](https://docs.rs/syn),
 //! which considerably increases build times.
 

@@ -352,10 +352,34 @@ pub struct Input {
 }
 
 impl Input {
-	/// Convenience method to match against an array of [`TokenTree`]s.
+	/// Convenience method to match an array of <code>&[TokenTree]</code>s.
+	///
+	/// This is mostly for [`PeekFrom`] implementations.  
+	/// Grammar consumers should call <code>Token::[peek_from](`PeekFrom::peek_from`)</code> instead.
+	///
+	/// Iff `self` is long enough, `f` is called with references to the frontmost tokens.
+	///
+	/// # Returns
+	///
+	/// `false` if `self` is too short, otherwise the return value of `f`
+	pub fn peek<'a, const N: usize>(&'a self, f: impl FnOnce([&TokenTree; N]) -> bool) -> bool {
+		//TODO: Handle none-delimiter groups. (Maybe not here?)
+		if self.len() < N {
+			false
+		} else {
+			let mut iter = self.tokens.iter();
+			f(std::array::from_fn(move |_| {
+				iter.next().expect("due to !(self.len() < N)")
+			}))
+		}
+	}
+
+	/// Convenience method to match from an array of [`TokenTree`]s.
 	///
 	/// This is mostly for [`PopFrom`] implementations.  
 	/// Grammar consumers should call <code>Token::[pop_from](`PopFrom::pop_from`)</code> instead.
+	///
+	/// Iff `self` is long enough, `f` is called with the frontmost tokens.
 	///
 	/// # Returns
 	///
