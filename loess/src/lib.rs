@@ -1043,27 +1043,31 @@ pub mod __ {
 			let span: $crate::__::Span = $span;
 			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
 		}};
-		($span:tt $root:tt $tokens:tt $not_if:tt, {#macro $path:path $([
-			//TODO: Revise this! Should probably detect the arguments somehow.
-			$(
-				$(loess $(@ $loess:tt)?)?
-				$(span $(@ $span_:tt)?)?
-				$(root $(@ $root_:tt)?)?
-				$(tokens $(@ $tokens_:tt)?)?
-			),* $(, $(@ $comma:tt)?)?
-		])?, $($tt:tt)*}) => {
-			$path!(
-				$([
-					$(
-						$($crate $(@ $loess_)?)?
-						$($span $(@ $span_)?)?
-						$($root $(@ $root_)?)?
-						$($tokens $(@ $tokens_)?)?
-					),* $(, $(@ $comma)?)?
-				])?
-				$($tt)*
-			);
-		};
+		// ($span:tt $root:tt $tokens:tt $not_if:tt, {#macro $path:path $([
+		// 	//TODO: Ideas wanted! Ideally called macros should be self-describing in terms of what context they want,
+		// 	//TODO: ideally by listing identifiers in a way where this macro can check for validity and report issues,
+		// 	//TODO: but the system shouldn't be too complicated.
+		// 	//TODO: Maybe the macro initially takes a "callback" and emits its requested context parameters and path to stage two into that.
+		// 	//TODO: That callback can then call stage two with the requested arguments or error. The quoted tokens are passed along at each step.
+		// 	$(
+		// 		$(loess $(@ $loess:tt)?)?
+		// 		$(span $(@ $span_:tt)?)?
+		// 		$(root $(@ $root_:tt)?)?
+		// 		$(tokens $(@ $tokens_:tt)?)?
+		// 	),* $(, $(@ $comma:tt)?)?
+		// ])?, $($tt:tt)*}) => {
+		// 	$path!(
+		// 		$([
+		// 			$(
+		// 				$($crate $(@ $loess_)?)?
+		// 				$($span $(@ $span_)?)?
+		// 				$($root $(@ $root_)?)?
+		// 				$($tokens $(@ $tokens_)?)?
+		// 			),* $(, $(@ $comma)?)?
+		// 		])?
+		// 		$($tt)*
+		// 	);
+		// };
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#let $pat:pat = $expr:expr $(, else { $($else:tt)* })?$(;)?}) => {
 			let $pat = $expr;
 		};
