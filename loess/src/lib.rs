@@ -363,6 +363,7 @@ impl Input {
 	/// # Returns
 	///
 	/// `false` if `self` is too short, otherwise the return value of `f`
+	//TODO (breaking): Also pass `&self` into the closure to check further tokens.
 	pub fn peek<'a, const N: usize>(&'a self, f: impl FnOnce([&TokenTree; N]) -> bool) -> bool {
 		//TODO: Handle none-delimiter groups. (Maybe not here?)
 		if self.len() < N {
@@ -390,6 +391,7 @@ impl Input {
 	/// Iff `self` is too short, <code>self.[end](`Input::end`)</code> is included.
 	pub fn pop_or_replace<'a, T, const N: usize>(
 		&'a mut self,
+		//TODO (breaking): Also pass `&mut self` into the closure to check/consume further tokens.
 		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
 	) -> Result<T, impl 'a + IntoIterator<Item = Span>> {
 		//TODO: Handle none-delimiter groups.
