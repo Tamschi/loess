@@ -953,6 +953,7 @@ macro_rules! quote_into_same_site {
 		let span: $crate::__::Span = $span;
 		let root: &$crate::__::TokenStream = $root;
 		let tokens = $tokens;
+		#[allow(unused_variables, unused_mut)]
 		let mut not_if = false;
 		$( $crate::__::quote_one!(span root tokens not_if, $tt); )*
 	});
@@ -970,7 +971,28 @@ macro_rules! quote_into_call_site {
 	});
 }
 
-//TODO: Same-site/mixed-site/call-site variants and directives.
+#[macro_export]
+macro_rules! raw_quote_into_mixed_site {
+	($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{
+		let span: $crate::__::Span = $span.resolved_at($crate::__::Span::mixed_site());
+		$crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
+	}};
+}
+
+#[macro_export]
+macro_rules! raw_quote_into_same_site {
+	($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {
+		$crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
+	};
+}
+
+#[macro_export]
+macro_rules! raw_quote_into_call_site {
+	($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{
+		let span: $crate::__::Span = $span.resolved_at($crate::__::Span::call_site());
+		$crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
+	}};
+}
 
 #[doc(hidden)]
 pub mod __ {
@@ -1023,6 +1045,7 @@ pub mod __ {
 			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
 		}};
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#macro $path:path $([
+			//TODO: Revise this! Should probably detect the arguments somehow.
 			$(
 				$(loess $(@ $loess:tt)?)?
 				$(span $(@ $span_:tt)?)?

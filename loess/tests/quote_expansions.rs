@@ -1,19 +1,10 @@
 #![deny(unused_variables)] // At least for now, this is used to detect missing expansions.
 
-use loess::{quote_into_call_site, quote_into_mixed_site, quote_into_same_site};
+use loess::{
+	quote_into_call_site, quote_into_mixed_site, quote_into_same_site, raw_quote_into_call_site,
+	raw_quote_into_mixed_site, raw_quote_into_same_site,
+};
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
-
-pub fn mixed_site(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-	quote_into_mixed_site!(span, root, tokens, []);
-}
-
-pub fn same_site(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-	quote_into_same_site!(span, root, tokens, []);
-}
-
-pub fn call_site(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-	quote_into_call_site!(span, root, tokens, []);
-}
 
 macro_rules! test {
 	(let ($span:ident, $root:ident, $tokens:ident), $test:expr, $expected:expr) => {{
@@ -26,9 +17,59 @@ macro_rules! test {
 	}};
 }
 
+//TODO: Wrap the six functions below into tests.
+
+#[test]
+pub fn mixed_site() {
+	pub fn mixed_site(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		quote_into_mixed_site!(span, root, tokens, [....... .....]);
+	}
+	test!(let (span, root, tokens), mixed_site(span, root, &mut tokens), "....... .....");
+}
+
+#[test]
+pub fn same_site() {
+	pub fn same_site(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		quote_into_same_site!(span, root, tokens, [....... .....]);
+	}
+	test!(let (span, root, tokens), same_site(span, root, &mut tokens), "....... .....");
+}
+
+#[test]
+pub fn call_site() {
+	pub fn call_site(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		quote_into_call_site!(span, root, tokens, [....... .....]);
+	}
+	test!(let (span, root, tokens), call_site(span, root, &mut tokens), "....... .....");
+}
+
+#[test]
+pub fn mixed_site_raw() {
+	pub fn mixed_site_raw(span: Span, tokens: &mut impl Extend<TokenTree>) {
+		raw_quote_into_mixed_site!(span, tokens, [....... .....]);
+	}
+	test!(let (span, _root, tokens), mixed_site_raw(span, &mut tokens), "....... .....");
+}
+
+#[test]
+pub fn same_site_raw() {
+	pub fn same_site_raw(span: Span, tokens: &mut impl Extend<TokenTree>) {
+		raw_quote_into_same_site!(span, tokens, [....... .....]);
+	}
+	test!(let (span, _root, tokens), same_site_raw(span, &mut tokens), "....... .....");
+}
+
+#[test]
+pub fn call_site_raw() {
+	pub fn call_site_raw(span: Span, tokens: &mut impl Extend<TokenTree>) {
+		raw_quote_into_call_site!(span, tokens, [....... .....]);
+	}
+	test!(let (span, _root, tokens), call_site_raw(span, &mut tokens), "....... .....");
+}
+
 #[test]
 pub fn long_punctuation() {
-    test!(let (span, root, tokens), quote_into_mixed_site!(span, root, &mut tokens, [............... .....]), "............... .....");
+	test!(let (span, root, tokens), quote_into_mixed_site!(span, root, &mut tokens, [............... .....]), "............... .....");
 }
 
 #[test]
@@ -127,7 +168,7 @@ fn my_quote(id1: Ident, id2: Option<Ident>, root: &TokenStream) -> TokenStream {
 				pub struct {#paste id2};
 			}
 		} {#else,
-            //TODO:
+			//TODO:
 			// {#error, "`id2` is missing."}
 		}
 	]);
