@@ -41,7 +41,6 @@ use std::{
 
 use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
 use proc_macro2::{Literal, Span, TokenStream, TokenTree};
-use quote::quote_spanned;
 
 mod proc_macro2_impls;
 
@@ -88,10 +87,11 @@ impl IntoTokens for Error {
 			.flatten()
 			.or_else(|| self.spans.first().copied())
 			.unwrap_or_else(Span::mixed_site);
-		quote_spanned! {span=>
-			#root::core::compile_error!(#message);
-		}
-		.into_tokens(root, tokens);
+
+		quote_into_same_site! (span, root, tokens, [
+			//TODO: Use `{#error … }`.
+			{#paste root.clone()}{#raw ::core::compile_error!}({#paste message});
+		]);
 	}
 }
 
@@ -233,6 +233,7 @@ impl Errors {
 /// 	($($tt:tt)*) => ( $crate::__::my_macro!([$crate] $($tt)*) );
 /// }
 ///
+/// #[doc(hidden)]
 /// pub mod __ {
 /// 	pub use core; // Expected by `Errors`.
 /// 	pub use my_macro_impl::my_macro;
@@ -872,10 +873,334 @@ macro_rules! grammar {
 	{} => {}; // Stop.
 }
 
+/// Simple quotation macro that works well with Loess's types.
+///
+/// Uses `{#identifier … }`-style directives.
+///
+/// Applies [`Span::mixed_site()`] resolution to quoted tokens, but locates them at `$span`.
+///
+/// ```rust
+/// use loess::{quote_into_mixed_site, rust_grammar::Identifier, SimpleSpanned};
+/// use proc_macro2::TokenStream;
+///
+/// fn my_quote(id1: Identifier, id2: Option<Identifier>, root: &TokenStream) -> TokenStream {
+/// 	let mut output = TokenStream::new();
+///
+/// 	quote_into_mixed_site!(id1.span(), root, &mut output, [
+/// 		pub struct {#paste id1};
+///
+/// 		{#if let Some(id2) = id2,
+/// 			{#located_at id2.span(),
+/// 				pub struct {#paste id2};
+/// 			}
+/// 		} {#else,
+/// 			{#error "`id2` is missing."}
+/// 		}
+/// 	]);
+///
+/// 	output
+/// }
+/// ```
+///
+/// //TODO: Rust keywords should only be used for Rust grammar.
+/// //TODO: Use `quote_into_mixed_site!`, `quote_into_call_site!`.
+/// //TODO: Use `#mixed_site`, `#call_site`, `#located_at` and `#resolved_at`.
+/// ## Directives
+///
+/// ### `{#paste $($expr:expr),*$(,)?}`
+///
+/// Emits each `$expr` as/through [`IntoTokens`].
+///
+/// ### `{#move $span:expr, $($tt:tt)* }`
+///
+/// Acts as nested [`quote_into!`] call with `$span` as [`Span`] argument.
+///
+/// ### `{#const $group:tt}` <sub>where `$group` should be a delimited group<sub>
+///
+/// Uses `$group` as [stringify!] argument list, parsing and emitting its contents all at once at runtime.
+/// This means those contents are emitted verbatim and, in theory, a bit faster overall.
+///
+/// ### `{#if $expr:expr, $($tt:tt)* }`<br>`{#if let $pattern:pat = $expr:expr, $($tt:tt)* }`<br>`{#for $pattern:pat in $span:expr, $($tt:tt)* }`<br>`{#while $expr:expr, $($tt:tt)* }`<br>`{#while let $pattern:pat = $expr:expr, $($tt:tt)* }`<br>`{#loop $($tt:tt)* }`<br>`{#break $($expr:expr)? }`
+///
+/// Expand into flow control statements.
+///
+/// ### `{#else $($tt:tt)* }`
+///
+/// Expands into an `else`-branch.
+///
+/// ### `{#root}`
+///
+/// Pastes a clone of the `$root` given to the initial call.
+///
+/// ### `{#hash $($tt:tt)* }`
+///
+/// Emits `{#` … `}`.
+#[macro_export]
+macro_rules! quote_into_mixed_site {
+	($span:expr, $root:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => ({
+		let span: $crate::__::Span = $span.resolved_at($crate::__::Span::mixed_site());
+		let root: &$crate::__::TokenStream = $root;
+		let tokens = $tokens;
+		let mut not_if = false;
+		$( $crate::__::quote_one!(span root tokens not_if, $tt); )*
+	});
+}
+
+/// Like [`quote_into_mixed_site!`], but resolved according to `$span`.
+#[macro_export]
+macro_rules! quote_into_same_site {
+	($span:expr, $root:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => ({
+		let span: $crate::__::Span = $span;
+		let root: &$crate::__::TokenStream = $root;
+		let tokens = $tokens;
+		let mut not_if = false;
+		$( $crate::__::quote_one!(span root tokens not_if, $tt); )*
+	});
+}
+
+/// Like [`quote_into_mixed_site!`], but resolved according to [`Span::call_site()`].
+#[macro_export]
+macro_rules! quote_into_call_site {
+	($span:expr, $root:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => ({
+		let span: $crate::__::Span = $span.resolved_at($crate::__::Span::call_site());
+		let root: &$crate::__::TokenStream = $root;
+		let tokens = $tokens;
+		let mut not_if = false;
+		$( $crate::__::quote_one!(span root tokens not_if, $tt); )*
+	});
+}
+
+//TODO: Same-site/mixed-site/call-site variants and directives.
+
 #[doc(hidden)]
 pub mod __ {
-	pub use core::{concat, iter::Extend, primitive::bool, result::Result, stringify};
-	pub use proc_macro2::{TokenStream, TokenTree};
+	#![allow(missing_docs)] // Internal.
+
+	use std::str::FromStr;
+
+	pub use core::{
+		compile_error, concat, iter::Extend, primitive::bool, result::Result, stringify,
+	};
+
+	use proc_macro2::{Delimiter, Group, Punct, Spacing};
+
+	pub use proc_macro2::{
+		Delimiter::{Brace, Bracket, Parenthesis},
+		Span, TokenStream, TokenTree,
+	};
+
+	pub use crate::quote_one;
+
+	#[doc(hidden)]
+	#[macro_export]
+	macro_rules! quote_one {
+		//TODO: Missing directives.
+		//TODO: Error handling with syntax help.
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#paste $($expr:expr),*$(,)?}) => {
+			$( $crate::IntoTokens::into_tokens($expr, $root, $tokens); )*
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#raw $($tt:tt)*}) => {
+			$crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#mixed_site $($tt:tt)*}) => {{
+			let span = $span.resolved_at($crate::__::Span::mixed_site());
+			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+		}};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#call_site $($tt:tt)*}) => {{
+			let span = $span.resolved_at($crate::__::Span::call_site());
+			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+		}};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#located_at $span2:expr, $($tt:tt)*}) => {{
+			let span = $span.located_at($span2);
+			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+		}};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#resolved_at $span2:expr, $($tt:tt)*}) => {{
+			let span = $span.resolved_at($span2);
+			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+		}};
+		($_span:tt $root:tt $tokens:tt, {#with_exact_span $span:expr, $($tt:tt)*}) => {{
+			let span: $crate::__::Span = $span;
+			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+		}};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#macro $path:path $([
+			$(
+				$(loess $(@ $loess:tt)?)?
+				$(span $(@ $span_:tt)?)?
+				$(root $(@ $root_:tt)?)?
+				$(tokens $(@ $tokens_:tt)?)?
+			),* $(, $(@ $comma:tt)?)?
+		])?, $($tt:tt)*}) => {
+			$path!(
+				$([
+					$(
+						$($crate $(@ $loess_)?)?
+						$($span $(@ $span_)?)?
+						$($root $(@ $root_)?)?
+						$($tokens $(@ $tokens_)?)?
+					),* $(, $(@ $comma)?)?
+				])?
+				$($tt)*
+			);
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#let $pat:pat = $expr:expr $(, else { $($else:tt)* })?$(;)?}) => {
+			let $pat = $expr;
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#break $($label:lifetime)? $($expr:expr)?$(;)?}) => {
+			break $($label)? $($expr)?;
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#continue $($label:lifetime)?$(;)?}) => {
+			continue $($label)?;
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#return $($expr:expr)?$(;)?}) => {
+			return $($expr)?;
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {# $(else $(@ $else:tt)?)? if $(let $pat:pat =)? $expr:expr, $($tt:tt)*}) => {
+			// Handles both `#if` and `#else if`.
+			if true $(&& $not_if $(@ $else)?)? {
+				if $(let $pat =)? $expr {
+					$not_if = false;
+					let mut not_if = false;
+					$( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+				} else {
+					$not_if = true;
+				}
+			}
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#else, $($tt:tt)*}) => {
+			if $not_if {
+				$not_if = false;
+				let mut not_if = false;
+				$( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+			}
+		};
+		//TODO: `match`
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? $(loop $(@ $loop:tt)?)?, $($tt:tt)*}) => {
+			// Handles both blocks and unconditional loops.
+			$not_if = false;
+			$($label:)? $(loop $(@ $loop)?)? {
+				let mut not_if = false;
+				$( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+			}
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? for $pat:pat in $expr:expr, $($tt:tt)*}) => {
+			$not_if = true;
+			$($label:)? for $pat in $expr {
+				$not_if = false;
+				let mut not_if = false;
+				$( $crate::__::quote_one!($span $root $tokens $not_if, $tt); )*
+			}
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? while $(let $pat:pat = )?$expr:expr, $($tt:tt)*}) => {
+			$not_if = true;
+			$($label:)? while $(let $pat = )?$expr {
+				$not_if = false;
+				let mut not_if = false;
+				$( $crate::__::quote_one!($span $root $tokens $not_if, $tt); )*
+			}
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#$reserved:ident $($tt:tt)*}) => {
+			$crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes. (Did you mean `{#paste ", $crate::__::stringify!($reserved), "… }` or `{#, #", $crate::__::stringify!($reserved), "… }`?)"));
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#$reserved:lifetime $($tt:tt)*}) => {
+			$crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes. (Did you mean `{#", $crate::__::stringify!($reserved), ":, … }` or `{#", $crate::__::stringify!($reserved), ": for … in …, … }`?)"));
+		};
+		($span:tt $root:tt $tokens:tt, $_not_if:tt, {$($tt:tt)*}) => {
+			$crate::__::grouped($span, $crate::__::Brace, $tokens, {
+				let mut inner_tokens = $crate::__::TokenStream::new();
+				let mut not_if = false;
+				$( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+				inner_tokens
+			});
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, [$($tt:tt)*]) => {
+			$crate::__::grouped($span, $crate::__::Bracket, $tokens, {
+				let mut inner_tokens = $crate::__::TokenStream::new();
+				let mut not_if = false;
+				$( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+				inner_tokens
+			});
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, ($($tt:tt)*)) => {
+			$crate::__::grouped($span, $crate::__::Parenthesis, $tokens, {
+				let mut inner_tokens = $crate::__::TokenStream::new();
+				let mut not_if = false;
+				$( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+				inner_tokens
+			});
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, $other:tt) => (
+			// Fortunately `'` can't arrive as trailing punctuation inside `$other` here (It's always either a literal or inside a lifetime),
+			// so it's at least reasonable to expect `stringify!` to insert a space iff the trailing punctuation is spaced and otherwise not.
+			$crate::__::tt($span, $tokens, const { $crate::__::strip_dot($crate::__::stringify!($other .)) } );
+		);
+		($span:tt $root:tt $tokens:tt $not_if:tt,) => {}; // End.
+	}
+
+	pub fn grouped(
+		span: Span,
+		delimiter: Delimiter,
+		tokens: &mut impl Extend<TokenTree>,
+		stream: TokenStream,
+	) {
+		let mut group = Group::new(delimiter, stream);
+		group.set_span(span);
+		tokens.extend([TokenTree::Group(group)]);
+	}
+
+	fn assign_span(
+		span: Span,
+		ts: impl IntoIterator<Item = TokenTree>,
+	) -> impl IntoIterator<Item = TokenTree> {
+		ts.into_iter().map(move |tt| match tt {
+			TokenTree::Group(group) => {
+				let group = Group::new(
+					group.delimiter(),
+					assign_span(span, group.stream()).into_iter().collect(),
+				);
+				TokenTree::Group(group)
+			}
+			mut tt @ (TokenTree::Ident(_) | TokenTree::Punct(_) | TokenTree::Literal(_)) => {
+				tt.set_span(span);
+				tt
+			}
+		})
+	}
+
+	pub fn raw(span: Span, tokens: &mut impl Extend<TokenTree>, stringified: &str) {
+		tokens.extend(assign_span(
+			span,
+			TokenStream::from_str(stringified).expect("Failed to parse stringified tokens, somehow. (Are you using the internal API from another crate? Please don't.)"),
+		))
+	}
+
+	pub const fn strip_dot(s: &str) -> &str {
+		s.split_at(s.len() - 1).0
+	}
+
+	pub fn tt(span: Span, tokens: &mut impl Extend<TokenTree>, stringified: &str) {
+		// Note that there can actually be multiple tokens here, since `$tt:tt` grabs lifetimes and certain operators in one go!
+		let mut ts = TokenStream::from_str(stringified).expect("Failed to parse stringified tokens, somehow. (Are you using the internal API from another crate? Please don't.)").into_iter().collect::<Box<[_]>>();
+
+		// The last token tree's spacing information is lost, but it's easy enough to restore it here:
+		if let TokenTree::Punct(trailing_punct) = ts.last_mut().expect(
+			"always at least one token (Please don't use the internal API from other crates.)",
+		) {
+			*trailing_punct = Punct::new(
+				trailing_punct.as_char(),
+				match stringified
+					.chars()
+					.last()
+					.expect("always at least one char")
+					.is_ascii_whitespace()
+				{
+					true => Spacing::Alone,
+					false => Spacing::Joint,
+				},
+			)
+		}
+
+		tokens.extend(assign_span(span, ts));
+	}
 }
 
 /// A substitute panic that isn't reported as [`Error`]. **(Read for panic handling info!)**

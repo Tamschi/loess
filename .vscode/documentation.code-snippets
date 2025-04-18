@@ -19,8 +19,32 @@
 		"scope": "markdown,rust",
 		"prefix": "smallcaps",
 		"body": [
-			"<em style=font-style:normal;font-variant:small-caps>$1</em>$2"
+			"<em style=font-style:normal;font-variant:small-caps>$1</em>$0"
 		],
 		"description": "In documentation, renders text as small-caps."
-	}
+	},
+	"<code>": {
+		"scope": "markdown,rust",
+		"prefix": "code",
+		"body": [
+			"<code>$1</code>$0"
+		],
+		"description": "In documentation, renders as code."
+	},
+	"<sup>": {
+		"scope": "markdown,rust",
+		"prefix": "sup",
+		"body": [
+			"<sup>$1</sup>$0"
+		],
+		"description": "In documentation, renders as superscript."
+	},
+	"<sub>": {
+		"scope": "markdown,rust",
+		"prefix": "sub",
+		"body": [
+			"<sub>$1</sub>$0"
+		],
+		"description": "In documentation, renders as subscript."
+	},
 }

@@ -200,6 +200,7 @@ macro_rules! my_macro {
     ($($tt:tt)*) => ( $crate::__::my_macro!([$crate] $($tt)*) );
 }
 
+#[doc(hidden)]
 pub mod __ {
     pub use core; // Expected by `Errors`.
     pub use my_macro_impl::my_macro;
