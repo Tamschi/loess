@@ -19,11 +19,16 @@ macro_rules! test {
 	(let ($span:ident, $root:ident, $tokens:ident), $test:expr, $expected:expr) => {{
 		let $span = Span::call_site();
 		let $root: &TokenStream = &TokenStream::new();
-		let $tokens = &mut TokenStream::new();
+		let mut $tokens = TokenStream::new();
 		let result = $test;
 		assert_eq!($tokens.to_string(), $expected);
 		result
 	}};
+}
+
+#[test]
+pub fn long_punctuation() {
+    test!(let (span, root, tokens), quote_into_mixed_site!(span, root, &mut tokens, [............... .....]), "............... .....");
 }
 
 #[test]
@@ -49,9 +54,9 @@ pub fn if_else_chain() {
 		]);
 	}
 
-	test!(let (span, root, tokens), if_else_chain(span, root, tokens, Some(true)), "+");
-	test!(let (span, root, tokens), if_else_chain(span, root, tokens, Some(false)), "-");
-	test!(let (span, root, tokens), if_else_chain(span, root, tokens, None), "~");
+	test!(let (span, root, tokens), if_else_chain(span, root, &mut tokens, Some(true)), "+");
+	test!(let (span, root, tokens), if_else_chain(span, root, &mut tokens, Some(false)), "-");
+	test!(let (span, root, tokens), if_else_chain(span, root, &mut tokens, None), "~");
 }
 
 #[test]
@@ -77,9 +82,9 @@ pub fn if_let_else_chain() {
 		]);
 	}
 
-	test!(let (span, root, tokens), if_let_else_chain(span, root, tokens, Some(true)), "+");
-	test!(let (span, root, tokens), if_let_else_chain(span, root, tokens, Some(false)), "-");
-	test!(let (span, root, tokens), if_let_else_chain(span, root, tokens, None), "~");
+	test!(let (span, root, tokens), if_let_else_chain(span, root, &mut tokens, Some(true)), "+");
+	test!(let (span, root, tokens), if_let_else_chain(span, root, &mut tokens, Some(false)), "-");
+	test!(let (span, root, tokens), if_let_else_chain(span, root, &mut tokens, None), "~");
 }
 
 #[test]
@@ -100,11 +105,11 @@ pub fn r#return() {
 	}
 
 	assert_eq!(
-		test!(let (span, root, tokens), r#return(span, root, tokens, true), ""),
+		test!(let (span, root, tokens), r#return(span, root, &mut tokens, true), ""),
 		false
 	);
 	assert_eq!(
-		test!(let (span, root, tokens), r#return(span, root, tokens, false), "not condition"),
+		test!(let (span, root, tokens), r#return(span, root, &mut tokens, false), "not condition"),
 		true
 	);
 }
