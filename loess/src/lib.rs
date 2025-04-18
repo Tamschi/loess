@@ -904,9 +904,6 @@ macro_rules! grammar {
 /// }
 /// ```
 ///
-/// //TODO: Rust keywords should only be used for Rust grammar.
-/// //TODO: Use `quote_into_mixed_site!`, `quote_into_call_site!`.
-/// //TODO: Use `#mixed_site`, `#call_site`, `#located_at` and `#resolved_at`.
 /// ## Directives
 ///
 /// ### `{#paste $($expr:expr),*$(,)?}`
@@ -1098,7 +1095,27 @@ pub mod __ {
 				$( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
 			}
 		};
-		//TODO: `match`
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#match $expr:expr,
+			$(#![$($match_attr:tt)*])*
+			$(
+				$(#[$($arm_attr:tt)*])*
+				$pat:pat $(if $arm_expr:expr)? => {
+					$($tt:tt)*
+				}
+			)*
+		}) => {
+			$not_if = false;
+			let mut not_if = false;
+			match $expr {
+				$(#![$($match_attr)*])*
+				$(
+					$(#[$($arm_attr)*])*
+					$pat $(if $arm_expr)? => {
+						$( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+					}
+				)*
+			}
+		};
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? $(loop $(@ $loop:tt)?)?, $($tt:tt)*}) => {
 			// Handles both blocks and unconditional loops.
 			$not_if = false;
