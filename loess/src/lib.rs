@@ -287,10 +287,21 @@ impl Errors {
 /// }
 /// ```
 pub trait IntoTokens {
-	/// Emit `self`'s tokens into `tokens` while referencing `root`.
+	/// Emits `self`'s tokens into `tokens` while referencing `root`.
 	///
 	/// `root` <em style=font-style:normal;font-variant:small-caps>should</em> be prefixed to
 	/// any fully qualified paths that are emitted by `self`.
+	///
+	/// This method is not fallible and doesn't borrow [`Errors`] because you *really*
+	/// <em style=font-style:normal;font-variant:small-caps>should</em> emit all your
+	/// parsing [`Error`]s before your regular macro output.
+	///
+	/// It's likely cleanest to do fallible transforms separately first, into output types
+	/// with [`grammar!`]-generated [`IntoTokens`] implementations, in particular to
+	/// take advantage of [`ErrorPriority`], but you can of course still sneakily emit
+	/// diagnostics here if you think that doesn't misalign their order and causality,
+	/// and doesn't cause error spans to overlap in your input (which technically is
+	/// permitted just fine, but often leads to a bad dev UX for your macro consumers).
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>);
 
 	/// Convenience methods to emit `self`'s tokens into a new `T`.
