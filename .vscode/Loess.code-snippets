@@ -1,0 +1,133 @@
+{
+	// Place your Loess snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and 
+	// description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope 
+	// is left empty or omitted, the snippet gets applied to all languages. The prefix is what is 
+	// used to trigger the snippet and the body will be expanded and inserted. Possible variables are: 
+	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders. 
+	// Placeholders with the same ids are connected.
+	// Example:
+	// "Print to console": {
+	// 	"scope": "javascript,typescript",
+	// 	"prefix": "log",
+	// 	"body": [
+	// 		"console.log('$1');",
+	// 		"$2"
+	// 	],
+	// 	"description": "Log output to console"
+	// }
+	"Loess quote #paste": {
+		"scope": "rust",
+		"prefix": "#paste",
+		"body": [
+			"{#paste ${1:..impl IntoTokens} } $0"
+		],
+		"description": "In Loess quotes, emits comma-separated `IntoTokes` values."
+	},
+	"Loess quote #raw": {
+		"scope": "rust",
+		"prefix": "#raw",
+		"body": [
+			"{#raw ${1:tokens} } $0"
+		],
+		"description": "In Loess quotes, emits all tokens inside verbatim."
+	},
+	"Loess quote #mixed_site": {
+		"scope": "rust",
+		"prefix": "#mixed_site",
+		"body": [
+			"{#mixed_site ${1:mixed site resolution tokens} } $0"
+		],
+		"description": "In Loess quotes, emits tokens inside with mixed_site resolution."
+	},
+	"Loess quote #call_site": {
+		"scope": "rust",
+		"prefix": "#call_site",
+		"body": [
+			"{#call_site ${1:call site resolution tokens} } $0"
+		],
+		"description": "In Loess quotes, emits tokens inside with call_site resolution."
+	},
+	"Loess quote #located_at": {
+		"scope": "rust",
+		"prefix": "#located_at",
+		"body": [
+			"{#located_at ${1:Span}, ${2:tokens} } $0"
+		],
+		"description": "In Loess quotes, emits tokens inside with the same resolution scope as surrounding tokens, but with the given `Span`'s location."
+	},
+	"Loess quote #resolved_at": {
+		"scope": "rust",
+		"prefix": "#resolved_at",
+		"body": [
+			"{#resolved_at ${1:Span}, ${2:tokens} } $0"
+		],
+		"description": "In Loess quotes, emits tokens inside with the same location as surrounding tokens, but with the given `Span`'s resolution scope."
+	},
+	"Loess quote #with_exact_span": {
+		"scope": "rust",
+		"prefix": "#with_exact_span",
+		"body": [
+			"{#with_exact_span ${1:Span}, ${2:tokens} } $0"
+		],
+		"description": "In Loess quotes, emits tokens inside with the given `Span`."
+	},
+	"Loess quote #if": {
+		"scope": "rust",
+		"prefix": "#if,",
+		"body": [
+			"{#if ${1:bool},",
+			"\t${2:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to an `if`-statement."
+	},
+	"Loess quote #if let": {
+		"scope": "rust",
+		"prefix": "#if let,",
+		"body": [
+			"{#if let ${1:pattern} = ${2:expression},",
+			"\t${3:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to an `if let`-statement."
+	},
+	"Loess quote #else": {
+		"scope": "rust",
+		"prefix": "#else,",
+		"body": [
+			"{#else,",
+			"\t${1:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a fallback branch."
+	},
+	"Loess quote #if, #else,": {
+		"scope": "rust",
+		"prefix": "#if, #else,",
+		"body": [
+			"{#if ${1:bool},",
+			"\t${2:tokens}",
+			"} {#else,",
+			"\t${3:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to an `if`-statement and fallback branch."
+	},
+	"Loess quote #if let, #else,": {
+		"scope": "rust",
+		"prefix": "#if let, #else,",
+		"body": [
+			"{#if ${1:pattern} = ${2:expression},",
+			"\t${3:tokens}",
+			"} {#else,",
+			"\t${4:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to an `if let`-statement and fallback branch."
+	},
+}

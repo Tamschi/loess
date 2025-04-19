@@ -90,8 +90,7 @@ impl IntoTokens for Error {
 			.unwrap_or_else(Span::mixed_site);
 
 		quote_into_same_site! (span, root, tokens, [
-			//TODO: Use `{#error … }`.
-			{#paste root.clone()}{#raw ::core::compile_error!}({#paste message});
+			{#error root.clone()}{#raw ::core::compile_error!}({#paste message});
 		]);
 	}
 }
@@ -1055,10 +1054,11 @@ macro_rules! raw_quote_into_call_site {
 pub mod __ {
 	#![allow(missing_docs)] // Internal.
 
-	use std::str::FromStr;
+	use core::str::FromStr;
 
 	pub use core::{
-		compile_error, concat, iter::Extend, primitive::bool, result::Result, stringify,
+		clone::Clone, compile_error, concat, iter::Extend, primitive::bool, result::Result,
+		stringify,
 	};
 
 	use proc_macro2::{Delimiter, Group, Punct, Spacing};
@@ -1079,7 +1079,15 @@ pub mod __ {
 			$( $crate::IntoTokens::into_tokens($expr, $root, $tokens); )*
 		};
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#raw $($tt:tt)*}) => {
-			$crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
+			$crate::__::raw($span, &mut*$tokens, $crate::__::stringify!($($tt)*));
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#error $($tt:tt)*}) => {
+				$crate::IntoTokens::into_tokens($crate::__::Clone::clone($root), $root, $tokens);
+				$crate::__::raw($span, $tokens, "::core::compile_error!");
+				$crate::quote_into_same_site!($span, $root, &mut*$tokens, [
+					( $($tt)* )
+				]);
+				$crate::__::raw($span, $tokens, ";");
 		};
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#mixed_site $($tt:tt)*}) => {{
 			let span = $span.resolved_at($crate::__::Span::mixed_site());

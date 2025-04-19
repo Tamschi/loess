@@ -118,5 +118,4 @@ asteracea::components! {
 			ForImplicit;
 		}
 	}
-
 }
