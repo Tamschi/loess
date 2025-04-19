@@ -36,6 +36,7 @@ use std::{
 	iter,
 	marker::PhantomData,
 	mem,
+	ops::{Deref, DerefMut},
 	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
 };
 
@@ -363,7 +364,7 @@ impl Input {
 	/// # Returns
 	///
 	/// `false` if `self` is too short, otherwise the return value of `f`
-	//TODO (breaking): Also pass `&self` into the closure to check further tokens.
+	//TODO (breaking): Also pass `Self::RestIter` into the closure to check further tokens.
 	pub fn peek<'a, const N: usize>(&'a self, f: impl FnOnce([&TokenTree; N]) -> bool) -> bool {
 		//TODO: Handle none-delimiter groups. (Maybe not here?)
 		if self.len() < N {
@@ -657,6 +658,52 @@ pub trait SimpleSpanned {
 	{
 		self.set_span(span);
 		self
+	}
+}
+
+/// Wraps a collection type to eagerly parse values that are [`PeekFrom`],
+/// but to stop when [`PopFrom::peek_pop_from`] returns [`None`].
+pub struct Eager<T: ?Sized>(pub T);
+
+impl<T: ?Sized> Deref for Eager<T> {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl<T: ?Sized> DerefMut for Eager<T> {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
+}
+
+impl<T: FromIterator<A>, A> FromIterator<A> for Eager<T> {
+	fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
+		Self(iter.into_iter().collect())
+	}
+}
+
+impl<T: IntoIterator<Item: PeekFrom + PopFrom> + FromIterator<T::Item>> PopFrom for Eager<T> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	where
+		Self: Sized,
+	{
+		iter::from_fn(|| T::Item::peek_pop_from(input, errors).transpose()).collect()
+	}
+}
+
+impl<T: ?Sized + PeekFrom> PeekFrom for Eager<T> {
+	fn peek_from(input: &Input) -> bool {
+		// This, hypothetically, makes combinations like `Option<Eager<Vec1<_>>>` work correctly.
+		T::peek_from(input)
+	}
+}
+
+impl<T: IntoTokens> IntoTokens for Eager<T> {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens);
 	}
 }
 
