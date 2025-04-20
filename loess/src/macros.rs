@@ -1,3 +1,9 @@
+#[cfg(doc)]
+use proc_macro2::Span;
+
+#[cfg(doc)]
+use crate::{IntoTokens, grammar, raw_quote_into_mixed_site};
+
 /// Parser- and printer-generator macro.
 ///
 /// ```
@@ -213,7 +219,10 @@ macro_rules! grammar {
 	    {} => {}; // Stop.
 }
 
-/// Simple quotation macro that works well with Loess's types.
+/// Simple generic quotation macro that works well with Loess's types.
+///
+/// //TODO: Document parameters.
+/// //TODO: Document snippets.
 ///
 /// Uses `{#identifier … }`-style directives.
 ///
@@ -248,18 +257,11 @@ macro_rules! grammar {
 ///
 /// ## Directives
 ///
+/// //TODO: Update and correct!
+///
 /// ### `{#paste $($expr:expr),*$(,)?}`
 ///
 /// Emits each `$expr` as/through [`IntoTokens`].
-///
-/// ### `{#move $span:expr, $($tt:tt)* }`
-///
-/// Acts as nested [`quote_into!`] call with `$span` as [`Span`] argument.
-///
-/// ### `{#const $group:tt}` <sub>where `$group` should be a delimited group<sub>
-///
-/// Uses `$group` as [stringify!] argument list, parsing and emitting its contents all at once at runtime.
-/// This means those contents are emitted verbatim and, in theory, a bit faster overall.
 ///
 /// ### `{#if $expr:expr, $($tt:tt)* }`<br>`{#if let $pattern:pat = $expr:expr, $($tt:tt)* }`<br>`{#for $pattern:pat in $span:expr, $($tt:tt)* }`<br>`{#while $expr:expr, $($tt:tt)* }`<br>`{#while let $pattern:pat = $expr:expr, $($tt:tt)* }`<br>`{#loop $($tt:tt)* }`<br>`{#break $($expr:expr)? }`
 ///
@@ -311,6 +313,21 @@ macro_rules! quote_into_call_site {
 	    });
 }
 
+/// Simple generic quotation macro that efficiently emits tokens verbatim.
+///
+/// # Parameters
+///
+/// ## `$span`: [`Span`]
+///
+/// A `Span` that controls which part of the input errors are reported on and which
+/// hygiene context certain identifiers are resolved with. In most cases, you should use
+/// an as-specific-as-possible `Span` from your macro input here, so that the user of your
+/// macro will have an easier time solving issues.
+///
+/// [`raw_quote_into_mixed_site!`] automatically uses `mixed_site` resolution on quoted
+/// tokens (but not pasted [`IntoTokens`] values!). This isolates resolution for scoped
+/// bindings (but not items, so please use fully qualified paths and ideally the `$crate`-
+/// `root` pattern from Loess's README that can be viewed [in the root module](crate).)
 #[macro_export]
 macro_rules! raw_quote_into_mixed_site {
 	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{
@@ -319,6 +336,7 @@ macro_rules! raw_quote_into_mixed_site {
 	    }};
 }
 
+/// Like [`raw_quote_into_mixed_site!`], but resolved according to `$span`.
 #[macro_export]
 macro_rules! raw_quote_into_same_site {
 	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {
@@ -326,6 +344,7 @@ macro_rules! raw_quote_into_same_site {
 	    };
 }
 
+/// Like [`raw_quote_into_mixed_site!`], but resolved according to [`Span::call_site()`].
 #[macro_export]
 macro_rules! raw_quote_into_call_site {
 	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{
@@ -376,6 +395,9 @@ pub mod __ {
 				    });
 				    $crate::__::raw($span, $tokens, ";");
 		    }};
+		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#root}) => {
+			    $crate::IntoTokens::into_tokens($crate::__::Clone::clone($root), $root, $tokens);
+		    };
 		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#mixed_site $($tt:tt)*}) => {{
 			    let span = $span.resolved_at($crate::__::Span::mixed_site());
 			    $( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*

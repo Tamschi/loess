@@ -706,19 +706,19 @@ impl<T: FromIterator<A>, A> FromIterator<A> for Eager<T> {
 	}
 }
 
+impl<T: ?Sized + PeekFrom> PeekFrom for Eager<T> {
+	fn peek_from(input: &Input) -> bool {
+		// This, hypothetically, makes combinations like `Option<Eager<Vec1<_>>>` work correctly.
+		T::peek_from(input)
+	}
+}
+
 impl<T: IntoIterator<Item: PeekFrom + PopFrom> + FromIterator<T::Item>> PopFrom for Eager<T> {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
 	{
 		iter::from_fn(|| T::Item::peek_pop_from(input, errors).transpose()).collect()
-	}
-}
-
-impl<T: ?Sized + PeekFrom> PeekFrom for Eager<T> {
-	fn peek_from(input: &Input) -> bool {
-		// This, hypothetically, makes combinations like `Option<Eager<Vec1<_>>>` work correctly.
-		T::peek_from(input)
 	}
 }
 

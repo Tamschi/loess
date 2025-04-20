@@ -17,9 +17,54 @@
 	// }
 	"quote_into_mixed_site!": {
 		"scope": "rust",
-		"prefix": "quote_into_mixed_site!",
+		"prefix": "quote_into_mixed_site! (recommended)",
 		"body": [
 			"quote_into_mixed_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
+			"\t$0",
+			"]);"
+		],
+	},
+	"quote_into_same_site!": {
+		"scope": "rust",
+		"prefix": "quote_into_same_site!",
+		"body": [
+			"quote_into_same_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
+			"\t$0",
+			"]);"
+		],
+	},
+	"quote_into_call_site!": {
+		"scope": "rust",
+		"prefix": "quote_into_call_site!",
+		"body": [
+			"quote_into_call_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
+			"\t$0",
+			"]);"
+		],
+	},
+	"raw_quote_into_mixed_site!": {
+		"scope": "rust",
+		"prefix": "raw_quote_into_mixed_site! (recommended)",
+		"body": [
+			"raw_quote_into_mixed_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
+			"\t$0",
+			"]);"
+		],
+	},
+	"raw_quote_into_same_site!": {
+		"scope": "rust",
+		"prefix": "raw_quote_into_same_site!",
+		"body": [
+			"raw_quote_into_same_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
+			"\t$0",
+			"]);"
+		],
+	},
+	"raw_quote_into_call_site!": {
+		"scope": "rust",
+		"prefix": "raw_quote_into_call_site!",
+		"body": [
+			"raw_quote_into_call_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
 			"\t$0",
 			"]);"
 		],
@@ -31,6 +76,14 @@
 			"{#paste ${1:..impl IntoTokens expressions,} } $0"
 		],
 		"description": "In Loess quotes, emits comma-separated `IntoTokes` values."
+	},
+	"Loess quote #root": {
+		"scope": "rust",
+		"prefix": "#root",
+		"body": [
+			"{#root} $0"
+		],
+		"description": "In Loess quotes, emits a clone of the `$root` with its original `Span`."
 	},
 	"Loess quote #raw": {
 		"scope": "rust",

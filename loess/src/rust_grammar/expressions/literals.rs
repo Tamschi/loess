@@ -17,7 +17,9 @@ grammar! {
 
 	#[derive(Clone)]
 	pub enum AnyStringLiteral: doc, PeekFrom, PopFrom, IntoTokens {
+		/// `"…"`
 		Plain(StringLiteral),
+		/// `r#"…"#` and similar.
 		Raw(RawStringLiteral),
 	} else "Expected &str literal.";
 }

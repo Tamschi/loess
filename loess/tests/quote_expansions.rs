@@ -7,7 +7,7 @@ use loess::{
 use proc_macro2::{Span, TokenStream, TokenTree};
 
 macro_rules! test {
-	(let ($span:ident, $root:ident, $tokens:ident), $test:expr, $expected:expr) => {{
+	(let ($span:ident, $root:ident, $tokens:ident), $test:expr, $expected:expr$(,)?) => {{
 		let $span = Span::call_site();
 		let $root: &TokenStream = &TokenStream::new();
 		let mut tokens = TokenStream::new();
@@ -53,6 +53,24 @@ pub fn call_site_raw() {
 #[test]
 pub fn long_punctuation() {
 	test!(let (span, root, tokens), quote_into_mixed_site!(span, root, tokens, [............... .....]), "............... .....");
+}
+
+#[test]
+pub fn error() {
+	let mut custom_root = TokenStream::new();
+	raw_quote_into_same_site!(Span::call_site(), &mut custom_root, [::custom::root]);
+	test!(
+		let (span, _root, tokens),
+		quote_into_mixed_site!(span, &custom_root, tokens, [{#error "This is an error message."}]),
+		":: custom :: root :: core :: compile_error ! (\"This is an error message.\") ;",
+	);
+}
+
+#[test]
+pub fn root() {
+	let mut custom_root = TokenStream::new();
+	raw_quote_into_same_site!(Span::call_site(), &mut custom_root, [::custom::root]);
+	test!(let (span, _root, tokens), quote_into_mixed_site!(span, &custom_root, tokens, [{#root}]), ":: custom :: root");
 }
 
 //TODO: More tests.
