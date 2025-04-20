@@ -1,7 +1,5 @@
 #![deny(unused_variables)] // At least for now, this is used to detect missing expansions.
 
-use std::arch::x86_64::_CMP_FALSE_OQ;
-
 use loess::{
 	quote_into_call_site, quote_into_mixed_site, quote_into_same_site, raw_quote_into_call_site,
 	raw_quote_into_mixed_site, raw_quote_into_same_site,

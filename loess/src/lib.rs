@@ -1232,7 +1232,7 @@ pub mod __ {
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#$reserved:lifetime $($tt:tt)*}) => {
 			$crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes. (Did you mean `{#", $crate::__::stringify!($reserved), ":, … }` or `{#", $crate::__::stringify!($reserved), ": for … in …, … }`?)"));
 		};
-		($span:tt $root:tt $tokens:tt, $_not_if:tt, {$($tt:tt)*}) => {
+		($span:tt $root:tt $tokens:tt $_not_if:tt, {$($tt:tt)*}) => {
 			$crate::__::grouped($span, $crate::__::Brace, $tokens, {
 				let mut inner_tokens = $crate::__::TokenStream::new();
 				let mut not_if = false;
