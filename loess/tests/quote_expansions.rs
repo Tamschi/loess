@@ -247,6 +247,38 @@ pub fn break_from_loop_with_label() {
 	test!(let (span, root, tokens), break_from_loop_with_label(span, root, tokens), "once");
 }
 
+#[test]
+pub fn break_from_for() {
+	fn break_from_for(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		quote_into_mixed_site!(span, root, tokens, [
+			{#for _ in 0..2,
+				once
+				{#break;}
+			}
+		]);
+	}
+
+	test!(let (span, root, tokens), break_from_for(span, root, tokens), "once");
+}
+
+#[test]
+pub fn break_from_for_with_label() {
+	fn break_from_for_with_label(
+		span: Span,
+		root: &TokenStream,
+		tokens: &mut impl Extend<TokenTree>,
+	) {
+		quote_into_mixed_site!(span, root, tokens, [
+			{#'my_label: for _ in 0..2,
+				once
+				{#break 'my_label;}
+			}
+		]);
+	}
+
+	test!(let (span, root, tokens), break_from_for_with_label(span, root, tokens), "once");
+}
+
 //TODO: More tests!
 
 #[test]
