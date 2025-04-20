@@ -1,4 +1,4 @@
-//! <details><summary>README / Example (click to expand)</summary>
+//! <details><summary>README / Examples (click to expand)</summary>
 //!
 #![doc = include_str!("../README.md")]
 //!
@@ -10,7 +10,11 @@
 //! 2. step through the input with [`parse_once`], [`parse_once_with`] and/or [`parse_once_with_infallible`] and
 //! 3. consume the last of the input with [`parse_all`], [`parse_all_with`] or [`parse_all_with_infallible`].
 //!
-//! You can call either [`Iterator::collect`] (for repeats) or [`Iterator::next`] (for one value) on the last step.
+//! You can call either [`Iterator::collect`] (for repeats) or [`Iterator::next`] (for one value) on step 3.
+//!
+//! You can combine step 2 into step 3 with a `grammar!`-generated top-level grammar,
+//! but for proc macros embedded in a runtime library, in most cases I recommend getting
+//! `$crate` from a wrapper `macro_rules!`-macro first. (See full example above.)
 //!
 //! # Features
 //!
@@ -89,9 +93,12 @@ impl IntoTokens for Error {
 			.or_else(|| self.spans.first().copied())
 			.unwrap_or_else(Span::mixed_site);
 
-		quote_into_same_site! (span, root, tokens, [
-			{#error root.clone()}{#raw ::core::compile_error!}({#paste message});
-		]);
+		#[allow(unused_variables, unused_mut)] // Not suppressed because it's the same crate.
+		{
+			quote_into_same_site! (span, root, tokens, [
+				{#error {#paste message}};
+			]);
+		}
 	}
 }
 
@@ -938,6 +945,10 @@ macro_rules! grammar {
 ///
 /// Applies [`Span::mixed_site()`] resolution to quoted tokens, but locates them at `$span`.
 ///
+/// Note that this macro emits punctuation verbatim rather than splitting Rust operators!
+/// When emitting Rust code, consider spacing consecutive operators for possibly maybe
+/// better forwards-compatibility with future Rust edition consumers of your proc macro.
+///
 /// ```rust
 /// use loess::{quote_into_mixed_site, rust_grammar::Identifier, SimpleSpanned};
 /// use proc_macro2::TokenStream;
@@ -1009,7 +1020,6 @@ macro_rules! quote_into_same_site {
 		let span: $crate::__::Span = $span;
 		let root: &$crate::__::TokenStream = $root;
 		let tokens = $tokens;
-		#[allow(unused_variables, unused_mut)]
 		let mut not_if = false;
 		$( $crate::__::quote_one!(span root tokens not_if, $tt); )*
 	});
@@ -1079,16 +1089,19 @@ pub mod __ {
 			$( $crate::IntoTokens::into_tokens($expr, $root, $tokens); )*
 		};
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#raw $($tt:tt)*}) => {
-			$crate::__::raw($span, &mut*$tokens, $crate::__::stringify!($($tt)*));
+			$crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
 		};
-		($span:tt $root:tt $tokens:tt $not_if:tt, {#error $($tt:tt)*}) => {
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#error $($tt:tt)*}) => {{
 				$crate::IntoTokens::into_tokens($crate::__::Clone::clone($root), $root, $tokens);
 				$crate::__::raw($span, $tokens, "::core::compile_error!");
-				$crate::quote_into_same_site!($span, $root, &mut*$tokens, [
-					( $($tt)* )
-				]);
+				$crate::__::grouped($span, $crate::__::Parenthesis, $tokens, {
+					let mut inner_tokens = $crate::__::TokenStream::new();
+					let mut not_if = false;
+					$( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+					inner_tokens
+				});
 				$crate::__::raw($span, $tokens, ";");
-		};
+		}};
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#mixed_site $($tt:tt)*}) => {{
 			let span = $span.resolved_at($crate::__::Span::mixed_site());
 			$( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
@@ -1165,6 +1178,8 @@ pub mod __ {
 				$( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
 			}
 		};
+
+		//TODO: Better error handling for this specifically, since it matches the match arms.
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#match $expr:expr,
 			$(#![$($match_attr:tt)*])*
 			$(
@@ -1186,6 +1201,7 @@ pub mod __ {
 				)*
 			}
 		};
+
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? $(loop $(@ $loop:tt)?)?, $($tt:tt)*}) => {
 			// Handles both blocks and unconditional loops.
 			$not_if = false;
