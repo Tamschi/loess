@@ -55,6 +55,35 @@ pub fn long_punctuation() {
 	test!(let (span, root, tokens), quote_into_mixed_site!(span, root, tokens, [............... .....]), "............... .....");
 }
 
+//TODO: More tests.
+
+#[test]
+pub fn r#return() {
+	fn r#return(
+		span: Span,
+		root: &TokenStream,
+		tokens: &mut impl Extend<TokenTree>,
+		condition: bool,
+	) -> bool {
+		quote_into_mixed_site!(span, root, tokens, [
+			{#if condition,
+				{#return !condition}
+			}
+			not condition
+		]);
+		true
+	}
+
+	assert_eq!(
+		test!(let (span, root, tokens), r#return(span, root, tokens, true), ""),
+		false
+	);
+	assert_eq!(
+		test!(let (span, root, tokens), r#return(span, root, tokens, false), "not condition"),
+		true
+	);
+}
+
 #[test]
 pub fn if_else_chain() {
 	fn if_else_chain(
@@ -148,7 +177,7 @@ pub fn match_blocks_else() {
 				Some(false) => {-}
 				None => {~}
 			}
-			{#else, never}
+			{#else, never }
 		]);
 	}
 
@@ -158,30 +187,64 @@ pub fn match_blocks_else() {
 }
 
 #[test]
-pub fn r#return() {
-	fn r#return(
+pub fn block_blocks_else() {
+	fn block_blocks_else(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		quote_into_mixed_site!(span, root, tokens, [
+			{#if false,}
+			{#, always }
+			{#else, never }
+		]);
+	}
+
+	test!(let (span, root, tokens), block_blocks_else(span, root, tokens), "always");
+}
+
+#[test]
+pub fn break_from_block() {
+	fn break_from_block(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		#![allow(unreachable_code)]
+		quote_into_mixed_site!(span, root, tokens, [
+			{#'my_label:,
+				always
+				{#break 'my_label;}
+				never
+			}
+		]);
+	}
+
+	test!(let (span, root, tokens), break_from_block(span, root, tokens), "always");
+}
+
+#[test]
+pub fn break_from_loop() {
+	fn break_from_loop(span: Span, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		quote_into_mixed_site!(span, root, tokens, [
+			{#loop,
+				once
+				{#break;}
+			}
+		]);
+	}
+
+	test!(let (span, root, tokens), break_from_loop(span, root, tokens), "once");
+}
+
+#[test]
+pub fn break_from_loop_with_label() {
+	fn break_from_loop_with_label(
 		span: Span,
 		root: &TokenStream,
 		tokens: &mut impl Extend<TokenTree>,
-		condition: bool,
-	) -> bool {
+	) {
 		quote_into_mixed_site!(span, root, tokens, [
-			{#if condition,
-				{#return !condition}
+			{#'my_label: loop,
+				once
+				{#break 'my_label;}
 			}
-			not condition
 		]);
-		true
 	}
 
-	assert_eq!(
-		test!(let (span, root, tokens), r#return(span, root, tokens, true), ""),
-		false
-	);
-	assert_eq!(
-		test!(let (span, root, tokens), r#return(span, root, tokens, false), "not condition"),
-		true
-	);
+	test!(let (span, root, tokens), break_from_loop_with_label(span, root, tokens), "once");
 }
 
 //TODO: More tests!

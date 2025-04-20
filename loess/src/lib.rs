@@ -1150,8 +1150,11 @@ pub mod __ {
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#let $pat:pat = $expr:expr $(, else { $($else:tt)* })?$(;)?}) => {
 			let $pat = $expr;
 		};
-		($span:tt $root:tt $tokens:tt $not_if:tt, {#break $($label:lifetime)? $($expr:expr)?$(;)?}) => {
-			break $($label)? $($expr)?;
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#break $label:lifetime $($expr:expr)?$(;)?}) => {
+			break $label $($expr)?;
+		};
+		($span:tt $root:tt $tokens:tt $not_if:tt, {#break $($expr:expr)?$(;)?}) => {
+			break $($expr)?;
 		};
 		($span:tt $root:tt $tokens:tt $not_if:tt, {#continue $($label:lifetime)?$(;)?}) => {
 			continue $($label)?;

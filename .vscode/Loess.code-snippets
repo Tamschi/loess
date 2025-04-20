@@ -85,7 +85,7 @@
 		"scope": "rust",
 		"prefix": "#let",
 		"body": [
-			"{#let ${1:pattern} = ${2:expression}; }",
+			"{#let ${1:pattern} = ${2:expression};}",
 			"$0"
 		],
 		"description": "In Loess quotes, expands to a `let` statement."
@@ -94,21 +94,48 @@
 		"scope": "rust",
 		"prefix": "#let, else",
 		"body": [
-			"{#let ${1:pattern} = ${2:expression}, else { ${3:!diverging statement} }; }",
+			"{#let ${1:pattern} = ${2:expression}, else { ${3:!diverging statement} };}",
 			"$0"
 		],
 		"description": "In Loess quotes, expands to a `let` statement."
 	},
-	"Loess quote #let else (block)": {
+	"Loess quote #let else (block formatting)": {
 		"scope": "rust",
 		"prefix": "#let, else block",
 		"body": [
 			"{#let ${1:pattern} = ${2:expression}, else {",
 			"\t${3:!diverging statements}",
-			"}; }",
+			"};}",
 			"$0"
 		],
 		"description": "In Loess quotes, expands to a `let` statement."
+	},
+	"Loess quote #break": {
+		"scope": "rust",
+		"prefix": "#break",
+		"body": [
+			"{#break$1;}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `break` statement."
+	},
+	"Loess quote #continue": {
+		"scope": "rust",
+		"prefix": "#continue",
+		"body": [
+			"{#continue$1;}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `continue` statement."
+	},
+	"Loess quote #return": {
+		"scope": "rust",
+		"prefix": "#return",
+		"body": [
+			"{#return$1;}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `return` statement."
 	},
 	"Loess quote #if": {
 		"scope": "rust",
@@ -209,5 +236,38 @@
 			"$0"
 		],
 		"description": "A Loess quote `#match` branch."
+	},
+	"Loess quote #'label:,": {
+		"scope": "rust",
+		"prefix": "#'label:,",
+		"body": [
+			"{#${1:'label}:,",
+			"\t${2:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a block with a label."
+	},
+	"Loess quote #loop:,": {
+		"scope": "rust",
+		"prefix": "#loop,",
+		"body": [
+			"{#loop,",
+			"\t${1:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `loop`-statement."
+	},
+	"Loess quote #'label: loop:,": {
+		"scope": "rust",
+		"prefix": "#'label: loop,",
+		"body": [
+			"{#${1:'label}: loop,",
+			"\t${2:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `loop`-statement with a label."
 	}
 }
