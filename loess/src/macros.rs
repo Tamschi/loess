@@ -1,8 +1,8 @@
 #[cfg(doc)]
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenTree};
 
 #[cfg(doc)]
-use crate::{IntoTokens, grammar, raw_quote_into_mixed_site};
+use crate::{IntoTokens, grammar, quote_into_mixed_site, raw_quote_into_mixed_site};
 
 /// Parser- and printer-generator macro.
 ///
@@ -219,11 +219,9 @@ macro_rules! grammar {
 	    {} => {}; // Stop.
 }
 
-/// Simple generic quotation macro that works well with Loess's types.
+/// Simple generic quotation (statement) macro that works well with Loess's types.
 ///
-/// //TODO: Document parameters.
-///
-/// Uses `{#identifier … }`-style directives.
+/// Uses `{#identifier … }`-style directives (see below).
 ///
 /// Applies [`Span::mixed_site()`] resolution to quoted tokens, but locates them at `$span`.
 ///
@@ -254,31 +252,143 @@ macro_rules! grammar {
 /// }
 /// ```
 ///
-/// ## Directives
+/// # Parameters
 ///
-/// ### Emitting directives
+/// ## <code>$span: [`Span`]</code>
 ///
-/// //TODO: Update and correct!
+/// A `Span` that controls which part of the input errors are reported on and which
+/// hygiene context certain identifiers are resolved with. In most cases, you should use
+/// an as-specific-as-possible `Span` from your macro input here, so that the user of your
+/// macro will have an easier time solving issues.
+///
+/// [`raw_quote_into_mixed_site!`] automatically uses `mixed_site` resolution on quoted
+/// tokens (but not pasted [`IntoTokens`] values!). This isolates resolution for scoped
+/// bindings (but not items, so please use fully qualified paths and ideally the `$crate`-
+/// `$root` pattern from Loess's README that can be viewed [in the root module](crate),
+/// with [`quote_into_mixed_site`] instead of this macro).
+///
+/// ## <code>$tokens: impl [`Extend`]&lt;[`TokenTree`]></code>
+///
+/// The collection (or other sink) of [`TokenTree`]s to extend.
+///
+/// # `[$($tt:tt)*]`
+///
+/// Within square brackets, tokens to emit with `$span` as [`Span`] into `$tokens`.
+///
+/// Most directives are expanded to emit tokens dynamically and/or into control flow statements.
+///
+/// Certain directives do neither¹ and instead modify the context of how tokens are emitted.
+///
+/// ¹ These generally do expand to an explicit block still, just so there is no wrong shadowing
+///   when you inline the macro into your source code. Outside of that, macro hygiene would be
+///   enough to apply the right identifier distinctions, though.
+///
+/// # Directives
+///
+/// Nested directives are supported unless noted otherwise.
+///
+/// ## Emitting directives
 ///
 /// ### `{#paste $($expr:expr),*$(,)?}`
 ///
-/// Emits each `$expr` as/through [`IntoTokens`].
+/// Emits each `$expr` as/through [`IntoTokens`], without adjusting [`Span`]s.
 ///
-/// ### `{#if $expr:expr, $($tt:tt)* }`<br>`{#if let $pattern:pat = $expr:expr, $($tt:tt)* }`<br>`{#for $pattern:pat in $span:expr, $($tt:tt)* }`<br>`{#while $expr:expr, $($tt:tt)* }`<br>`{#while let $pattern:pat = $expr:expr, $($tt:tt)* }`<br>`{#loop $($tt:tt)* }`<br>`{#break $($expr:expr)? }`
+/// ### `{#raw $($tt:tt)*}`
 ///
-/// Expand into flow control statements.
+/// More efficiently emits `$($tt)*` verbatim, by [`stringify!`]ing it in bulk but
+/// without support for nested directives. If you have long sections of verbatim tokens,
+/// using this directive may speed up your build and potentially runtime, even if there's
+/// nothing inside that you couldn't emit otherwise.
 ///
-/// ### `{#else $($tt:tt)* }`
+/// ### `{#error $($tt:tt)*}` <sub>uses <code>$root[`::core`]</code></sub>
 ///
-/// Expands into an `else`-branch.
+/// Emits a [`compile_error!`]. `$($tt:tt)*` must emit a string literal, optionally followed by a `,`.
 ///
 /// ### `{#root}`
 ///
 /// Pastes a clone of the `$root` given to the initial call.
 ///
-/// ### `{#hash $($tt:tt)* }`
+/// ## Context directives
 ///
-/// Emits `{#` … `}`.
+/// ### `{#mixed_site $($tt:tt)* }`
+///
+/// Nested tokens will be resolved with mixed site hygiene and warnings on them will be suppressed.
+///
+/// (The location for diagnostics remains unchanged.)
+///
+/// ### `{#call_site $($tt:tt)* }`
+///
+/// Nested tokens will be resolved with call site hygiene and warnings on them appear to the caller.
+///
+/// (The location for diagnostics remains unchanged.)
+///
+/// ### `{#located_at $span2:expr, $($tt:tt)* }`
+///
+/// Nested tokens will use `$span2`'s location for diagnostics, but keep the outer hygiene scope.
+///
+/// ### `{#resolved_at $span2:expr, $($tt:tt)* }`
+///
+/// Nested tokens will use `$span2`'s hygiene scope, but keep the outer location information.
+///
+/// ### `{#with_exact_span $span:expr, $($tt:tt)* }`
+///
+/// Nested tokens are emitted exactly with copies of `$span` as [`Span`].
+///
+/// ## Control flow directives
+///
+/// ### `{#let $pat:pat = $expr:expr $(, else { $($else:tt)* })?$(;)?}`
+///
+/// Expands into a `let` binding with optional divergent `else` branch.
+///
+/// ### `{#break $($label:lifetime)? $($expr:expr)?$(;)?}`
+///
+/// Expands into a `break` statement with optional label and optional expression.
+///
+/// ### `{#continue $($label:lifetime)?$(;)?}`
+///
+/// Expands into a `continue` statement with optional label.
+///
+/// ### `{#return $($expr:expr)?$(;)?}`
+///
+/// Expands into a `return` statement with optional expression.
+///
+/// ### `{# $(else)? if $(let $pat:pat =)? $expr:expr, $($tt:tt)*}`
+///
+/// Expands into an `if`-statement that conditionally emits nested tokens.
+///
+/// This may be prefixed by `else`, which makes the `if` itself conditional (see below).
+///
+/// ### `{#else, $($tt:tt)* }`
+///
+/// Expands into a fallback branch that emits nested tokens only iff the preceding control
+/// flow statement in the same scope was either skipped or skipped its body completely.
+///
+/// This works after `{#if … }` and as part of an `{#else if … }` chain, but also after
+/// conditional loop directives `{#loop, … }` (where it indicates that their body was never entered).
+///
+/// > It would have been difficult and potentially slow to limit where the directive can appear.
+///
+/// ### `{#match $expr:expr, … }`
+///
+/// Expands into a `match` statement (which must be exhaustive). Note that the macro
+/// currently only recognises it when the branches are all well-formed too.
+///
+/// The body of this directive is that of a normal `match` statement (without an extra pair of braces),
+/// including the option to use inner attributes on the `match` and outer attributes on the branches,
+/// except that branches must use curly braces (`=> { $(tt:tt)* }`) and that tokens inside those braces
+/// are interpreted as conditionally emitted nested quote.
+///
+/// ### `{# $($label:lifetime:)? $(loop)?, $($tt:tt)* }`
+///
+/// Expands into a block or `loop`-statement with optional label.
+///
+/// ### `{# $($label:lifetime:)? for $pat:pat in $expr:expr, $($tt:tt)* }`
+///
+/// Expands into a `for in` loop with optional label.
+///
+/// ### `{# $($label:lifetime:)? while $(let $pat:pat =)? $expr:expr, $($tt:tt)*}`
+///
+/// Expands into a `while` or `while let` loop with optional label.
 #[macro_export]
 macro_rules! quote_into_mixed_site {
 	    ($span:expr, $root:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => ({
@@ -314,11 +424,11 @@ macro_rules! quote_into_call_site {
 	    });
 }
 
-/// Simple generic quotation macro that efficiently emits tokens verbatim.
+/// Simple generic quotation (statement) macro that efficiently emits tokens verbatim.
 ///
 /// # Parameters
 ///
-/// ## `$span`: [`Span`]
+/// ## <code>$span: [`Span`]</code>
 ///
 /// A `Span` that controls which part of the input errors are reported on and which
 /// hygiene context certain identifiers are resolved with. In most cases, you should use
@@ -328,9 +438,16 @@ macro_rules! quote_into_call_site {
 /// [`raw_quote_into_mixed_site!`] automatically uses `mixed_site` resolution on quoted
 /// tokens (but not pasted [`IntoTokens`] values!). This isolates resolution for scoped
 /// bindings (but not items, so please use fully qualified paths and ideally the `$crate`-
-/// `root` pattern from Loess's README that can be viewed [in the root module](crate).)
-/// 
-/// TODO: Other parameters.
+/// `$root` pattern from Loess's README that can be viewed [in the root module](crate),
+/// with [`quote_into_mixed_site`] instead of this macro).
+///
+/// ## <code>$tokens: impl [`Extend`]&lt;[`TokenTree`]></code>
+///
+/// The collection (or other sink) of [`TokenTree`]s to extend.
+///
+/// # `[$($tt:tt)*]`
+///
+/// Within square brackets: Tokens to emit verbatim but with `$span` as [`Span`] into `$tokens`.
 #[macro_export]
 macro_rules! raw_quote_into_mixed_site {
 	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{
@@ -379,9 +496,6 @@ pub mod __ {
 	#[doc(hidden)]
 	#[macro_export]
 	macro_rules! quote_one {
-		    //TODO: Missing directives.
-		    //TODO: Error handling with syntax help.
-
 			// #paste
 		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#paste $($expr:expr),*$(,)?}) => {
 			    $( $crate::IntoTokens::into_tokens($expr, $root, $tokens); )*
@@ -568,14 +682,16 @@ pub mod __ {
 			    }
 		    };
 
+		    //TODO: Error handling with syntax help, about here in the pattern order.
+
 			// reserved `#identifier`
 		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#$reserved:ident $($tt:tt)*}) => {
-			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes (or its pattern wasn't matched). (Did you mean `{#paste ", $crate::__::stringify!($reserved), "… }` or `{#, #", $crate::__::stringify!($reserved), "… }`?)"));
+			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is either reserved within Loess's quotes or its pattern wasn't matched. (Did you mean `{#paste ", $crate::__::stringify!($reserved), "… }` or `{#, #", $crate::__::stringify!($reserved), "… }`?)"));
 		    };
 
 			// reserved `#'lifetime`
 		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#$reserved:lifetime $($tt:tt)*}) => {
-			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes (or its pattern wasn't matched). (Did you mean `{#", $crate::__::stringify!($reserved), ":, … }` or `{#", $crate::__::stringify!($reserved), ": for … in …, … }`?)"));
+			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is either reserved within Loess's quotes or its pattern wasn't matched. (Did you mean `{#", $crate::__::stringify!($reserved), ":, … }` or `{#", $crate::__::stringify!($reserved), ": for … in …, … }`?)"));
 		    };
 
 			// {}

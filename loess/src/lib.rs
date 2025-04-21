@@ -1,4 +1,4 @@
-//! <details><summary>README / Examples (click to expand)</summary>
+//! <details><summary style=cursor:pointer><u>README / Examples (click to expand)</u></summary>
 //!
 #![doc = include_str!("../README.md")]
 //!
@@ -6,15 +6,27 @@
 //!
 //! In most cases you'll want to:
 //!
-//! 1. generate grammar implementations with [`grammar!`] (You can also easily implement parts manually.),
-//! 2. step through the input with [`parse_once`], [`parse_once_with`] and/or [`parse_once_with_infallible`] and
-//! 3. consume the last of the input with [`parse_all`], [`parse_all_with`] or [`parse_all_with_infallible`].
+//! 0. generate custom grammar implementations with [`grammar!`] (You can also easily implement parts manually.),
+//! 1. create (mutable) instances of [`Input`] and [`Errors`],
+//! 2. step through the input with [`parse_once`], [`parse_once_with`] and/or [`parse_once_with_infallible`],
+//! 3. consume the last of the input with [`parse_all`], [`parse_all_with`] or [`parse_all_with_infallible`],
+//! 4. perform any fallible transforms you need, possibly pushing more [`Error`]s into your [`Errors`],
+//! 5. if `errors` is your [`Errors`], have `let mut output: proc_macro2::TokenStream = errors.collect_tokens();`
+//!    convert it into the start of your output,
+//! 6. emit your regular output with [`quote_into_mixed_site!`] (recommended), [`quote_into_with_exact_span!`] or
+//!    [`quote_into_call_site!`], which accept interpolation and control flow directives.
 //!
 //! You can call either [`Iterator::collect`] (for repeats) or [`Iterator::next`] (for one value) on step 3.
+//! Either way, the parsing iterator will check for unconsumed tokens remaining in the [`Input`] when dropped
+//! and report to the [`Errors`] accordingly.
 //!
-//! You can combine step 2 into step 3 with a `grammar!`-generated top-level grammar,
-//! but for proc macros embedded in a runtime library, in most cases I recommend getting
-//! `$crate` from a wrapper `macro_rules!`-macro first. (See full example above.)
+//! You can combine step 2 into step 3 with a `grammar!`-generated top-level grammar, but for proc macros embedded
+//! in a runtime library, in most cases I recommend getting `$crate` from a wrapper `macro_rules!`-macro first.
+//! (See full example above.)
+//!
+//! Some parsing errors are recoverable, but still translate to [`compile_error!`] calls being generated in step 5.
+//! Your macro should seamlessly continue to operate in such cases, which helps prevent noise from cascading errors
+//! due to e.g. missing items, making it much easier for your macro's users to find problems with the input.
 //!
 //! You can download a *.code-snippets* file for Loess's macros and quote macro directives here:
 //! <https://github.com/Tamschi/Asteracea/blob/develop/.vscode/Loess.code-snippets>
