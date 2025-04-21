@@ -46,7 +46,7 @@ impl PopFrom for Group {
 		Self: Sized,
 	{
 		input
-			.pop_or_replace(|t| match t {
+			.pop_or_replace(|t, _| match t {
 				[TokenTree::Group(group)] => Ok(group),
 				t => Err(t),
 			})
@@ -62,7 +62,7 @@ impl PopFrom for Ident {
 		Self: Sized,
 	{
 		input
-			.pop_or_replace(|t| match t {
+			.pop_or_replace(|t, _| match t {
 				[TokenTree::Ident(ident)] => Ok(ident),
 				t => Err(t),
 			})
@@ -78,7 +78,7 @@ impl PopFrom for Punct {
 		Self: Sized,
 	{
 		input
-			.pop_or_replace(|t| match t {
+			.pop_or_replace(|t, _| match t {
 				[TokenTree::Punct(punct)] => Ok(punct),
 				t => Err(t),
 			})
@@ -94,7 +94,7 @@ impl PopFrom for Literal {
 		Self: Sized,
 	{
 		input
-			.pop_or_replace(|t| match t {
+			.pop_or_replace(|t, _| match t {
 				[TokenTree::Literal(literal)] => Ok(literal),
 				t => Err(t),
 			})
@@ -109,7 +109,7 @@ impl PopFrom for TokenTree {
 	where
 		Self: Sized,
 	{
-		input.pop_or_replace(|[t]| Ok(t)).map_err(|spans| {
+		input.pop_or_replace(|[t], _| Ok(t)).map_err(|spans| {
 			errors.push(Error::new(ErrorPriority::TOKEN, "Expected token.", spans))
 		})
 	}

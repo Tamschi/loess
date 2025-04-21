@@ -18,7 +18,7 @@ impl Default for RArrow {
 /// `->`
 impl PeekFrom for RArrow {
 	fn peek_from(input: &Input) -> bool {
-		input.peek(|tts| {
+		input.peek(|tts, _| {
 			matches!(tts, [TokenTree::Punct(minus), TokenTree::Punct(gt)]
 			if minus.as_char() == '-' && minus.spacing() == Spacing::Joint && gt.as_char() == '>')
 		})
@@ -28,7 +28,7 @@ impl PeekFrom for RArrow {
 impl PopFrom for RArrow {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|tts| match tts {
+			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(minus), TokenTree::Punct(gt)]
 					if minus.as_char() == '-'
 						&& minus.spacing() == Spacing::Joint
@@ -67,7 +67,7 @@ impl Default for DotDot {
 /// `..`
 impl PeekFrom for DotDot {
 	fn peek_from(input: &Input) -> bool {
-		input.peek(|tts| {
+		input.peek(|tts, rest| {
 			matches!(tts, [TokenTree::Punct(dot0), TokenTree::Punct(dot1)]
 			if dot0.as_char() == '.' && dot0.spacing() == Spacing::Joint && dot1.as_char() == '.')
 		})
@@ -77,7 +77,7 @@ impl PeekFrom for DotDot {
 impl PopFrom for DotDot {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|tts| match tts {
+			.pop_or_replace(|tts, rest| match tts {
 				[TokenTree::Punct(minus), TokenTree::Punct(gt)]
 					if minus.as_char() == '.'
 						&& minus.spacing() == Spacing::Joint
@@ -123,7 +123,7 @@ impl PeekFrom for Semi {
 impl PopFrom for Semi {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|tts| match tts {
+			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(semi)] if semi.as_char() == ';' => Ok(Self(semi)),
 				other => Err(other),
 			})
@@ -162,7 +162,7 @@ impl PeekFrom for Comma {
 impl PopFrom for Comma {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|tts| match tts {
+			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(comma)] if comma.as_char() == ',' => Ok(Self(comma)),
 				other => Err(other),
 			})
@@ -201,7 +201,7 @@ impl PeekFrom for Or {
 impl PopFrom for Or {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|tts| match tts {
+			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(or)] if or.as_char() == '|' && or.spacing() == Spacing::Alone => {
 					Ok(Self(or))
 				}
@@ -242,7 +242,7 @@ impl PeekFrom for Dot {
 impl PopFrom for Dot {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|tts| match tts {
+			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(dot)]
 					if dot.as_char() == '.' && dot.spacing() == Spacing::Alone =>
 				{
@@ -285,7 +285,7 @@ impl PeekFrom for Colon {
 impl PopFrom for Colon {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|tts| match tts {
+			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(colon)]
 					if colon.as_char() == ':' && colon.spacing() == Spacing::Alone =>
 				{
@@ -324,7 +324,7 @@ macro_rules! ident_token {
 				Self: Sized,
 			{
 				input
-					.pop_or_replace(|t| match t {
+					.pop_or_replace(|t, _| match t {
 						[TokenTree::Ident(ident)] if ident == $str => Ok(Self(ident)),
 						other => Err(other),
 					})

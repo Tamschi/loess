@@ -51,7 +51,7 @@
 use std::{
 	self,
 	any::Any,
-	collections::VecDeque,
+	collections::{VecDeque, vec_deque},
 	fmt::Debug,
 	iter,
 	marker::PhantomData,
@@ -399,17 +399,20 @@ impl Input {
 	///
 	/// # Returns
 	///
-	/// `false` if `self` is too short, otherwise the return value of `f`
-	//TODO (breaking): Also pass `Self::RestIter` into the closure to check further tokens.
-	pub fn peek<'a, const N: usize>(&'a self, f: impl FnOnce([&TokenTree; N]) -> bool) -> bool {
+	/// `false` if `self` is too short, otherwise the return value of `f`.
+	pub fn peek<'a, const N: usize>(
+		&'a self,
+		f: impl FnOnce([&TokenTree; N], vec_deque::Iter<'a, TokenTree>) -> bool,
+	) -> bool {
 		//TODO: Handle none-delimiter groups. (Maybe not here?)
 		if self.len() < N {
 			false
 		} else {
 			let mut iter = self.tokens.iter();
-			f(std::array::from_fn(move |_| {
-				iter.next().expect("due to !(self.len() < N)")
-			}))
+			f(
+				std::array::from_fn(|_| iter.next().expect("due to !(self.len() < N)")),
+				iter,
+			)
 		}
 	}
 
@@ -429,7 +432,7 @@ impl Input {
 	pub fn pop_or_replace<'a, T, const N: usize>(
 		&'a mut self,
 		//TODO (breaking): Also pass `&mut self` into the closure to check/consume further tokens.
-		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
+		f: impl FnOnce([TokenTree; N], &mut Self) -> Result<T, [TokenTree; N]>,
 	) -> Result<T, impl 'a + IntoIterator<Item = Span>> {
 		//TODO: Handle none-delimiter groups.
 		if self.tokens.len() < N {
@@ -440,7 +443,10 @@ impl Input {
 				.chain(iter::once(self.end))
 				.collect::<Vec<_>>())
 		} else {
-			match f([(); N].map(|()| self.tokens.pop_front().expect("unreachable"))) {
+			match f(
+				[(); N].map(|()| self.tokens.pop_front().expect("unreachable")),
+				self,
+			) {
 				Ok(value) => Ok(value),
 				Err(tts) => {
 					let spans = tts.iter().map(|t| t.span()).collect();
