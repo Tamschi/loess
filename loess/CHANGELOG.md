@@ -1,5 +1,14 @@
 # Loess Changelog
 
+## next-revision
+
+TODO: Date
+
+### Revisions
+
+- Fixed the first [`grammar!`]-mention in the docs to be a link.
+- Terminology: "printer-generator" -> "serialiser-generator".
+
 ## 0.2.1
 
 2025-04-21

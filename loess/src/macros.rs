@@ -4,7 +4,7 @@ use proc_macro2::{Span, TokenTree};
 #[cfg(doc)]
 use crate::{IntoTokens, grammar, quote_into_mixed_site, raw_quote_into_mixed_site};
 
-/// Parser- and printer-generator macro.
+/// Parser- and serialiser-generator macro.
 ///
 /// ```
 /// use loess::{

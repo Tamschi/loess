@@ -20,7 +20,7 @@
 //! Either way, the parsing iterator will check for unconsumed tokens remaining in the [`Input`] when dropped
 //! and report to the [`Errors`] accordingly.
 //!
-//! You can combine step 2 into step 3 with a `grammar!`-generated top-level grammar, but for proc macros embedded
+//! You can combine step 2 into step 3 with a [`grammar!`]-generated top-level grammar, but for proc macros embedded
 //! in a runtime library, in most cases I recommend getting `$crate` from a wrapper `macro_rules!`-macro first.
 //! (See full example above.)
 //!
