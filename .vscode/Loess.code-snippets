@@ -24,11 +24,11 @@
 			"]);"
 		],
 	},
-	"quote_into_same_site!": {
+	"quote_into_with_exact_span!": {
 		"scope": "rust",
-		"prefix": "quote_into_same_site!",
+		"prefix": "quote_into_with_exact_span!",
 		"body": [
-			"quote_into_same_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
+			"quote_into_with_exact_span!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
 			"\t$0",
 			"]);"
 		],
@@ -51,11 +51,11 @@
 			"]);"
 		],
 	},
-	"raw_quote_into_same_site!": {
+	"raw_quote_into_with_exact_span!": {
 		"scope": "rust",
-		"prefix": "raw_quote_into_same_site!",
+		"prefix": "raw_quote_into_with_exact_span!",
 		"body": [
-			"raw_quote_into_same_site!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
+			"raw_quote_into_with_exact_span!(${1:span}, ${2|root,&root|}, ${3|tokens,&mut output|}, [",
 			"\t$0",
 			"]);"
 		],
@@ -77,14 +77,6 @@
 		],
 		"description": "In Loess quotes, emits comma-separated `IntoTokes` values."
 	},
-	"Loess quote #root": {
-		"scope": "rust",
-		"prefix": "#root",
-		"body": [
-			"{#root} $0"
-		],
-		"description": "In Loess quotes, emits a clone of the `$root` with its original `Span`."
-	},
 	"Loess quote #raw": {
 		"scope": "rust",
 		"prefix": "#raw",
@@ -99,16 +91,24 @@
 		"body": "{#error ${1:emit literal string} } $0",
 		"description": "In Loess quotes, emits a call to `compile_error!`. You can use built-ins like `stringify!` and `concat!` and other directives inside."
 	},
+	"Loess quote #root": {
+		"scope": "rust",
+		"prefix": "#root",
+		"body": [
+			"{#root}$0"
+		],
+		"description": "In Loess quotes, emits a clone of the `$root` with its original `Span`."
+	},
 	"Loess quote #mixed_site": {
 		"scope": "rust",
 		"prefix": "#mixed_site",
-		"body": "{#mixed_site ${1:mixed site resolution tokens} } $0",
+		"body": "{#mixed_site ${1:tokens} } $0",
 		"description": "In Loess quotes, emits tokens inside with mixed_site resolution."
 	},
 	"Loess quote #call_site": {
 		"scope": "rust",
 		"prefix": "#call_site",
-		"body": "{#call_site ${1:call site resolution tokens} } $0",
+		"body": "{#call_site ${1:tokens} } $0",
 		"description": "In Loess quotes, emits tokens inside with call_site resolution."
 	},
 	"Loess quote #located_at": {
@@ -301,7 +301,7 @@
 		],
 		"description": "In Loess quotes, expands to a block with a label."
 	},
-	"Loess quote #loop:,": {
+	"Loess quote #loop,": {
 		"scope": "rust",
 		"prefix": "#loop,",
 		"body": [
@@ -312,7 +312,7 @@
 		],
 		"description": "In Loess quotes, expands to a `loop`-statement."
 	},
-	"Loess quote #'label: loop:,": {
+	"Loess quote #'label: loop,": {
 		"scope": "rust",
 		"prefix": "#'label: loop,",
 		"body": [
@@ -322,5 +322,71 @@
 			"$0"
 		],
 		"description": "In Loess quotes, expands to a `loop`-statement with a label."
+	},
+	"Loess quote #for,": {
+		"scope": "rust",
+		"prefix": "#for,",
+		"body": [
+			"{#for ${1:pattern} in ${2:expression},",
+			"\t${3:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `for`-loop."
+	},
+	"Loess quote #'label: for,": {
+		"scope": "rust",
+		"prefix": "#'label: for,",
+		"body": [
+			"{#${1:'label}: for ${2:pattern} in ${3:expression},",
+			"\t${4:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `for`-loop with a label."
+	},
+	"Loess quote #while,": {
+		"scope": "rust",
+		"prefix": "#while,",
+		"body": [
+			"{#while ${1:expression},",
+			"\t${2:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `while`-loop."
+	},
+	"Loess quote #'label: while,": {
+		"scope": "rust",
+		"prefix": "#'label: while,",
+		"body": [
+			"{#${1:'label}: while ${2:expression},",
+			"\t${3:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `while`-loop with a label."
+	},
+	"Loess quote #while let,": {
+		"scope": "rust",
+		"prefix": "#while let,",
+		"body": [
+			"{#while let ${1:pattern} = ${2:expression},",
+			"\t${3:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `while let`-loop."
+	},
+	"Loess quote #'label: while let,": {
+		"scope": "rust",
+		"prefix": "#'label: while let,",
+		"body": [
+			"{#${1:'label}: while let ${2:pattern} = ${3:expression},",
+			"\t${4:tokens}",
+			"}",
+			"$0"
+		],
+		"description": "In Loess quotes, expands to a `while let`-loop with a label."
 	}
 }

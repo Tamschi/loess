@@ -257,6 +257,8 @@ macro_rules! grammar {
 ///
 /// ## Directives
 ///
+/// ### Emitting directives
+///
 /// //TODO: Update and correct!
 ///
 /// ### `{#paste $($expr:expr),*$(,)?}`
@@ -284,20 +286,20 @@ macro_rules! quote_into_mixed_site {
 		    let span: $crate::__::Span = $span.resolved_at($crate::__::Span::mixed_site());
 		    let root: &$crate::__::TokenStream = $root;
 		    let tokens = $tokens;
-		    let mut not_if = false;
-		    $( $crate::__::quote_one!(span root tokens not_if, $tt); )*
+		    let mut enter_else = false;
+		    $( $crate::__::quote_one!(span root tokens enter_else, $tt); )*
 	    });
 }
 
-/// Like [`quote_into_mixed_site!`], but resolved according to `$span`.
+/// Like [`quote_into_mixed_site!`], but using `$span` directly for quoted tokens.
 #[macro_export]
-macro_rules! quote_into_same_site {
+macro_rules! quote_into_with_exact_span {
 	    ($span:expr, $root:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => ({
 		    let span: $crate::__::Span = $span;
 		    let root: &$crate::__::TokenStream = $root;
 		    let tokens = $tokens;
-		    let mut not_if = false;
-		    $( $crate::__::quote_one!(span root tokens not_if, $tt); )*
+		    let mut enter_else = false;
+		    $( $crate::__::quote_one!(span root tokens enter_else, $tt); )*
 	    });
 }
 
@@ -308,8 +310,8 @@ macro_rules! quote_into_call_site {
 		    let span: $crate::__::Span = $span.resolved_at($crate::__::Span::call_site());
 		    let root: &$crate::__::TokenStream = $root;
 		    let tokens = $tokens;
-		    let mut not_if = false;
-		    $( $crate::__::quote_one!(span root tokens not_if, $tt); )*
+		    let mut enter_else = false;
+		    $( $crate::__::quote_one!(span root tokens enter_else, $tt); )*
 	    });
 }
 
@@ -336,9 +338,9 @@ macro_rules! raw_quote_into_mixed_site {
 	    }};
 }
 
-/// Like [`raw_quote_into_mixed_site!`], but resolved according to `$span`.
+/// Like [`raw_quote_into_mixed_site!`], but using `$span` directly for quoted tokens.
 #[macro_export]
-macro_rules! raw_quote_into_same_site {
+macro_rules! raw_quote_into_with_exact_span {
 	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {
 		    $crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
 	    };
@@ -378,47 +380,66 @@ pub mod __ {
 	macro_rules! quote_one {
 		    //TODO: Missing directives.
 		    //TODO: Error handling with syntax help.
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#paste $($expr:expr),*$(,)?}) => {
+
+			// #paste
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#paste $($expr:expr),*$(,)?}) => {
 			    $( $crate::IntoTokens::into_tokens($expr, $root, $tokens); )*
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#raw $($tt:tt)*}) => {
+
+			// #raw
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#raw $($tt:tt)*}) => {
 			    $crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#error $($tt:tt)*}) => {{
+
+			// #error
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#error $($tt:tt)*}) => {{
 				    $crate::IntoTokens::into_tokens($crate::__::Clone::clone($root), $root, $tokens);
 				    $crate::__::raw($span, $tokens, "::core::compile_error!");
 				    $crate::__::grouped($span, $crate::__::Parenthesis, $tokens, {
 					    let mut inner_tokens = $crate::__::TokenStream::new();
-					    let mut not_if = false;
-					    $( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+					    let mut enter_else = false;
+					    $( $crate::__::quote_one!($span $root (&mut inner_tokens) enter_else, $tt); )*
 					    inner_tokens
 				    });
 				    $crate::__::raw($span, $tokens, ";");
 		    }};
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#root}) => {
+
+			// #root
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#root}) => {
 			    $crate::IntoTokens::into_tokens($crate::__::Clone::clone($root), $root, $tokens);
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#mixed_site $($tt:tt)*}) => {{
+
+			// #mixed_site
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#mixed_site $($tt:tt)*}) => {{
 			    let span = $span.resolved_at($crate::__::Span::mixed_site());
-			    $( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+			    $( $crate::__::quote_one!(span $root $tokens $enter_else, $tt); )*
 		    }};
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#call_site $($tt:tt)*}) => {{
+
+			// #call_site
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#call_site $($tt:tt)*}) => {{
 			    let span = $span.resolved_at($crate::__::Span::call_site());
-			    $( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+			    $( $crate::__::quote_one!(span $root $tokens $enter_else, $tt); )*
 		    }};
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#located_at $span2:expr, $($tt:tt)*}) => {{
+
+			// #located_at
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#located_at $span2:expr, $($tt:tt)*}) => {{
 			    let span = $span.located_at($span2);
-			    $( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+			    $( $crate::__::quote_one!(span $root $tokens $enter_else, $tt); )*
 		    }};
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#resolved_at $span2:expr, $($tt:tt)*}) => {{
+
+			// #resolved_at
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#resolved_at $span2:expr, $($tt:tt)*}) => {{
 			    let span = $span.resolved_at($span2);
-			    $( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+			    $( $crate::__::quote_one!(span $root $tokens $enter_else, $tt); )*
 		    }};
-		    ($_span:tt $root:tt $tokens:tt, {#with_exact_span $span:expr, $($tt:tt)*}) => {{
+
+			// #with_exact_span
+		    ($_span:tt $root:tt $tokens:tt $enter_else:tt, {#with_exact_span $span:expr, $($tt:tt)*}) => {{
 			    let span: $crate::__::Span = $span;
-			    $( $crate::__::quote_one!(span $root $tokens $not_if, $tt); )*
+			    $( $crate::__::quote_one!(span $root $tokens $enter_else, $tt); )*
 		    }};
-		    // ($span:tt $root:tt $tokens:tt $not_if:tt, {#macro $path:path $([
+
+		    // ($span:tt $root:tt $tokens:tt $enter_else:tt, {#macro $path:path $([
 		    // 	//TODO: Ideas wanted! Ideally called macros should be self-describing in terms of what context they want,
 		    // 	//TODO: ideally by listing identifiers in a way where this macro can check for validity and report issues,
 		    // 	//TODO: but the system shouldn't be too complicated.
@@ -443,43 +464,58 @@ pub mod __ {
 		    // 		$($tt)*
 		    // 	);
 		    // };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#let $pat:pat = $expr:expr $(, else { $($else:tt)* })?$(;)?}) => {
-			    let $pat = $expr;
+
+			// #let
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#let $pat:pat = $expr:expr $(, else { $($else:tt)* })?$(;)?}) => {
+			    let $pat = $expr $(else { $($else)* })?;
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#break $label:lifetime $($expr:expr)?$(;)?}) => {
+
+			// #break 'label
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#break $label:lifetime $($expr:expr)?$(;)?}) => {
 			    break $label $($expr)?;
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#break $($expr:expr)?$(;)?}) => {
+
+			// #break
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#break $($expr:expr)?$(;)?}) => {
 			    break $($expr)?;
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#continue $($label:lifetime)?$(;)?}) => {
+
+			// #continue
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#continue $($label:lifetime)?$(;)?}) => {
 			    continue $($label)?;
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#return $($expr:expr)?$(;)?}) => {
+
+			// #return
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#return $($expr:expr)?$(;)?}) => {
 			    return $($expr)?;
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {# $(else $(@ $else:tt)?)? if $(let $pat:pat =)? $expr:expr, $($tt:tt)*}) => {
+
+			// #(else )if
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {# $(else $(@ $else:tt)?)? if $(let $pat:pat =)? $expr:expr, $($tt:tt)*}) => {
 			    // Handles both `#if` and `#else if`.
-			    if true $(&& $not_if $(@ $else)?)? {
+			    if true $(&& $enter_else $(@ $else)?)? {
 				    if $(let $pat =)? $expr {
-					    $not_if = false;
-					    let mut not_if = false;
-					    $( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+					    $enter_else = false;
+					    let mut enter_else = false;
+					    $( $crate::__::quote_one!($span $root $tokens enter_else, $tt); )*
 				    } else {
-					    $not_if = true;
+					    $enter_else = true;
 				    }
 			    }
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#else, $($tt:tt)*}) => {
-			    if $not_if {
-				    $not_if = false;
-				    let mut not_if = false;
-				    $( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+
+			// #else
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#else, $($tt:tt)*}) => {
+			    if $enter_else {
+				    $enter_else = false;
+				    let mut enter_else = false;
+				    $( $crate::__::quote_one!($span $root $tokens enter_else, $tt); )*
 			    }
 		    };
 
+			// #match
 		    //TODO: Better error handling for this specifically, since it matches the match arms.
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#match $expr:expr,
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#match $expr:expr,
 			    $(#![$($match_attr:tt)*])*
 			    $(
 				    $(#[$($arm_attr:tt)*])*
@@ -488,79 +524,98 @@ pub mod __ {
 				    }
 			    )*
 		    }) => {
-			    $not_if = false;
-			    let mut not_if = false;
+			    $enter_else = false;
+			    let mut enter_else = false;
 			    match $expr {
 				    $(#![$($match_attr)*])*
 				    $(
 					    $(#[$($arm_attr)*])*
 					    $pat $(if $arm_expr)? => {
-						    $( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+						    $( $crate::__::quote_one!($span $root $tokens enter_else, $tt); )*
 					    }
 				    )*
 			    }
 		    };
 
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? $(loop $(@ $loop:tt)?)?, $($tt:tt)*}) => {
+			// block expansion and #loop
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#$($label:lifetime:)? $(loop $(@ $loop:tt)?)?, $($tt:tt)*}) => {
 			    // Handles both blocks and unconditional loops.
-			    $not_if = false;
+			    $enter_else = false;
 			    $($label:)? $(loop $(@ $loop)?)? {
-				    let mut not_if = false;
-				    $( $crate::__::quote_one!($span $root $tokens not_if, $tt); )*
+				    let mut enter_else = false;
+				    $( $crate::__::quote_one!($span $root $tokens enter_else, $tt); )*
 			    }
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? for $pat:pat in $expr:expr, $($tt:tt)*}) => {
-			    $not_if = true;
+
+			// #for in
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#$($label:lifetime:)? for $pat:pat in $expr:expr, $($tt:tt)*}) => {
+			    $enter_else = true;
 			    $($label:)? for $pat in $expr {
-				    $not_if = false;
-				    let mut not_if = false;
-				    $( $crate::__::quote_one!($span $root $tokens $not_if, $tt); )*
+				    $enter_else = false;
+				    let mut enter_else = false;
+				    $( $crate::__::quote_one!($span $root $tokens $enter_else, $tt); )*
 			    }
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#$($label:lifetime:)? while $(let $pat:pat = )?$expr:expr, $($tt:tt)*}) => {
-			    $not_if = true;
+
+			// #while
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#$($label:lifetime:)? while $(let $pat:pat = )?$expr:expr, $($tt:tt)*}) => {
+			    $enter_else = true;
 			    $($label:)? while $(let $pat = )?$expr {
-				    $not_if = false;
-				    let mut not_if = false;
-				    $( $crate::__::quote_one!($span $root $tokens $not_if, $tt); )*
+				    $enter_else = false;
+				    let mut enter_else = false;
+				    $( $crate::__::quote_one!($span $root $tokens $enter_else, $tt); )*
 			    }
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#$reserved:ident $($tt:tt)*}) => {
-			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes. (Did you mean `{#paste ", $crate::__::stringify!($reserved), "… }` or `{#, #", $crate::__::stringify!($reserved), "… }`?)"));
+
+			// reserved `#identifier`
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#$reserved:ident $($tt:tt)*}) => {
+			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes (or its pattern wasn't matched). (Did you mean `{#paste ", $crate::__::stringify!($reserved), "… }` or `{#, #", $crate::__::stringify!($reserved), "… }`?)"));
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, {#$reserved:lifetime $($tt:tt)*}) => {
-			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes. (Did you mean `{#", $crate::__::stringify!($reserved), ":, … }` or `{#", $crate::__::stringify!($reserved), ": for … in …, … }`?)"));
+
+			// reserved `#'lifetime`
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, {#$reserved:lifetime $($tt:tt)*}) => {
+			    $crate::__::compile_error!($crate::__::concat!("`{#", $crate::__::stringify!($reserved), "… }` is reserved within Loess's quotes (or its pattern wasn't matched). (Did you mean `{#", $crate::__::stringify!($reserved), ":, … }` or `{#", $crate::__::stringify!($reserved), ": for … in …, … }`?)"));
 		    };
-		    ($span:tt $root:tt $tokens:tt $_not_if:tt, {$($tt:tt)*}) => {
+
+			// {}
+		    ($span:tt $root:tt $tokens:tt $_enter_else:tt, {$($tt:tt)*}) => {
 			    $crate::__::grouped($span, $crate::__::Brace, $tokens, {
 				    let mut inner_tokens = $crate::__::TokenStream::new();
-				    let mut not_if = false;
-				    $( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+				    let mut enter_else = false;
+				    $( $crate::__::quote_one!($span $root (&mut inner_tokens) enter_else, $tt); )*
 				    inner_tokens
 			    });
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, [$($tt:tt)*]) => {
+
+			// []
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, [$($tt:tt)*]) => {
 			    $crate::__::grouped($span, $crate::__::Bracket, $tokens, {
 				    let mut inner_tokens = $crate::__::TokenStream::new();
-				    let mut not_if = false;
-				    $( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+				    let mut enter_else = false;
+				    $( $crate::__::quote_one!($span $root (&mut inner_tokens) enter_else, $tt); )*
 				    inner_tokens
 			    });
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, ($($tt:tt)*)) => {
+
+			// ()
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, ($($tt:tt)*)) => {
 			    $crate::__::grouped($span, $crate::__::Parenthesis, $tokens, {
 				    let mut inner_tokens = $crate::__::TokenStream::new();
-				    let mut not_if = false;
-				    $( $crate::__::quote_one!($span $root (&mut inner_tokens) (&mut not_if), $tt); )*
+				    let mut enter_else = false;
+				    $( $crate::__::quote_one!($span $root (&mut inner_tokens) enter_else, $tt); )*
 				    inner_tokens
 			    });
 		    };
-		    ($span:tt $root:tt $tokens:tt $not_if:tt, $other:tt) => (
+
+			// other tokens
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt, $other:tt) => (
 			    // Fortunately `'` can't arrive as trailing punctuation inside `$other` here (It's always either a literal or inside a lifetime),
 			    // so it's at least reasonable to expect `stringify!` to insert a space iff the trailing punctuation is spaced and otherwise not.
 			    $crate::__::tt($span, $tokens, const { $crate::__::strip_dot($crate::__::stringify!($other .)) } );
 		    );
-		    ($span:tt $root:tt $tokens:tt $not_if:tt,) => {}; // End.
+
+			// End.
+		    ($span:tt $root:tt $tokens:tt $enter_else:tt,) => {};
 	    }
 
 	pub fn grouped(
