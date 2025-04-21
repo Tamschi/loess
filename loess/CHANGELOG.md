@@ -1,10 +1,10 @@
 # Loess Changelog
 
-## next-major
+## 0.2.1
 
-TODO: Date
+2025-04-21
 
-## Breaking changes
+### Breaking changes
 
 - Signature change: [`Input::peek`](https://docs.rs/loess/0.2/loess/struct.Input.html#method.peek)
 
@@ -20,7 +20,7 @@ TODO: Date
 
   `quote` is now an optional dependency with `default-features = false`, only required by the `"opaque_rust_grammar"` feature.
 
-## Revisions
+### Revisions
 
 - [`rust_grammar::DotDot`](https://docs.rs/loess/0.2/loess/rust_grammar/struct.DotDot.html) is now parsed more accurately: It must either be spaced or not followed by `.` or `=`.
 
