@@ -1,4 +1,4 @@
-//! <details><summary>README / Example (click to expand)</summary>
+//! <details><summary style=cursor:pointer><u>README / Examples (click to expand)</u></summary>
 //!
 #![doc = include_str!("../README.md")]
 //!
@@ -6,11 +6,30 @@
 //!
 //! In most cases you'll want to:
 //!
-//! 1. generate grammar implementations with [`grammar!`] (You can also easily implement parts manually.),
-//! 2. step through the input with [`parse_once`], [`parse_once_with`] and/or [`parse_once_with_infallible`] and
-//! 3. consume the last of the input with [`parse_all`], [`parse_all_with`] or [`parse_all_with_infallible`].
+//! 0. generate custom grammar implementations with [`grammar!`] (You can also easily implement parts manually.),
+//! 1. create (mutable) instances of [`Input`] and [`Errors`],
+//! 2. step through the input with [`parse_once`], [`parse_once_with`] and/or [`parse_once_with_infallible`],
+//! 3. consume the last of the input with [`parse_all`], [`parse_all_with`] or [`parse_all_with_infallible`],
+//! 4. perform any fallible transforms you need, possibly pushing more [`Error`]s into your [`Errors`],
+//! 5. if `errors` is your [`Errors`], have `let mut output: proc_macro2::TokenStream = errors.collect_tokens();`
+//!    convert it into the start of your output,
+//! 6. emit your regular output with [`quote_into_mixed_site!`] (recommended), [`quote_into_with_exact_span!`] or
+//!    [`quote_into_call_site!`], which accept interpolation and control flow directives.
 //!
-//! You can call either [`Iterator::collect`] (for repeats) or [`Iterator::next`] (for one value) on the last step.
+//! You can call either [`Iterator::collect`] (for repeats) or [`Iterator::next`] (for one value) on step 3.
+//! Either way, the parsing iterator will check for unconsumed tokens remaining in the [`Input`] when dropped
+//! and report to the [`Errors`] accordingly.
+//!
+//! You can combine step 2 into step 3 with a `grammar!`-generated top-level grammar, but for proc macros embedded
+//! in a runtime library, in most cases I recommend getting `$crate` from a wrapper `macro_rules!`-macro first.
+//! (See full example above.)
+//!
+//! Some parsing errors are recoverable, but still translate to [`compile_error!`] calls being generated in step 5.
+//! Your macro should seamlessly continue to operate in such cases, which helps prevent noise from cascading errors
+//! due to e.g. missing items, making it much easier for your macro's users to find problems with the input.
+//!
+//! You can download a *.code-snippets* file for Loess's macros and quote macro directives here:
+//! <https://github.com/Tamschi/Asteracea/blob/develop/.vscode/Loess.code-snippets>
 //!
 //! # Features
 //!
@@ -30,23 +49,27 @@
 #![warn(clippy::pedantic, missing_docs)]
 
 use std::{
+	self,
 	any::Any,
 	collections::VecDeque,
 	fmt::Debug,
 	iter,
 	marker::PhantomData,
 	mem,
+	ops::{Deref, DerefMut},
 	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
 };
 
 use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
 use proc_macro2::{Literal, Span, TokenStream, TokenTree};
-use quote::quote_spanned;
 
 mod proc_macro2_impls;
 
 #[cfg(any(doc, feature = "rust_grammar"))]
 pub mod rust_grammar;
+
+mod macros;
+pub use macros::__;
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  
 /// Usually submitted through [`Errors::push`].
@@ -88,10 +111,13 @@ impl IntoTokens for Error {
 			.flatten()
 			.or_else(|| self.spans.first().copied())
 			.unwrap_or_else(Span::mixed_site);
-		quote_spanned! {span=>
-			#root::core::compile_error!(#message);
+
+		#[allow(unused_variables, unused_mut)] // Not suppressed because it's the same crate.
+		{
+			quote_into_with_exact_span! (span, root, tokens, [
+				{#error {#paste message}};
+			]);
 		}
-		.into_tokens(root, tokens);
 	}
 }
 
@@ -233,6 +259,7 @@ impl Errors {
 /// 	($($tt:tt)*) => ( $crate::__::my_macro!([$crate] $($tt)*) );
 /// }
 ///
+/// #[doc(hidden)]
 /// pub mod __ {
 /// 	pub use core; // Expected by `Errors`.
 /// 	pub use my_macro_impl::my_macro;
@@ -285,10 +312,21 @@ impl Errors {
 /// }
 /// ```
 pub trait IntoTokens {
-	/// Emit `self`'s tokens into `tokens` while referencing `root`.
+	/// Emits `self`'s tokens into `tokens` while referencing `root`.
 	///
 	/// `root` <em style=font-style:normal;font-variant:small-caps>should</em> be prefixed to
 	/// any fully qualified paths that are emitted by `self`.
+	///
+	/// This method is not fallible and doesn't borrow [`Errors`] because you *really*
+	/// <em style=font-style:normal;font-variant:small-caps>should</em> emit all your
+	/// parsing [`Error`]s before your regular macro output.
+	///
+	/// It's likely cleanest to do fallible transforms separately first, into output types
+	/// with [`grammar!`]-generated [`IntoTokens`] implementations, in particular to
+	/// take advantage of [`ErrorPriority`], but you can of course still sneakily emit
+	/// diagnostics here if you think that doesn't misalign their order and causality,
+	/// and doesn't cause error spans to overlap in your input (which technically is
+	/// permitted just fine, but often leads to a bad dev UX for your macro consumers).
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>);
 
 	/// Convenience methods to emit `self`'s tokens into a new `T`.
@@ -352,10 +390,35 @@ pub struct Input {
 }
 
 impl Input {
-	/// Convenience method to match against an array of [`TokenTree`]s.
+	/// Convenience method to match an array of <code>&[TokenTree]</code>s.
+	///
+	/// This is mostly for [`PeekFrom`] implementations.  
+	/// Grammar consumers should call <code>Token::[peek_from](`PeekFrom::peek_from`)</code> instead.
+	///
+	/// Iff `self` is long enough, `f` is called with references to the frontmost tokens.
+	///
+	/// # Returns
+	///
+	/// `false` if `self` is too short, otherwise the return value of `f`
+	//TODO (breaking): Also pass `Self::RestIter` into the closure to check further tokens.
+	pub fn peek<'a, const N: usize>(&'a self, f: impl FnOnce([&TokenTree; N]) -> bool) -> bool {
+		//TODO: Handle none-delimiter groups. (Maybe not here?)
+		if self.len() < N {
+			false
+		} else {
+			let mut iter = self.tokens.iter();
+			f(std::array::from_fn(move |_| {
+				iter.next().expect("due to !(self.len() < N)")
+			}))
+		}
+	}
+
+	/// Convenience method to match from an array of [`TokenTree`]s.
 	///
 	/// This is mostly for [`PopFrom`] implementations.  
 	/// Grammar consumers should call <code>Token::[pop_from](`PopFrom::pop_from`)</code> instead.
+	///
+	/// Iff `self` is long enough, `f` is called with the frontmost tokens.
 	///
 	/// # Returns
 	///
@@ -365,6 +428,7 @@ impl Input {
 	/// Iff `self` is too short, <code>self.[end](`Input::end`)</code> is included.
 	pub fn pop_or_replace<'a, T, const N: usize>(
 		&'a mut self,
+		//TODO (breaking): Also pass `&mut self` into the closure to check/consume further tokens.
 		f: impl FnOnce([TokenTree; N]) -> Result<T, [TokenTree; N]>,
 	) -> Result<T, impl 'a + IntoIterator<Item = Span>> {
 		//TODO: Handle none-delimiter groups.
@@ -633,225 +697,50 @@ pub trait SimpleSpanned {
 	}
 }
 
-/// Parser- and printer-generator macro.
-///
-/// ```
-/// use loess::{
-/// 	grammar,
-/// 	rust_grammar::{ // With the `"rust_grammar"` feature.
-/// 		Identifier, Let, Parentheses, SquareBrackets, Visibility,
-/// 	},
-/// };
-/// use proc_macro2::{Ident, TokenTree, Punct};
-///
-/// grammar! {
-/// 	///
-/// 	/// Has auto-documented grammar.
-/// 	#[derive(Clone)]
-/// 	pub enum Alternatives: doc, PeekFrom, PopFrom, IntoTokens {
-/// 		Identifier(Identifier),
-/// 		Paren(Parentheses),
-/// 		Bracket(SquareBrackets<Vec<TokenTree>>),
-/// 		Vis(Visibility),
-/// 	} else "Expected Alternative.";
-///
-/// 	#[derive(Clone)]
-/// 	/// `visibility` can't be first, as `Option` isn't `PeekFrom`.
-/// 	/// However, `Visibility` itself is `PeekFrom` (checking for `pub`).
-/// 	///
-/// 	/// Fields are parsed and emitted in order.
-/// 	pub struct StructuredSequence: PeekFrom, PopFrom, IntoTokens {
-/// 		pub r#let: Let,
-/// 		pub visibility: Option<Visibility>,
-/// 		pub paren_ident: Parentheses<Ident>,
-/// 		pub vec_punct: Vec<Punct>,
-/// 	}
-///
-/// 	#[derive(Clone)]
-/// 	/// Generated implementations for tuple structs are currently the most limited.
-/// 	pub struct TupleSequence: PeekFrom, PopFrom (
-/// 		pub Let,
-/// 		pub Option<StructuredSequence>,
-/// 		pub Parentheses<Ident>,
-/// 		pub Vec<Punct>,
-/// 	);
-/// }
-/// ```
-///
-/// [`grammar!`] is fully hygienic and uses `$crate`, so can rename dependencies freely.
-#[macro_export]
-macro_rules! grammar {
-	{
-		$(#[$($attr:tt)*])*
-		$vis:vis enum $name:ident$(: $(
-			$(doc $(@ $doc:tt)?)?
-			$(PeekFrom $(@ $PeekFrom:tt)?)?
-			$(PopFrom $(@ $PopFrom:tt)?)?
-			$(IntoTokens $(@ $IntoTokens:tt)?)?
-		),*)? {$(
-			$(#[$($variant_attr:tt)*])*
-			$variant:ident($($type:ty),*$(,)?)
-		),*$(,)?} else $error:expr;
+/// Wraps a collection type to eagerly parse values that are [`PeekFrom`],
+/// but to stop when [`PopFrom::peek_pop_from`] returns [`None`].
+pub struct Eager<T: ?Sized>(pub T);
 
-		$($tt:tt)*
-	} => {
-		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::grammar!(@enum_doc [$([$($type,)*])*]))]
-		$(#[$($attr)*])*
-		$vis enum $name {$(
-			$(#[$($variant_attr)*])*
-			$variant($($type),*),
-		)*}
+impl<T: ?Sized> Deref for Eager<T> {
+	type Target = T;
 
-		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				false
-				$(|| $crate::grammar!(@peek_first $name input $($type,)*))*
-			}
-		}
-
-		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		impl $crate::PopFrom for $name {
-			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopFrom>::peek_pop_from(input, errors)?),*) {
-					Self::$variant(values)
-				} else)* {
-					return $crate::__::Result::Err(errors.push($crate::Error::new(
-						$crate::ErrorPriority::GRAMMAR,
-						$error,
-						[input.front_span()],
-					)));
-				})
-			}
-		}
-
-		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
-		impl $crate::IntoTokens for $name {
-			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				match self {
-					$(Self::$variant(value) => $crate::IntoTokens::into_tokens(value, root, tokens),)*
-				}
-			}
-		}
-
-		$crate::grammar!($($tt)*);
-	};
-	{
-		$(#[$($attr:tt)*])*
-		$vis:vis struct $name:ident$(: $(
-			$(PeekFrom $(@ $PeekFrom:tt)?)?
-			$(PopFrom $(@ $PopFrom:tt)?)?
-			$(IntoTokens $(@ $IntoTokens:tt)?)?
-		),*)? {$(
-			$(#[$($field_attr:tt)*])*
-			$field_vis:vis $field:ident: $type:ty
-		),*$(,)?}
-
-		$($tt:tt)*
-	} => {
-		$(#[$($attr)*])*
-		$vis struct $name {$(
-			$(#[$($field_attr)*])*
-			$field_vis $field: $type,
-		)*}
-
-		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				$crate::grammar!(@peek_first $name input $($type,)*)
-			}
-		}
-
-		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		impl $crate::PopFrom for $name {
-			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				$crate::__::Result::Ok(Self {
-					$($field: <$type as $crate::PopFrom>::pop_from(input, errors)?,)*
-				})
-			}
-		}
-
-		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
-		impl $crate::IntoTokens for $name {
-			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				let Self {
-					$($field,)*
-				} = self;
-				$($crate::IntoTokens::into_tokens($field, root, tokens);)*
-			}
-		}
-
-		$crate::grammar!($($tt)*);
-	};
-	{
-		$(#[$($attr:tt)*])*
-		$vis:vis struct $name:ident$(: $(
-			$(PeekFrom $(@ $PeekFrom:tt)?)?
-			$(PopFrom $(@ $PopFrom:tt)?)?
-		),*)? ($(
-			$(#[$($field_attr:tt)*])*
-			$field_vis:vis $type:ty
-		),*$(,)?);
-
-		$($tt:tt)*
-	} => {
-		$(#[$($attr)*])*
-		$vis struct $name ($(
-			$(#[$($field_attr)*])*
-			$field_vis $type,
-		)*);
-
-		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				$crate::grammar!(@peek_first $name input $($type,)*)
-			}
-		}
-
-		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		impl $crate::PopFrom for $name {
-			fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				$crate::__::Result::Ok(Self (
-					$(<$type as $crate::PopFrom>::pop_from(input, errors)?,)*
-				))
-			}
-		}
-
-		$crate::grammar!($($tt)*);
-	};
-	(@peek_first $name:ident $input:ident $type:ty, $($rest:ty,)*) => (
-		<$type as $crate::PeekFrom>::peek_from($input)
-	);
-	(@peek_first $name:ident $input:ident) => (
-		::core::compile_error!($crate::__::concat!("To implement `PeekFrom` for `", $crate::__::stringify!($name), "`, at least one field is necessary."))
-	);
-	(@enum_doc []) => (
-		// Empty.
-		""
-	);
-	(@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*]) => (
-		// Start.
-		$crate::grammar!(@enum_doc [$([$($type,)*])*] [$("[`", $crate::__::stringify!($type0), "`] ", )*])
-	);
-	(@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*] [$($output:tt)*]) => (
-		// Continue.
-		$crate::grammar!(@enum_doc [$([$($type,)*])*] [$($output)* "| ", $("[`", $crate::__::stringify!($type0), "`] ", )*])
-	);
-	(@enum_doc [] [$($output:tt)*]) => (
-		// End.
-		$crate::__::concat!($($output)*)
-	);
-	{$t:tt $($tt:tt)*} => {
-		// Error
-		::core::compile_error!($crate::__::concat!("Unexpected grammar input: ", $crate::__::stringify!($t $($tt)*)));
-	};
-	{} => {}; // Stop.
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
 }
 
-#[doc(hidden)]
-pub mod __ {
-	pub use core::{concat, iter::Extend, primitive::bool, result::Result, stringify};
-	pub use proc_macro2::{TokenStream, TokenTree};
+impl<T: ?Sized> DerefMut for Eager<T> {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
+}
+
+impl<T: FromIterator<A>, A> FromIterator<A> for Eager<T> {
+	fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
+		Self(iter.into_iter().collect())
+	}
+}
+
+impl<T: ?Sized + PeekFrom> PeekFrom for Eager<T> {
+	fn peek_from(input: &Input) -> bool {
+		// This, hypothetically, makes combinations like `Option<Eager<Vec1<_>>>` work correctly.
+		T::peek_from(input)
+	}
+}
+
+impl<T: IntoIterator<Item: PeekFrom + PopFrom> + FromIterator<T::Item>> PopFrom for Eager<T> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	where
+		Self: Sized,
+	{
+		iter::from_fn(|| T::Item::peek_pop_from(input, errors).transpose()).collect()
+	}
+}
+
+impl<T: IntoTokens> IntoTokens for Eager<T> {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.0.into_tokens(root, tokens);
+	}
 }
 
 /// A substitute panic that isn't reported as [`Error`]. **(Read for panic handling info!)**
@@ -882,7 +771,7 @@ pub fn parse_once_with_infallible<'a, T>(
 }
 
 /// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
-fn parse_once_with_infallible_impl<'a, T>(
+pub(crate) fn parse_once_with_infallible_impl<'a, T>(
 	input: &mut Input,
 	errors: &mut Errors,
 	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> T,
@@ -928,7 +817,7 @@ pub fn parse_once_with<'a, T>(
 }
 
 /// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
-fn parse_once_with_impl<'a, T>(
+pub(crate) fn parse_once_with_impl<'a, T>(
 	input: &mut Input,
 	errors: &mut Errors,
 	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> Result<T, ()>,
@@ -1027,7 +916,7 @@ pub fn parse_all_with_infallible<'a, T>(
 }
 
 /// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
-fn parse_all_with_infallible_impl<'a, T>(
+pub(crate) fn parse_all_with_infallible_impl<'a, T>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
 	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> T,

@@ -334,9 +334,7 @@ asteracea::components! {
 			Boxed as pub self.boxed;
 		}
 	}
-}
 
-asteracea::components! {
 	Multi -> web {
 		box Boxed as self.boxed;
 		box Boxed as self.boxed;

@@ -12,6 +12,7 @@
 	"rust-analyzer.cargo.allFeatures": true,
 	"rust-analyzer.cargo.buildScripts.enable": true,
 	"cSpell.words": [
+		"ascii",
 		"asteracea",
 		"preprocess",
 		"punct",

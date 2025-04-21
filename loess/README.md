@@ -4,6 +4,10 @@ Loess is a parser library and parser generator for proc macros.
 
 Here's what to expect:
 
+- Fast builds. Loess's core is compact, language agnostic, and useful without enabling a premade grammar.
+
+  That said, even in cases where you do enable a grammar module, builds should still be fairly quick.
+
 - A simple, flexible API. Loess is relatively unopinionated about how or what you parse, and you can construct (and destructure) `Input` at any time.
 
 - Shallow parsing (by default). For tokens with groups, like `Visibility`, you can opt into deeper (or customised!) parsing via generics.
@@ -12,7 +16,7 @@ Here's what to expect:
 
 - A reasonably powerful parser-generator.
 
-  `grammar!` can emit documentation (for enums) and `PeekFrom`, `PopFrom` and `IntoTokens` implementations on grammar types.
+  `grammar!` can emit documentation (for enums) and `PeekFrom`, `PopFrom` and `IntoTokens` implementations on grammar types in general.
 
 - **Really** good error reporting from proc macros implemented with Loess, *by default*.
 
@@ -24,7 +28,7 @@ Here's what to expect:
 
 - Low-allocation workflow.
 
-  Loess can (usually) move tokens from input to output without cloning them. (You can still clone all grammar types explicitly.)
+  Loess can (usually) move tokens from input to output without cloning them. (You can still clone all included grammar types explicitly.)
 
 - Some bugs. For example, none-delimited groups aren't handled yet, which can cause issues when generating macro input with a `macro_rules!` macro.
 
@@ -36,7 +40,7 @@ Here's what not to expect:
 
 - A Syn-replacement (at least not soon). While there's no public interaction with Syn, some optional grammar tokens are for now opaque and do defer to Syn when enabled.
 
-- `Debug`-implementations. They aren't that useful here in my experience, but they increase compile-times.
+- `Debug`-implementations on the included grammars. They aren't that useful here in my experience, but they would increase compile-times.
 
 - Absence of major version bumps. Rust's grammar is a moving target and Loess's grammar tokens aren't marked `#[non_exhaustive]` for ease of use.
 
@@ -44,7 +48,7 @@ Here's what not to expect:
 
 ## Examples
 
-<details><summary>(click to expand code block)</summary>
+<details><summary style=cursor:pointer><u>(click to expand code block)</u></summary>
 
 ```rust
 use loess::{
@@ -187,7 +191,7 @@ which all emitted fully qualified paths <em style=font-style:normal;font-variant
 
 In combination with a wrapper crate: This achieves full isolation regarding caller dependencies:
 
-<details><summary>(click to expand code blocks)</summary>
+<details><summary style=cursor:pointer><u>(click to expand code blocks)</u></summary>
 
 <!-- These code blocks also appear on `IntoTokens`,
 the first one with some hidden lines to make it compile. -->
@@ -200,6 +204,7 @@ macro_rules! my_macro {
     ($($tt:tt)*) => ( $crate::__::my_macro!([$crate] $($tt)*) );
 }
 
+#[doc(hidden)]
 pub mod __ {
     pub use core; // Expected by `Errors`.
     pub use my_macro_impl::my_macro;
