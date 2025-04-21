@@ -33,7 +33,7 @@ impl PeekFrom for StringLiteral {
 impl PopFrom for StringLiteral {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|t| match t {
+			.pop_or_replace(|t, _| match t {
 				[TokenTree::Literal(literal)] if literal.to_string().starts_with('"') => {
 					Ok(Self(literal))
 				}
@@ -65,7 +65,7 @@ impl PeekFrom for RawStringLiteral {
 impl PopFrom for RawStringLiteral {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
-			.pop_or_replace(|t| match t {
+			.pop_or_replace(|t, _| match t {
 				[TokenTree::Literal(literal)] if literal.to_string().starts_with('r') => {
 					Ok(Self(literal))
 				}

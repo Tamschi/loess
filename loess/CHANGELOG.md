@@ -1,12 +1,38 @@
 # Loess Changelog
 
+## 0.2.1
+
+2025-04-21
+
+### Breaking changes
+
+- Signature change: [`Input::peek`](https://docs.rs/loess/0.2/loess/struct.Input.html#method.peek)
+
+  The callback now is given a `vec_deque::Iter` as second argument to examine further tokens if needed.
+
+- Signature change: [`Input::pop_or_replace`](https://docs.rs/loess/0.2/loess/struct.Input.html#method.peek)
+
+  The callback now is given the `&mut Input` as second parameter to examine or consume further tokens if needed.
+
+- Removed: `impl ToTokens for Identifier`
+
+  I had forgotten to remove this before publishing the first version.
+
+  `quote` is now an optional dependency with `default-features = false`, only required by the `"opaque_rust_grammar"` feature.
+
+### Revisions
+
+- [`rust_grammar::DotDot`](https://docs.rs/loess/0.2/loess/rust_grammar/struct.DotDot.html) is now parsed more accurately: It must either be spaced or not followed by `.` or `=`.
+
+- Small documentation revision.
+
 ## 0.1.1
 
 2025-04-21
 
 ### Features
 
-- Added: [`Input::peek(&self, )`](https://docs.rs/loess/0.1/loess/struct.Input.html#method.peek)
+- Added: [`Input::peek(&self, f)`](https://docs.rs/loess/0.1/loess/struct.Input.html#method.peek)
 
 - Added: [`impl PeekFrom for RArrow`](https://docs.rs/loess/0.1/loess/rust_grammar/struct.RArrow.html#impl-PeekFrom-for-RArrow) (`->`)
 

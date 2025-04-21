@@ -40,8 +40,11 @@ impl Component {
 		} = self;
 		let visibility = visibility.collect_tokens::<TokenStream>(root);
 
+		let span = name.span();
+		let name: TokenStream = name.collect_tokens(&TokenStream::new());
+
 		// The verbatim span appears to be necessary here to show warnings about unused structs.
-		quote_spanned! {name.span()=>
+		quote_spanned! {span=>
 			#visibility struct #name {}
 		}
 		.into_tokens(root, tokens)

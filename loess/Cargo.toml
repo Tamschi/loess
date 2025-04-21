@@ -1,6 +1,6 @@
 [package]
 name = "loess"
-version = "0.1.1"
+version = "0.2.1"
 authors = ["Tamme Schichler <tamme@schichler.dev>"]
 edition = "2024"
 rust-version = "1.86"
@@ -19,11 +19,11 @@ publish = true
 rust_grammar = []
 
 # Uses Syn to add basic support for more Rust grammar.
-opaque_rust_grammar = ["rust_grammar", "dep:syn"]
+opaque_rust_grammar = ["rust_grammar", "dep:syn", "dep:quote"]
 
 [dependencies]
 proc-macro2 = "1.0.34"
-quote = "1.0.40"
+quote = { version = "1.0.40", default-features = false, optional = true }
 
 # Private dependency! Do not implement Loess traits on Syn types or vice versa.
 syn = { version = "2.0.100", optional = true, default-features = false, features = [

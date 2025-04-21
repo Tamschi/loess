@@ -275,17 +275,19 @@ macro_rules! grammar {
 ///
 /// Within square brackets, tokens to emit with `$span` as [`Span`] into `$tokens`.
 ///
+/// Directives are supported within the square brackets, unless noted otherwise.
+///
+/// # Directives
+///
 /// Most directives are expanded to emit tokens dynamically and/or into control flow statements.
 ///
 /// Certain directives do neither¹ and instead modify the context of how tokens are emitted.
 ///
+/// Nested directives are supported unless noted otherwise.
+///
 /// ¹ These generally do expand to an explicit block still, just so there is no wrong shadowing
 ///   when you inline the macro into your source code. Outside of that, macro hygiene would be
 ///   enough to apply the right identifier distinctions, though.
-///
-/// # Directives
-///
-/// Nested directives are supported unless noted otherwise.
 ///
 /// ## Emitting directives
 ///
