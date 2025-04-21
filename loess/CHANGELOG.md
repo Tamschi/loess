@@ -24,6 +24,8 @@ TODO: Date
 
 - [`rust_grammar::DotDot`](https://docs.rs/loess/0.2/loess/rust_grammar/struct.DotDot.html) is now parsed more accurately: It must either be spaced or not followed by `.` or `=`.
 
+- Small documentation revision.
+
 ## 0.1.1
 
 2025-04-21

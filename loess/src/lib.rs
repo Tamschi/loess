@@ -395,7 +395,8 @@ impl Input {
 	/// This is mostly for [`PeekFrom`] implementations.  
 	/// Grammar consumers should call <code>Token::[peek_from](`PeekFrom::peek_from`)</code> instead.
 	///
-	/// Iff `self` is long enough, `f` is called with references to the frontmost tokens.
+	/// Iff `self` is long enough, `f` is called with references to the frontmost tokens
+	/// and a [`vec_deque::Iter`] over the remaining tokens after them.
 	///
 	/// # Returns
 	///
@@ -421,7 +422,8 @@ impl Input {
 	/// This is mostly for [`PopFrom`] implementations.  
 	/// Grammar consumers should call <code>Token::[pop_from](`PopFrom::pop_from`)</code> instead.
 	///
-	/// Iff `self` is long enough, `f` is called with the frontmost tokens.
+	/// Iff `self` is long enough, `f` is called with the frontmost tokens
+	/// and an <code>&mut [Input]</code> pointing to `self`.
 	///
 	/// # Returns
 	///
