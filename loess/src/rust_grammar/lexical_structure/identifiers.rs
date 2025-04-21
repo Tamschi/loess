@@ -1,5 +1,4 @@
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
-use quote::ToTokens;
 
 use crate::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, SimpleSpanned};
 
@@ -73,16 +72,6 @@ impl PopFrom for Identifier {
 impl IntoTokens for Identifier {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		self.0.into_tokens(root, tokens)
-	}
-}
-
-impl ToTokens for Identifier {
-	fn to_tokens(&self, tokens: &mut TokenStream) {
-		self.0.to_tokens(tokens)
-	}
-
-	fn into_token_stream(self) -> TokenStream {
-		self.0.into_token_stream()
 	}
 }
 

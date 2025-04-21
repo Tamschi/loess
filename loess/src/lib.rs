@@ -39,7 +39,7 @@
 //!
 //! Enables [`rust_grammar`].
 //!
-//! ## `"opaque_rust_grammar"` <sub>enables `"rust_grammar"`, depends on `syn`</sub>
+//! ## `"opaque_rust_grammar"` <sub>enables `"rust_grammar"`, depends on `syn` and `quote`</sub>
 //!
 //! Adds additional opaque Rust grammar tokens, to consume, paste and clone for example
 //! Statements and Patterns.

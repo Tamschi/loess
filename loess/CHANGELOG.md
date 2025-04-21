@@ -12,6 +12,12 @@
 
   The callback now is given the `&mut Input` as second parameter to examine or consume further tokens if needed.
 
+- Removed: `impl ToTokens for Identifier`
+
+  I had forgotten to remove this before publishing the first version.
+
+  `quote` is now an optional dependency with `default-features = false`, only required by the `"opaque_rust_grammar"` feature.
+
 ## 0.1.1
 
 2025-04-21
