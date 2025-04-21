@@ -222,7 +222,6 @@ macro_rules! grammar {
 /// Simple generic quotation macro that works well with Loess's types.
 ///
 /// //TODO: Document parameters.
-/// //TODO: Document snippets.
 ///
 /// Uses `{#identifier … }`-style directives.
 ///
@@ -330,6 +329,8 @@ macro_rules! quote_into_call_site {
 /// tokens (but not pasted [`IntoTokens`] values!). This isolates resolution for scoped
 /// bindings (but not items, so please use fully qualified paths and ideally the `$crate`-
 /// `root` pattern from Loess's README that can be viewed [in the root module](crate).)
+/// 
+/// TODO: Other parameters.
 #[macro_export]
 macro_rules! raw_quote_into_mixed_site {
 	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{

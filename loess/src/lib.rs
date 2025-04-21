@@ -16,6 +16,9 @@
 //! but for proc macros embedded in a runtime library, in most cases I recommend getting
 //! `$crate` from a wrapper `macro_rules!`-macro first. (See full example above.)
 //!
+//! You can download a *.code-snippets* file for Loess's macros and quote macro directives here:
+//! <https://github.com/Tamschi/Asteracea/blob/develop/.vscode/Loess.code-snippets>
+//!
 //! # Features
 //!
 //! None are default, as DSL macros might not need Rust's grammar at all.
