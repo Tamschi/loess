@@ -67,9 +67,12 @@ impl Default for DotDot {
 /// `..`
 impl PeekFrom for DotDot {
 	fn peek_from(input: &Input) -> bool {
-		input.peek(|tts, rest| {
+		input.peek(|tts, mut rest| {
 			matches!(tts, [TokenTree::Punct(dot0), TokenTree::Punct(dot1)]
-			if dot0.as_char() == '.' && dot0.spacing() == Spacing::Joint && dot1.as_char() == '.')
+			if dot0.as_char() == '.'
+				&& dot0.spacing() == Spacing::Joint
+				&& dot1.as_char() == '.'
+				&& (dot1.spacing() == Spacing::Alone || !matches!(rest.next(), Some(TokenTree::Punct(next_punct)) if matches!(next_punct.as_char(), '.' | '='))))
 		})
 	}
 }
@@ -78,13 +81,12 @@ impl PopFrom for DotDot {
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, rest| match tts {
-				[TokenTree::Punct(minus), TokenTree::Punct(gt)]
-					if minus.as_char() == '.'
-						&& minus.spacing() == Spacing::Joint
-						&& gt.as_char() == '.' =>
-				{
-					Ok(Self(minus, gt))
-				}
+				[TokenTree::Punct(dot0), TokenTree::Punct(dot1)]
+					if dot0.as_char() == '.'
+						&& dot0.spacing() == Spacing::Joint
+						&& dot1.as_char() == '.'
+						&& (dot1.spacing() == Spacing::Alone || !matches!(rest.front(), Some(TokenTree::Punct(next_punct)) if matches!(next_punct.as_char(), '.' | '=')))
+					=> { Ok(Self(dot0, dot1)) }
 				other => Err(other),
 			})
 			.map_err(|spans| {

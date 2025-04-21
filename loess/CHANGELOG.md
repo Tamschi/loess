@@ -2,6 +2,8 @@
 
 ## next-major
 
+TODO: Date
+
 ## Breaking changes
 
 - Signature change: [`Input::peek`](https://docs.rs/loess/0.2/loess/struct.Input.html#method.peek)
@@ -17,6 +19,10 @@
   I had forgotten to remove this before publishing the first version.
 
   `quote` is now an optional dependency with `default-features = false`, only required by the `"opaque_rust_grammar"` feature.
+
+## Revisions
+
+- [`rust_grammar::DotDot`](https://docs.rs/loess/0.2/loess/rust_grammar/struct.DotDot.html) is now parsed more accurately: It must either be spaced or not followed by `.` or `=`.
 
 ## 0.1.1
 
