@@ -10,7 +10,7 @@ readme = true
 # homepage
 repository = "https://github.com/Tamschi/Asteracea"
 license = "MIT OR Apache-2.0"
-keywords = ["proc-macro", "grammar", "parser", "generator", "domain-specific-language"]
+keywords = ["proc-macro", "grammar", "parser", "generator", "dsl"]
 categories = ["development-tools::procedural-macro-helpers"]
 
 publish = false
