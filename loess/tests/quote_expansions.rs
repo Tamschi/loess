@@ -21,31 +21,37 @@ macro_rules! test {
 #[test]
 pub fn mixed_site() {
 	test!(let (span, root, tokens), quote_into_mixed_site!(span, root, tokens, [....... .....]), "....... .....");
+	test!(let (span, root, tokens), quote_into_mixed_site!(span, root, tokens, [],), ""); // Trailing comma!
 }
 
 #[test]
 pub fn same_site() {
 	test!(let (span, root, tokens), quote_into_with_exact_span!(span, root, tokens, [....... .....]), "....... .....");
+	test!(let (span, root, tokens), quote_into_with_exact_span!(span, root, tokens, [],), ""); // Trailing comma!
 }
 
 #[test]
 pub fn call_site() {
 	test!(let (span, root, tokens), quote_into_call_site!(span, root, tokens, [....... .....]), "....... .....");
+	test!(let (span, root, tokens), quote_into_call_site!(span, root, tokens, [],), ""); // Trailing comma!
 }
 
 #[test]
 pub fn mixed_site_raw() {
 	test!(let (span, _root, tokens), raw_quote_into_mixed_site!(span, tokens, [....... .....]), "....... .....");
+	test!(let (span, _root, tokens), raw_quote_into_mixed_site!(span, tokens, [],), ""); // Trailing comma!
 }
 
 #[test]
 pub fn same_site_raw() {
 	test!(let (span, _root, tokens), raw_quote_into_with_exact_span!(span, tokens, [....... .....]), "....... .....");
+	test!(let (span, _root, tokens), raw_quote_into_with_exact_span!(span, tokens, [],), ""); // Trailing comma!
 }
 
 #[test]
 pub fn call_site_raw() {
 	test!(let (span, _root, tokens), raw_quote_into_call_site!(span, tokens, [....... .....]), "....... .....");
+	test!(let (span, _root, tokens), raw_quote_into_call_site!(span, tokens, [],), ""); // Trailing comma!
 }
 
 #[test]

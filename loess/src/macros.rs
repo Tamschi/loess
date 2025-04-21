@@ -450,7 +450,7 @@ macro_rules! quote_into_call_site {
 /// Within square brackets: Tokens to emit verbatim but with `$span` as [`Span`] into `$tokens`.
 #[macro_export]
 macro_rules! raw_quote_into_mixed_site {
-	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{
+	    ($span:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => {{
 		    let span: $crate::__::Span = $span.resolved_at($crate::__::Span::mixed_site());
 		    $crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
 	    }};
@@ -459,7 +459,7 @@ macro_rules! raw_quote_into_mixed_site {
 /// Like [`raw_quote_into_mixed_site!`], but using `$span` directly for quoted tokens.
 #[macro_export]
 macro_rules! raw_quote_into_with_exact_span {
-	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {
+	    ($span:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => {
 		    $crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
 	    };
 }
@@ -467,7 +467,7 @@ macro_rules! raw_quote_into_with_exact_span {
 /// Like [`raw_quote_into_mixed_site!`], but resolved according to [`Span::call_site()`].
 #[macro_export]
 macro_rules! raw_quote_into_call_site {
-	    ($span:expr, $tokens:expr, [$($tt:tt)*$(,)?]) => {{
+	    ($span:expr, $tokens:expr, [$($tt:tt)*]$(,)?) => {{
 		    let span: $crate::__::Span = $span.resolved_at($crate::__::Span::call_site());
 		    $crate::__::raw($span, $tokens, $crate::__::stringify!($($tt)*));
 	    }};
