@@ -1,8 +1,8 @@
 # Loess Changelog
 
-## next-minor
+## 0.1.1
 
-TODO: Date
+2025-04-21
 
 ### Features
 
@@ -12,7 +12,7 @@ TODO: Date
 
 - Added: [`Eager<T>(pub T)`](https://docs.rs/loess/0.1/loess/struct.Eager.html)
 
-  This struct can be wrapped around `T` that are `IntoIterator<Item: PeekFrom + PopFrom>` and also `FromIterator` regarding that same type. It parses repeated values eagerly but stops without error when it detects that it doesn't repeat.
+  This struct can be wrapped around `T` that are `IntoIterator<Item: PeekFrom + PopFrom>` and also `FromIterator` regarding that same item type. It parses repeated values eagerly but stops without error when it detects that the value doesn't repeat.
 
   (Note that delimited groups still independently raise errors for unconsumed tokens when parsed directly.)
 
@@ -30,7 +30,7 @@ TODO: Date
 
 Various small documentation additions.
 
-## 0.1
+## 0.1.0
 
 2025-04-16
 
