@@ -45,11 +45,8 @@ pub fn components(input: TokenStream) -> TokenStream {
 	}
 
 	let root = TokenStream::new();
-	let mut output = TokenStream::new();
-	errors.into_tokens(&root, &mut output);
-	for component in components {
-		component.transform(&root, &mut output)
-	}
+	let mut output = errors.collect_tokens(&root);
+	components.into_tokens(&root, &mut output);
 	output
 }
 

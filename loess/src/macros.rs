@@ -4,7 +4,7 @@ use proc_macro2::{Span, TokenTree};
 #[cfg(doc)]
 use crate::{IntoTokens, grammar, quote_into_mixed_site, raw_quote_into_mixed_site};
 
-/// Parser- and printer-generator macro.
+/// Parser- and serialiser-generator macro.
 ///
 /// ```
 /// use loess::{
@@ -518,6 +518,7 @@ pub mod __ {
 					    $( $crate::__::quote_one!($span $root (&mut inner_tokens) enter_else, $tt); )*
 					    inner_tokens
 				    });
+					//TODO (breaking): Permit {#error} in value position.
 				    $crate::__::raw($span, $tokens, ";");
 		    }};
 

@@ -1,5 +1,15 @@
 # Loess Changelog
 
+## 0.2.2
+
+2025-04-22
+
+### Revisions
+
+- Fixed the first [`grammar!`]-mention in the docs to be a link.
+- Terminology: "printer-generator" -> "serialiser-generator".
+- Removed unnecessary semicolon when emitting [`Error`](https://docs.rs/loess/0.2/loess/struct.Error.html).
+
 ## 0.2.1
 
 2025-04-21
