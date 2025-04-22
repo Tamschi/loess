@@ -518,6 +518,7 @@ pub mod __ {
 					    $( $crate::__::quote_one!($span $root (&mut inner_tokens) enter_else, $tt); )*
 					    inner_tokens
 				    });
+					//TODO (breaking): Permit {#error} in value position.
 				    $crate::__::raw($span, $tokens, ";");
 		    }};
 
