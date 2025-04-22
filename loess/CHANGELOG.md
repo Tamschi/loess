@@ -1,8 +1,8 @@
 # Loess Changelog
 
-## next-revision
+## 0.2.2
 
-TODO: Date
+2025-04-22
 
 ### Revisions
 
