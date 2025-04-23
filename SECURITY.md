@@ -1,15 +1,18 @@
 # Security Policy
 
-## Supported Versions
+## Supported Versions (by Crate Name)
 
-| Version | Supported          | ***Initial*** Reason for Removal |
-| ------- | ------------------ | -------------------------------- |
-| 0.0.1-2 | :white_check_mark: |                                  |
+### `loess`
+
+| Version     | Supported          | ***Initial*** Reason for Removal |
+| ----------- | ------------------ | -------------------------------- |
+| 0.1.0 to .1 | :white_check_mark: |                                  |
+| 0.2.1 to .2 | :white_check_mark: |                                  |
 
 Faulty versions are [yanked](https://doc.rust-lang.org/cargo/commands/cargo-yank.html), where possible after a Semver-compatible update is made available, and added to the table above as unsupported.  
 They are also marked with an additional `v….….…-yanked` tag in Git to make them easily recognisable, but original release tags are not removed.
 
-Security advisories are published through [the respective section on this repository here](https://github.com/Tamschi/Asteracea/security/advisories) and [RustSec/advisory-db](https://github.com/RustSec/advisory-db).
+Security advisories are published through [the respective section on this repository here](https://github.com/Tamschi/loess/security/advisories) and [RustSec/advisory-db](https://github.com/RustSec/advisory-db).
 
 ## Reporting a Vulnerability
 
