@@ -1,6 +1,6 @@
 # Copyright
 
-Asteracea is licensed under either of
+Loess and its associated crates in this repository are licensed under either of
 
 * Apache License, Version 2.0
    ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
@@ -9,7 +9,7 @@ Asteracea is licensed under either of
 
 at your option.
 
-Copyrights in this library are retained by their contributors.
+Copyrights in the library/the libraries are retained by their contributors.
 No copyright assignment is required to contribute to the project.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
