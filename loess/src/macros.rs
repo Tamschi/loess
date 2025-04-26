@@ -236,17 +236,17 @@ macro_rules! grammar {
 /// fn my_quote(id1: Identifier, id2: Option<Identifier>, root: &TokenStream) -> TokenStream {
 /// 	let mut output = TokenStream::new();
 ///
-/// 	quote_into_mixed_site!(id1.span(), root, &mut output, [
-/// 		pub struct {#paste id1};
+/// 	quote_into_mixed_site!(id1.span(), root, &mut output, {
+/// 		pub struct {#(id1)};
 ///
-/// 		{#if let Some(id2) = id2,
-/// 			{#located_at id2.span(),
-/// 				pub struct {#paste id2};
-/// 			}
-/// 		} {#else,
-/// 			{#error "`id2` is missing."}
-/// 		}
-/// 	]);
+/// 		{#if let Some(id2) = id2 {
+/// 			{#located_at(id2.span()) {
+/// 				pub struct {#(id2)};
+/// 			}}
+/// 		} else {
+/// 			{#error { "`id2` is missing." }}
+/// 		}}
+/// 	});
 ///
 /// 	output
 /// }
@@ -291,18 +291,18 @@ macro_rules! grammar {
 ///
 /// ## Emitting directives
 ///
-/// ### `{#paste $($expr:expr),*$(,)?}`
+/// ### `{#( $($expr:expr),*$(,)? )}`
 ///
 /// Emits each `$expr` as/through [`IntoTokens`], without adjusting [`Span`]s.
 ///
-/// ### `{#raw $($tt:tt)*}`
+/// ### `{#raw { $($tt:tt)* }}`
 ///
 /// More efficiently emits `$($tt)*` verbatim, by [`stringify!`]ing it in bulk but
 /// without support for nested directives. If you have long sections of verbatim tokens,
 /// using this directive may speed up your build and potentially runtime, even if there's
 /// nothing inside that you couldn't emit otherwise.
 ///
-/// ### `{#error $($tt:tt)*}` <sub>uses <code>$root[`::core`]</code></sub>
+/// ### `{#error { $($tt:tt)* }}` <sub>uses <code>$root[`::core`]</code></sub>
 ///
 /// Emits a [`compile_error!`]. `$($tt:tt)*` must emit a string literal, optionally followed by a `,`.
 ///
@@ -312,85 +312,118 @@ macro_rules! grammar {
 ///
 /// ## Context directives
 ///
-/// ### `{#mixed_site $($tt:tt)* }`
+/// ### `{#mixed_site { $($tt:tt)* }}`
 ///
 /// Nested tokens will be resolved with mixed site hygiene and warnings on them will be suppressed.
 ///
 /// (The location for diagnostics remains unchanged.)
 ///
-/// ### `{#call_site $($tt:tt)* }`
+/// ### `{#call_site { $($tt:tt)* }}`
 ///
 /// Nested tokens will be resolved with call site hygiene and warnings on them appear to the caller.
 ///
 /// (The location for diagnostics remains unchanged.)
 ///
-/// ### `{#located_at $span2:expr, $($tt:tt)* }`
+/// ### `{#located_at($span2:expr) { $($tt:tt)* }}`
 ///
 /// Nested tokens will use `$span2`'s location for diagnostics, but keep the outer hygiene scope.
 ///
-/// ### `{#resolved_at $span2:expr, $($tt:tt)* }`
+/// ### `{#resolved_at($span2:expr) { $($tt:tt)* }}`
 ///
 /// Nested tokens will use `$span2`'s hygiene scope, but keep the outer location information.
 ///
-/// ### `{#with_exact_span $span:expr, $($tt:tt)* }`
+/// ### `{#with_exact_span($span:expr) { $($tt:tt)* }}`
 ///
 /// Nested tokens are emitted exactly with copies of `$span` as [`Span`].
 ///
-/// ## Control flow directives
+/// ## Statement directives
 ///
-/// ### `{#let $pat:pat = $expr:expr $(, else { $($else:tt)* })?$(;)?}`
+/// ### `{#let $pat:pat = $expr:expr $(else { $($else:tt)* })?;}`
 ///
 /// Expands into a `let` binding with optional divergent `else` branch.
 ///
-/// ### `{#break $($label:lifetime)? $($expr:expr)?$(;)?}`
+/// ### `{#break $($label:lifetime)? $($expr:expr)?;}`
 ///
 /// Expands into a `break` statement with optional label and optional expression.
 ///
-/// ### `{#continue $($label:lifetime)?$(;)?}`
+/// ### `{#continue $($label:lifetime)?;}`
 ///
 /// Expands into a `continue` statement with optional label.
 ///
-/// ### `{#return $($expr:expr)?$(;)?}`
+/// ### `{#return $($expr:expr)?;}`
 ///
 /// Expands into a `return` statement with optional expression.
 ///
-/// ### `{# $(else)? if $(let $pat:pat =)? $expr:expr, $($tt:tt)*}`
+/// ## Block directives
 ///
-/// Expands into an `if`-statement that conditionally emits nested tokens.
+/// ### `{#if $(let $pat:pat =)? $expr:expr { $($tt:tt)* }}`
 ///
-/// This may be prefixed by `else`, which makes the `if` itself conditional (see below).
+/// Expands into an `if`-statement that conditionally emits the nested quote.
 ///
-/// ### `{#else, $($tt:tt)* }`
+/// ### `{#match $expr:expr { $($tt:tt)*  }}`
 ///
-/// Expands into a fallback branch that emits nested tokens only iff the preceding control
-/// flow statement in the same scope was either skipped or skipped its body completely.
+/// Expands into a `match` statement (which must be exhaustive).
 ///
-/// This works after `{#if … }` and as part of an `{#else if … }` chain, but also after
-/// conditional loop directives `{#loop, … }` (where it indicates that their body was never entered).
+/// The body of this directive is that of a normal `match` statement, including the option
+/// to use inner attributes on the `match` and outer attributes on the branches, except
+/// that branches must use curly braces (`=> { $(tt:tt)* }`) and that tokens inside those
+/// braces are interpreted as conditionally emitted nested quote.
 ///
-/// > It would have been difficult and potentially slow to limit where the directive can appear.
-///
-/// ### `{#match $expr:expr, … }`
-///
-/// Expands into a `match` statement (which must be exhaustive). Note that the macro
-/// currently only recognises it when the branches are all well-formed too.
-///
-/// The body of this directive is that of a normal `match` statement (without an extra pair of braces),
-/// including the option to use inner attributes on the `match` and outer attributes on the branches,
-/// except that branches must use curly braces (`=> { $(tt:tt)* }`) and that tokens inside those braces
-/// are interpreted as conditionally emitted nested quote.
-///
-/// ### `{# $($label:lifetime:)? $(loop)?, $($tt:tt)* }`
+/// ### `{# $($label:lifetime:)? $(loop)? { $($tt:tt)* }}`
 ///
 /// Expands into a block or `loop`-statement with optional label.
 ///
-/// ### `{# $($label:lifetime:)? for $pat:pat in $expr:expr, $($tt:tt)* }`
+/// The nested quote expands into the loop's body.
+///
+/// ### `{# $($label:lifetime:)? for $pat:pat in $expr:expr { $($tt:tt)* }}`
 ///
 /// Expands into a `for in` loop with optional label.
 ///
-/// ### `{# $($label:lifetime:)? while $(let $pat:pat =)? $expr:expr, $($tt:tt)*}`
+/// The nested quote expands into the loop's body.
+///
+/// ### `{# $($label:lifetime:)? while $(let $pat:pat =)? $expr:expr { $($tt:tt)* }}`
 ///
 /// Expands into a `while` or `while let` loop with optional label.
+///
+/// The nested quote expands into the loop's body.
+///
+/// ### `else`
+///
+/// `else` can be inserted before the outer closing brace of an `if`- or conditional loop
+/// directive, and must be directly followed by another block directive *without* outer
+/// braces or label.
+///
+/// This means you can chain block directives as follows:
+///
+/// ```rust
+/// use loess::quote_into_mixed_site;
+/// use proc_macro2::{Span, TokenStream};
+///
+/// fn my_quote(span: Span, root: &TokenStream, output: &mut TokenStream) {
+/// 	quote_into_mixed_site!(span, root, output, {
+///
+/// 		// Emits `b`.
+/// 		{#if false {
+/// 			a
+/// 		} else {
+/// 			b
+/// 		}}
+///
+/// 		// Emits `e`.
+/// 		{#if false {
+/// 			a
+/// 		} else for _ in 0..0 {
+/// 			b
+/// 		} else while let Some(0) = None {
+/// 			c
+/// 		} else match 0 {
+/// 			1 => { d }
+/// 			_ => { e }
+/// 		}}
+///
+/// 	});
+/// }
+/// ```
 #[macro_export]
 macro_rules! quote_into_mixed_site {
 	($span:expr, $root:expr, $tokens:expr, {$($tt:tt)*}$(,)?) => ({

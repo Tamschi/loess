@@ -12,11 +12,17 @@
 	"rust-analyzer.cargo.allFeatures": true,
 	"rust-analyzer.cargo.buildScripts.enable": true,
 	"cSpell.words": [
+		"adler",
+		"ansi",
 		"ascii",
 		"asteracea",
+		"bitbucket",
+		"github",
+		"gitlab",
 		"preprocess",
 		"punct",
 		"Punct",
+		"RUSTSEC",
 		"Schichler",
 		"Tamme"
 	]

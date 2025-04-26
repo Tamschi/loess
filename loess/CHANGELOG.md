@@ -1,5 +1,19 @@
 # Loess Changelog
 
+## next-minor
+
+TODO: Date
+
+### Features
+
+- Added revised syntax with cleaner directives to `quote_into…`.  
+  To use this new syntax, enclose the template parameter in curly braces (`{}`) instead of rectangular brackets (`[]`).
+
+### Revisions
+
+- Deprecated the old `quote_into…` directive syntax.  
+  Its documentation can be found in older versions of this crate.
+
 ## 0.2.2
 
 2025-04-22
