@@ -114,9 +114,9 @@ impl IntoTokens for Error {
 
 		#[allow(unused_variables, unused_mut)] // Not suppressed because it's the same crate.
 		{
-			quote_into_with_exact_span! (span, root, tokens, [
-				{#error {#paste message}}
-			]);
+			quote_into_with_exact_span! (span, root, tokens, {
+				{#error { {#(message)} }};
+			});
 		}
 	}
 }
