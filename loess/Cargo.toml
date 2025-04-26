@@ -6,7 +6,7 @@ edition = "2024"
 rust-version = "1.86"
 description = "Small proc macro grammar and parser (generator) with great UX."
 # documentation intentionally defaulted
-readme = true
+readme = "../README.md"
 # homepage
 repository = "https://github.com/Tamschi/Asteracea"
 license = "MIT OR Apache-2.0"

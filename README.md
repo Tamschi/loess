@@ -1,254 +1,259 @@
-# Asteracea
+# Loess
 
-[![Lib.rs](https://img.shields.io/badge/Lib.rs-*-84f)](https://lib.rs/crates/asteracea)
-[![Crates.io](https://img.shields.io/crates/v/asteracea)](https://crates.io/crates/asteracea)
-[![Docs.rs](https://docs.rs/asteracea/badge.svg)](https://docs.rs/asteracea)
+Loess is a parser library and parser generator for proc macros.
 
-![Rust 1.58](https://img.shields.io/static/v1?logo=Rust&label=&message=1.58&color=grey)
-[![CI](https://github.com/Tamschi/Asteracea/workflows/CI/badge.svg?branch=develop)](https://github.com/Tamschi/Asteracea/actions?query=workflow%3ACI+branch%3Adevelop)
-![Crates.io - License](https://img.shields.io/crates/l/asteracea/0.0.2)
+For a simple but representative example of using Loess, see the [*inline-json5*](../inline-json5) crate.
 
-[![GitHub](https://img.shields.io/static/v1?logo=GitHub&label=&message=%20&color=grey)](https://github.com/Tamschi/Asteracea)
-[![open issues](https://img.shields.io/github/issues-raw/Tamschi/Asteracea)](https://github.com/Tamschi/Asteracea/issues)
-[![open pull requests](https://img.shields.io/github/issues-pr-raw/Tamschi/Asteracea)](https://github.com/Tamschi/Asteracea/pulls)
-[![good first issues](https://img.shields.io/github/issues-raw/Tamschi/Asteracea/good%20first%20issue?label=good+first+issues)](https://github.com/Tamschi/Asteracea/contribute)
+Here's what to expect:
 
-[![crev reviews](https://web.crev.dev/rust-reviews/badge/crev_count/asteracea.svg)](https://web.crev.dev/rust-reviews/crate/asteracea/)
-[![Zulip Chat](https://img.shields.io/endpoint?label=chat&url=https%3A%2F%2Fiteration-square-automation.schichler.dev%2F.netlify%2Ffunctions%2Fstream_subscribers_shield%3Fstream%3Dproject%252FAsteracea)](https://iteration-square.schichler.dev/#narrow/stream/project.2FAsteracea)
+- Fast builds. Loess's core is compact, language agnostic, and useful without enabling a premade grammar.
 
-Asteracea is a web application framework aiming to combine the strengths of [Angular] and [React] while fully supporting Rust's lifetime model.
+  That said, even in cases where you do enable a grammar module, builds should still be fairly quick.
 
-[Angular]: https://angular.io/
-[React]: https://reactjs.org/
+- A simple, flexible API. Loess is relatively unopinionated about how or what you parse, and you can construct (and destructure) `Input` at any time.
 
-**Note: Asteracea is experimental software.**  
-While it appears to work well so far, there likely will be breaking changes to the template syntax.
+- Shallow parsing (by default). For tokens with groups, like `Visibility`, you can opt into deeper (or customised!) parsing via generics.
 
-## Installation
+- Public fields and one-time validation. The parser checks token specifics once when processing input, but trusts you otherwise.
 
-Please use [cargo-edit](https://crates.io/crates/cargo-edit) to always add the latest version of this library:
+- A reasonably powerful parser-generator.
 
-```cmd
-cargo add asteracea
-```
+  `grammar!` can emit documentation (for enums) and `PeekFrom`, `PopFrom` and `IntoTokens` implementations on grammar types in general.
 
-## Design goals
+- **Really** good error reporting from proc macros implemented with Loess, *by default*.
 
-- Little boilerplate / Useful defaults
+  This includes locating panics relative to the proc macro input, instead of squiggling the whole macro.
 
-  Most generated boilerplate code is adjusted automatically to what is required. For example, the signature of a component's `.render` method changes if a `Node` is generated.
+- Lenient and partial parsing. The parsers can continue (after reporting an error) when a repeating parse fails in a delimited group.
 
-  [There is still room for improvement here without sacrificing readability.](https://github.com/Tamschi/Asteracea/projects/2)
+  You can use this property to still emit as much output as possible, which avoids cascading errors.
 
-- Co-location / [DRY]
+- Low-allocation workflow.
 
-  Intent shouldn't need to be reiterated in multiple places (split declaration, initialisation and usage).
+  Loess can (usually) move tokens from input to output without cloning them. (You can still clone all included grammar types explicitly.)
 
-  For now, short form captures nested in the component templates provide a way to centralise some semantics (similarly to React's Hooks but without their control flow limitations).
+- Some bugs. For example, none-delimited groups aren't handled yet, which can cause issues when generating macro input with a `macro_rules!` macro.
 
-  [Further improvements in this area are planned.](https://github.com/Tamschi/Asteracea/projects/1)
+Here's what not to expect:
 
-  [DRY]: https://en.wikipedia.org/w/index.php?title=Don%27t_repeat_yourself&oldid=972595923
+- Complete coverage of Rust's grammar. In fact, Loess really makes no attempt at all in this regard, since I only implement what I need.
 
-- Robust code
+  In particular, unstable grammar is generally out of scope of the included parsers. (Loess can help you supply it yourself!)
 
-  Element names are statically checked against [`lignin-schema`] by default, but other schemata can be defined similarly. Empty elements like `<br>` cannot contain children.
+- A Syn-replacement (at least not soon). While there's no public interaction with Syn, some optional grammar tokens are for now opaque and do defer to Syn when enabled.
 
-  Similar checks for attributes and event names are planned.
+- `Debug`-implementations on the included grammars. They aren't that useful here in my experience, but they would increase compile-times.
 
-  [`lignin-schema`]: https://github.com/Tamschi/lignin-schema
+- Absence of major version bumps. Rust's grammar is a moving target and Loess's grammar tokens aren't marked `#[non_exhaustive]` for ease of use.
 
-- No default runtime
-
-  Asteracea components compile to plain Rust code with few dependencies, which helps keep bundles small.
-
-  Use [`lignin-dom`] or [`lignin-html`] to transform rendered `Node` trees into live user interfaces.
-
-  [`lignin-dom`]: https://github.com/Tamschi/lignin-dom
-  [`lignin-html`]: https://github.com/Tamschi/lignin-html
+  However, shallow parsing should make upgrades fairly painless and errors should alert you specifically to grammar changes that are relevant to you.
 
 ## Examples
 
-Additional examples can be found [in the examples directory](examples#list-of-examples).
-
-### Empty component
-
-The most simple (`Node`-rendering) component can be written like this:
+<details><summary style=cursor:pointer><u>(click to expand code block)</u></summary>
 
 ```rust
-asteracea::component! {
-  pub Empty()() -> Sync
-  [] // Empty node sequence
-}
-
-// Render into a bump allocator:
-// This is generally only this explicit at the application root.
-let mut bump = bumpalo::Bump::new();
-let root = {
-  struct Root;
-  rhizome::sync::Node::new(core::any::TypeId::of::<Root>())
+use loess::{
+    grammar, parse_all, Input, Errors, PeekFrom, PopFrom, IntoTokens,
+    rust_grammar::{ // With the `"rust_grammar"` feature.
+        Await, CurlyBraces, Dot, Identifier, Parentheses, Semi, SquareBrackets,
+    }
 };
-assert!(matches!(
-  Box::pin(Empty::new(root.as_ref(), Empty::new_args_builder().build()).unwrap())
-    .as_ref()
-    .render(&mut bump, Empty::render_args_builder().build())
-    .unwrap(),
-  lignin::Node::Multi(&[]) // Empty node sequence
-));
+use proc_macro2::{Span, TokenStream};
+
+// Generates parsers and pasters, according to the traits written after the type name.
+//
+// (This macro is hygienic, so you don't have to import the traits for this.)
+grammar! {
+    pub struct Child: PeekFrom, PopFrom, IntoTokens {
+        pub identifier: ChildIdentifier,
+        /// Groups are generic (and capture [`TokenStream`] by default.)
+        pub new_args: Option<Parentheses>,
+        pub dot_await: Option<DotAwait>,
+        pub render_args: Option<SquareBrackets>,
+        pub children: ChildChildren,
+    }
+
+    pub struct DotAwait: PeekFrom, PopFrom, IntoTokens {
+        pub dot: Dot,
+        pub r#await: Await,
+    }
+
+    // It's basic so far, but some documentation can be generated too.
+    pub enum ChildIdentifier: doc, IntoTokens {
+        Local(Identifier),
+        Substrate(Identifier),
+        Qualified(TokenStream),
+    } else "Expected child identifier.";
+
+    pub enum ChildChildren: PopFrom, IntoTokens {
+        Void(Semi),
+        Braces(CurlyBraces<Vec<Child>>),
+    } else "Expected `;` or `{`.";
+}
+
+// Custom logic can be added through simple traits.
+impl PeekFrom for ChildIdentifier {
+    fn peek_from(input: &Input) -> bool {
+        unimplemented!("Just an example.")
+    }
+}
+
+impl PopFrom for ChildIdentifier {
+    // Errors can be emitted even when the parser recovers.
+    //
+    // This allows multiple errors to be reported at once (subject to priority), and also
+    // allows graceful degradation of macro output to avoid cascading errors elsewhere.
+    fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+        unimplemented!("Just an example.")
+    }
+}
+
+// Loess has a flexible, unopinionated API:
+fn macro_impl(input: TokenStream) -> TokenStream {
+    let mut errors = Errors::new();
+
+    // Turns panics into located errors and checks for exhaustiveness.
+    // (Errors for unconsumed input have low priority to avoid distractions.)
+    let children: Vec<Child> = parse_all(
+            &mut Input {
+                // This is a plain `VecDeque<TokenTree>`.
+                tokens: input.into_iter().collect(),
+
+                // Used to locate errors if the end of input was reached unexpectedly.
+                // Nightly macros can use `Span::end` to get a better error location.
+                end: Span::call_site(),
+            },
+            &mut errors,
+        ).collect();
+
+    // You can also step through `Input` via for `parse_once…` functions, but you should
+    // always use a `parse_all…` function last to check for unconsumed input.
+
+    let root = TokenStream::new();
+    let mut output = TokenStream::new();
+
+    errors.into_tokens(
+        // Optional `root` module that reexports dependencies.
+        // Mainly for wrapped macros that have access to `$crate`.
+        //
+        // Iff not empty, `Errors` assumes that `core` is reexported there.
+        &root,
+        &mut output,
+    );
+
+    // You can emit your output step-by-step, or exit early after emitting `errors`.
+    children.into_tokens(&root, &mut output);
+
+    output
+}
+
+// Alternatively:
+
+fn macro_impl2(input: TokenStream) -> TokenStream {
+    let mut errors = Errors::new();
+
+    let root = TokenStream::new();
+
+    grammar! {
+        struct Grammar: PopFrom (
+            Identifier,
+            CurlyBraces<Vec<Child>>,
+        );
+    }
+
+    let Some(Grammar(name, children)) = parse_all(
+            &mut Input {
+                // This is a plain `VecDeque<TokenTree>`.
+                tokens: input.into_iter().collect(),
+
+                // Used to locate errors if the end of input was reached unexpectedly.
+                // Nightly macros can use `Span::end` to get a better error location.
+                end: Span::call_site(),
+            },
+            &mut errors,
+        ).next() else { return errors.collect_tokens(&root); };
+
+    let mut output = errors.collect_tokens(&root);
+
+    // Emit your output step-by-step.
+    name.into_tokens(&root, &mut output);
+    children.into_tokens(&root, &mut output);
+
+    output
+}
 ```
 
-VDOM [`Sync`-ness](https://doc.rust-lang.org/stable/std/marker/trait.Sync.html) can be inferred (even transitively) at zero runtime cost by omitting `-> Sync` (or `-> !Sync`), except for components visible outside their crate.
+</details>
 
-### Unit component
+## Using `$crate` for full caller independence
 
-A return type other than `Node` can be specified after the render argument list:
+`loess::IntoTokens`-methods take an (optionally empty) `root: &TokenStream` parameter,
+which all emitted fully qualified paths <em style=font-style:normal;font-variant:small-caps>should</em> be prefixed with.
+
+In combination with a wrapper crate: This achieves full isolation regarding caller dependencies:
+
+<details><summary style=cursor:pointer><u>(click to expand code blocks)</u></summary>
+
+<!-- These code blocks also appear on `IntoTokens`,
+the first one with some hidden lines to make it compile. -->
+
+```rust ,ignore
+// wrapper crate
+
+#[macro_export]
+macro_rules! my_macro {
+    ($($tt:tt)*) => ( $crate::__::my_macro!([$crate] $($tt)*) );
+}
+
+#[doc(hidden)]
+pub mod __ {
+    pub use core; // Expected by `Errors`.
+    pub use my_macro_impl::my_macro;
+}
+```
 
 ```rust
-asteracea::component! {
-  Unit(/* ::new arguments */)(/* .render arguments */) -> ()
-  {} // Empty Rust block
-}
+// my_macro_impl (proc macro)
 
-asteracea::component! {
-  Offset(base: usize)(offset: usize) -> usize
-
-  let pub self.base: usize = base; // ²
-  { self.base + offset }
-}
-
-// This is generally only this explicit at the application root.
-let mut bump = bumpalo::Bump::new();
-let root = {
-  struct Root;
-  rhizome::sync::Node::new(core::any::TypeId::of::<Root>())
+use loess::{
+    grammar, parse_once, parse_all,
+    Errors, Input, IntoTokens,
+    rust_grammar::{SquareBrackets},
 };
-assert_eq!(
-  Box::pin(Unit::new(root.as_ref(), Unit::new_args_builder().build()).unwrap())
-    .as_ref()
-    .render(&mut bump, Unit::render_args_builder().build())
-    .unwrap(),
-  (),
-);
-assert_eq!(
-  Box::pin(Offset::new(root.as_ref(), Offset::new_args_builder().base(2).build()).unwrap())
-    .as_ref()
-    .render(&mut bump, Offset::render_args_builder().offset(3).build())
-    .unwrap(),
-  5,
-);
-```
+use proc_macro2::{Span, TokenStream, TokenTree};
 
-² <https://github.com/Tamschi/Asteracea/issues/2>
+// […]
 
-### Counter component
+fn macro_impl(input: TokenStream) -> TokenStream {
+    let mut input = Input {
+        tokens: input.into_iter().collect(),
+        end: Span::call_site(),
+    };
+    let mut errors = Errors::new();
 
-For a relatively complex example, see this parametrised counter:
+    // `root` is implicitly a `TokenStream`.
+    let Ok(SquareBrackets { contents: root, .. }) = parse_once(
+            &mut input,
+            &mut errors,
+        ) else { return errors.collect_tokens(&TokenStream::new()) };
 
-```rust
-use asteracea::component;
-use lignin::web::Event;
-use std::cell::Cell;
+    grammar! {
+        /// This represents your complete input grammar.
+        /// This here is a placeholder, so it's empty.
+        struct Grammar: PopFrom {}
+    }
 
-fn schedule_render() { /* ... */ }
+    // Checks for exhaustiveness.
+    let parsed = parse_all(&mut input, &mut errors).next();
+    let mut output = errors.collect_tokens(&root);
 
-component! {
-  pub Counter(
-    /// The counter's starting value.
-    initial: i32,
-    priv step: i32, // field from argument
-    pub enabled: bool = true, // default parameter
-  )(
-    // optional argument;
-    // `class` is `Option<&'bump str>` only inside this component, not its API.
-    class?: &'bump str,
-  ) -> !Sync // visible across crate-boundaries, so use explicit `Sync`ness
+    if let Some(Grammar {}) = parsed {
+        // Emit your output here.
+    }
 
-  // shorthand capture; Defines a struct field.
-  let self.value = Cell::<i32>::new(initial);
-
-  <div
-    // conditional attribute from `Option<&'bump str>`
-    ."class"? = {class}
-
-    // Anything within curlies is plain Rust.
-    "The current value is: " !(self.value()) <br>
-
-    <button
-      ."disabled"? = {!self.enabled} // boolean attribute from `bool`
-      "+" !(self.step) // shorthand `bump_format` call
-      on bubble click = Self::on_click_plus
-    >
-  >
-}
-
-// Counter is a plain struct, so `impl` works as expected!
-impl Counter {
-  pub fn value(&self) -> i32 {
-    self.value.get()
-  }
-
-  pub fn set_value(&self, value: i32) {
-    self.value.set(value);
-  }
-
-  // This may alternatively take a `*const Self` or `Pin<&Self>`.
-  // Inline handlers are also possible, but not much less verbose.
-  fn on_click_plus(&self, _: Event) {
-    self.value.set(self.value() + self.step);
-    schedule_render();
-  }
-}
-
-
-asteracea::component! {
-  CounterUser()()
-
-  <*Counter
-    *initial = {0} // parameters by name
-    *step = {1}
-    .class = {"custom-counter"} // without Some(…)
-  >
+    output
 }
 ```
 
-## License
-
-Licensed under either of
-
-- Apache License, Version 2.0
-   ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license
-   ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
-
-at your option.
-
-## Contribution
-
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
-
-See [CONTRIBUTING](CONTRIBUTING.md) for more information.
-
-## [Code of Conduct](CODE_OF_CONDUCT.md)
-
-## [Changelog](CHANGELOG.md)
-
-## [Planned features](https://github.com/Tamschi/Asteracea/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement+label%3Aaccepted)
-
-## Versioning
-
-Asteracea strictly follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) with the following exceptions:
-
-- The minor version will not reset to 0 on major version changes (except for v1).  
-Consider it the global feature level.
-- The patch version will not reset to 0 on major or minor version changes (except for v0.1 and v1).  
-Consider it the global patch level.
-
-This includes the Rust version requirement specified above.  
-Earlier Rust versions may be compatible, but this can change with minor or patch releases.
-
-Which versions are affected by features and patches can be determined from the respective headings in [CHANGELOG.md](CHANGELOG.md).
-
-Note that dependencies of this crate may have a more lenient MSRV policy!
-Please use `cargo +nightly update -Z minimal-versions` in your automation if you don't generate Cargo.lock manually (or as necessary) and require support for a compiler older than current stable.
+</details>
