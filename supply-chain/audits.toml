@@ -1,0 +1,7 @@
+
+# cargo-vet audits file
+
+[[audits.proc-macro2]]
+who = "Tamme Schichler <tamme@schichler.dev>"
+criteria = "safe-to-deploy"
+delta = "1.0.94 -> 1.0.95"
