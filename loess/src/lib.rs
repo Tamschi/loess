@@ -3,6 +3,10 @@
 #![doc = include_str!("../../README.md")]
 //!
 //! </details>
+//! 
+//! Loess is a parser library and parser generator for proc macros.
+//!
+//! For a simple but representative example of using Loess, see the [*inline-json5*](https://crates.io/crates/inline-json5) crate.
 //!
 //! In most cases you'll want to:
 //!
