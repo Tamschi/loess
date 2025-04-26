@@ -1,6 +1,6 @@
 //! <details><summary style=cursor:pointer><u>README / Examples (click to expand)</u></summary>
 //!
-#![doc = include_str!("../../README.md")]
+#![doc = include_str!("../README.md")]
 //!
 //! </details>
 //! 
