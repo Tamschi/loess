@@ -1,8 +1,8 @@
 # Loess Changelog
 
-## next-minor
+## 0.2.3
 
-TODO: Date
+2025-04-26
 
 ### Features
 
