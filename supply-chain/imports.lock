@@ -1,6 +1,10 @@
 
 # cargo-vet imports lock
 
+[[unpublished.loess]]
+version = "0.2.3"
+audited_as = "0.2.2"
+
 [[audits.google.audits.proc-macro2]]
 who = "Lukasz Anforowicz <lukasza@chromium.org>"
 criteria = "safe-to-deploy"
