@@ -1,43 +1,94 @@
-# Lifted mostly from Bevy v0.6.0 under MIT OR Apache-2.0.
-# See <https://github.com/bevyengine/bevy/blob/458cb7a9e93dab3127bb99ce7bf8cfc3af18851d/deny.toml>.
+# Note that all fields that take a lint level have these possible values:
+# * deny - An error will be produced and the check will fail
+# * warn - A warning will be produced, but the check will not fail
+# * allow - No warning or error will be produced, though in some cases a note
+# will be
+
+[graph]
+all-features = true
+no-default-features = false
+
+[output]
+# When outputting inclusion graphs in diagnostics that include features, this
+# option can be used to specify the depth at which feature edges will be added.
+# This option is included since the graphs can be quite large and the addition
+# of features from the crate(s) to all of the graph roots can be far too verbose.
+# This option can be overridden via `--feature-depth` on the cmd line
+feature-depth = 1
 
 [advisories]
-db-path = "~/.cargo/advisory-db"
-db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
-unmaintained = "deny"
-yanked = "deny"
-notice = "deny"
 ignore = [
-	# Format: "RUSTSEC-YYYY-NNNN", # why - what - <link to issue>
+    #"RUSTSEC-0000-0000",
+    #{ id = "RUSTSEC-0000-0000", reason = "you can specify a reason the advisory is ignored" },
+    #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
+    #{ crate = "a-crate-that-is-yanked@0.1.1", reason = "you can specify why you are ignoring the yanked crate" },
 ]
 
+# This section is considered when running `cargo deny check licenses`
+# More documentation for the licenses section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
 [licenses]
-unlicensed = "deny"
-copyleft = "deny"
 allow = [
     "MIT",
     "Apache-2.0",
-    "Zlib",
-	"BSD-3-Clause",
-	"Unicode-DFS-2016",
+    "Unicode-3.0",
 ]
-default = "deny"
+confidence-threshold = 1.0
+exceptions = [
+    #{ allow = ["Zlib"], crate = "adler32" },
+]
 
-# [[licenses.clarify]]
-# name = "a-crate-name"
-# expression = "e.g. MIT"
-# license-files = [] # Fill in as necessary
+#[[licenses.clarify]]
+# The package spec the clarification applies to
+#crate = "ring"
+# The SPDX expression for the license requirements of the crate
+#expression = "MIT AND ISC AND OpenSSL"
+# One or more files in the crate's source used as the "source of truth" for
+# the license expression. If the contents match, the clarification will be used
+# when running the license check, otherwise the clarification will be ignored
+# and the crate will be checked normally, which may produce warnings or errors
+# depending on the rest of your configuration
+#license-files = [
+# Each entry is a crate relative path, and the (opaque) hash of its contents
+#{ path = "LICENSE", hash = 0xbd0eed23 }
+#]
 
+# This section is considered when running `cargo deny check bans`.
+# More documentation about the 'bans' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
 [bans]
-multiple-versions = "warn" #TODO: deny
-wildcards = "warn" #TODO: deny
-highlight = "all"
+multiple-versions = "warn"
+wildcards = "deny"
+# List of crates that are allowed. Use with care!
+allow = [
+    #"ansi_term@0.11.0",
+    #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason it is allowed" },
+]
+# List of crates to deny
+deny = [
+    #"ansi_term@0.11.0",
+    #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason it is banned" },
+    # Wrapper crates can optionally be specified to allow the crate when it
+    # is a direct dependency of the otherwise banned crate
+    #{ crate = "ansi_term@0.11.0", wrappers = ["this-crate-directly-depends-on-ansi_term"] },
+]
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = [
-	# Format: { name = "a-crate-name", version = "0.1" }, # from another-crate v0.26.0
+    #"ansi_term@0.11.0",
+    #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason why it can't be updated/removed" },
+]
+# Similarly to `skip` allows you to skip certain crates during duplicate
+# detection. Unlike skip, it also includes the entire tree of transitive
+# dependencies starting at the specified crate, up to a certain depth, which is
+# by default infinite.
+skip-tree = [
+    #"ansi_term@0.11.0", # will be skipped along with _all_ of its direct and transitive dependencies
+    #{ crate = "ansi_term@0.11.0", depth = 20 },
 ]
 
+# This section is considered when running `cargo deny check sources`.
+# More documentation about the 'sources' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
@@ -45,4 +96,9 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = []
 
 [sources.allow-org]
-github = ["Tamschi"]
+# github.com organizations to allow git sources for
+github = []
+# gitlab.com organizations to allow git sources for
+gitlab = []
+# bitbucket.org organizations to allow git sources for
+bitbucket = []

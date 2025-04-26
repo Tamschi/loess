@@ -13,6 +13,8 @@
 //! but enabling it pulls in part of [Syn](https://docs.rs/syn),
 //! which considerably increases build times.
 
+// TODO (breaking): This should be a separate crate.
+
 mod expressions;
 pub use expressions::*;
 

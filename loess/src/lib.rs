@@ -1,8 +1,12 @@
 //! <details><summary style=cursor:pointer><u>README / Examples (click to expand)</u></summary>
 //!
-#![doc = include_str!("../README.md")]
+#![doc = include_str!("../../README.md")]
 //!
 //! </details>
+//! 
+//! Loess is a parser library and parser generator for proc macros.
+//!
+//! For a simple but representative example of using Loess, see the [*inline-json5*](https://crates.io/crates/inline-json5) crate.
 //!
 //! In most cases you'll want to:
 //!
@@ -114,9 +118,9 @@ impl IntoTokens for Error {
 
 		#[allow(unused_variables, unused_mut)] // Not suppressed because it's the same crate.
 		{
-			quote_into_with_exact_span! (span, root, tokens, [
-				{#error {#paste message}}
-			]);
+			quote_into_with_exact_span! (span, root, tokens, {
+				{#error { {#(message)} }};
+			});
 		}
 	}
 }
