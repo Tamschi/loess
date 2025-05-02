@@ -1,5 +1,15 @@
 # Loess Changelog
 
+## next-revision
+
+TODO: Date
+
+### Revisions
+
+- Updated repository link in meta data.
+- Deprecated the [`rust_grammar`](https://docs.rs/loess/0.2.3/loess/rust_grammar/index.html) module.  
+  This has been separated-out into additional crates to avoid compilation bottlenecks for slim DSLs.
+
 ## 0.2.3
 
 2025-04-26

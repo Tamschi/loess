@@ -4,11 +4,11 @@ version = "0.2.3"
 authors = ["Tamme Schichler <tamme@schichler.dev>"]
 edition = "2024"
 rust-version = "1.86"
-description = "Small proc macro grammar and parser (generator) with great UX."
+description = "Small proc macro grammar- and parser-generator providing great UX."
 # documentation intentionally defaulted
 readme = "../README.md"
 # homepage
-repository = "https://github.com/Tamschi/Asteracea"
+repository = "https://github.com/Tamschi/loess"
 license = "MIT OR Apache-2.0"
 keywords = ["proc-macro", "grammar", "parser", "generator", "dsl"]
 categories = ["development-tools::procedural-macro-helpers"]
@@ -16,6 +16,7 @@ categories = ["development-tools::procedural-macro-helpers"]
 publish = true
 
 [features]
+#TODO (breaking): Remove this alongside optional modules.
 rust_grammar = []
 
 # Uses Syn to add basic support for more Rust grammar.
@@ -33,5 +34,9 @@ syn = { version = "2.0.100", optional = true, default-features = false, features
     "printing",
 ] }
 
+#TODO (breaking): Remove this alongside optional modules.
 [package.metadata.docs.rs]
 all-features = true
+
+[package.metadata.cargo-semver-checks.lints]
+workspace = true

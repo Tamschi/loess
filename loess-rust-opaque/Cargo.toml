@@ -1,0 +1,23 @@
+[package]
+name = "loess-rust-opaque"
+version = "0.1.0+0.2"
+authors = ["Tamme Schichler <tamme@schichler.dev>"]
+edition = "2024"
+rust-version = "1.86"
+description = "Loess-compatible opaque wrappers for Syn-parsed tokens (as needed)."
+readme = true
+repository = "https://github.com/Tamschi/loess"
+license = "MIT OR Apache-2.0"
+keywords = ["proc-macro", "grammar", "parser"]
+categories = ["development-tools::procedural-macro-helpers"]
+
+publish = true
+
+[dependencies]
+loess = { version = "0.2.3", path = "../loess" }
+proc-macro2 = { version = "1.0.95", default-features = false }
+quote = { version = "1.0.40", default-features = false }
+syn = { version = "2.0.101", default-features = false, features = ["clone-impls", "full", "parsing", "printing"] }
+
+[package.metadata.cargo-semver-checks.lints]
+workspace = true

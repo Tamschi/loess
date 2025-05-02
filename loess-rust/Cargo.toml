@@ -1,0 +1,21 @@
+[package]
+name = "loess-rust"
+version = "0.1.0+0.2"
+authors = ["Tamme Schichler <tamme@schichler.dev>"]
+edition = "2024"
+rust-version = "1.86"
+description = "Loess-based Rust grammar (as needed)."
+readme = true
+repository = "https://github.com/Tamschi/loess"
+license = "MIT OR Apache-2.0"
+keywords = ["proc-macro", "grammar", "parser"]
+categories = ["development-tools::procedural-macro-helpers"]
+
+publish = true
+
+[dependencies]
+loess = { version = "0.2.3", path = "../loess" }
+proc-macro2 = { version = "1.0.95", default-features = false }
+
+[package.metadata.cargo-semver-checks.lints]
+workspace = true
