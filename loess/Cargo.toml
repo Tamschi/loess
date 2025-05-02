@@ -13,7 +13,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["proc-macro", "grammar", "parser", "generator", "dsl"]
 categories = ["development-tools::procedural-macro-helpers"]
 
-publish = true
+publish = false
 
 [features]
 #TODO (breaking): Remove this alongside optional modules.
