@@ -9,9 +9,9 @@ When you start work on your change, please create a draft PR for ongoing discuss
 
 Don't use procedural macros in and (in most cases) don't add dependencies to other crates to Loess.
 
-The `rust_grammar` module is organised roughly like [<cite>The Rust Reference</cite>](https://doc.rust-lang.org/stable/reference/), with opaque implementations split into a separate subfolder. Type names <em style=font-style:normal;font-variant:small-caps>should</em> correspond directly to named grammar tokens or other applicable names in <cite>The Rust Reference</cite>.
+The `rust_grammar` module is organised roughly like [<cite>The Rust Reference</cite>](https://doc.rust-lang.org/stable/reference/), with opaque implementations split into a separate subfolder. Type names <em style=font-style:normal;font-variant:small-caps>should</em> correspond directly to named grammar symbols or other applicable names in <cite>The Rust Reference</cite>.
 
-Grammar tokens <em style=font-style:normal;font-variant:small-caps>should</em> be documented to show their immediate pattern in the module overview.
+Grammar symbols <em style=font-style:normal;font-variant:small-caps>should</em> be documented to show their immediate pattern in the module overview.
 (See `rust_grammar` for examples. `grammar!` can generate this documentation for you in some cases.) This is not required for temporary opaque implementations, which instead should identify themselves as such.
 
 **I'm open to adding additional feature-gated grammars** for common text file formats,
@@ -42,6 +42,15 @@ cargo test --features opaque_rust_grammar
 Tests outside the opaque grammar module <em style=font-style:normal;font-variant:small-caps>must not</em> require Syn.
 
 ## Publishing
+
+Check whether a version change is necessary with:
+
+```sh
+# cargo binstall cargo-semver-checks
+# OR
+# cargo install --locked cargo-semver-checks
+cargo semver-checks
+```
 
 Publish with:
 

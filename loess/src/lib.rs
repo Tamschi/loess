@@ -69,6 +69,8 @@ use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
+//TODO (breaking): Remove this module here.
+#[deprecated = "The `rust_grammar` module has been spun out into the separate crates `loess-rust` and `loess-rust-opaque`."]
 #[cfg(any(doc, feature = "rust_grammar"))]
 pub mod rust_grammar;
 
