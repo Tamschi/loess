@@ -2,6 +2,6 @@
 
 ## 0.1.0
 
-TODO: Date
+2025-05-02
 
 Initial release.
