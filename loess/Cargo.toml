@@ -1,12 +1,12 @@
 [package]
 name = "loess"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Tamme Schichler <tamme@schichler.dev>"]
 edition = "2024"
 rust-version = "1.86"
 description = "Small proc macro grammar- and parser-generator providing great UX."
 # documentation intentionally defaulted
-readme = "../README.md"
+readme = true
 # homepage
 repository = "https://github.com/Tamschi/loess"
 license = "MIT OR Apache-2.0"
@@ -23,7 +23,7 @@ rust_grammar = []
 opaque_rust_grammar = ["rust_grammar", "dep:syn", "dep:quote"]
 
 [dependencies]
-proc-macro2 = "1.0.34"
+proc-macro2 = { version = "1.0.34", features = ["span-locations"] }
 quote = { version = "1.0.40", default-features = false, optional = true }
 
 # Private dependency! Do not implement Loess traits on Syn types or vice versa.
