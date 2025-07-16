@@ -3,7 +3,7 @@
 #![doc = include_str!("../../README.md")]
 //!
 //! </details>
-//! 
+//!
 //! Loess is a parser library and parser generator for proc macros.
 //!
 //! For a simple but representative example of using Loess, see the [*inline-json5*](https://crates.io/crates/inline-json5) crate.
@@ -57,11 +57,12 @@ use std::{
 	any::Any,
 	collections::{VecDeque, vec_deque},
 	fmt::Debug,
-	iter,
+	iter::{self},
 	marker::PhantomData,
 	mem,
 	ops::{Deref, DerefMut},
 	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
+	vec,
 };
 
 use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
@@ -100,6 +101,24 @@ impl Error {
 			message: message.into(),
 			spans: spans.into_iter().collect(),
 		}
+	}
+
+	/// since 0.2.4
+	pub fn message(&self) -> &str {
+		&self.message
+	}
+
+	/// Returns the error's overall [`Span`],
+	/// but only iff that can be constructed by joining all the [`Span`]s originally given to [`Error::new`].
+	///
+	/// since 0.2.4
+	pub fn span(&self) -> Option<Span> {
+		self.spans
+			.iter()
+			.cloned()
+			.map(|a| Some(a))
+			.reduce(|a, b| a.zip(b).map(|(a, b)| a.join(b)).flatten())
+			.flatten()
 	}
 }
 
@@ -248,6 +267,15 @@ impl Errors {
 	#[allow(missing_docs)]
 	pub fn push(&mut self, error: Error) {
 		self.errors.push(error)
+	}
+
+	/// since 0.2.4
+	pub fn into_of_highest_priority(self) -> impl Iterator<Item = Error> {
+		let highest_priority = self.errors.iter().map(|error| error.priority).max();
+
+		self.errors
+			.into_iter()
+			.filter(move |e| e.priority == highest_priority.unwrap())
 	}
 }
 

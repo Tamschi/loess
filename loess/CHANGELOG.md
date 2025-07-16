@@ -1,8 +1,13 @@
 # Loess Changelog
 
-## next-revision
+## 0.2.4
 
-TODO: Date
+2025-07-16
+
+### Features
+
+- Added `Errors::into_of_highest_priority(self) -> impl Iterator<Item = Error>`.
+- Added `Error::message(&self) -> &str` and `Error::span(&self) -> Option<Span>`.
 
 ### Revisions
 
