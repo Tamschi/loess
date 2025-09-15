@@ -45,7 +45,7 @@
 //!
 //! ## `"opaque_rust_grammar"` <sub>enables `"rust_grammar"`, depends on `syn` and `quote`</sub>
 //!
-//! Adds additional opaque Rust grammar tokens, to consume, paste and clone for example
+//! Adds additional opaque Rust grammar symbols, to consume, paste and clone for example
 //! Statements and Patterns.
 //!
 //! These preliminary implementations are [Syn](https://docs.rs/syn)-based and can't be inspected.
@@ -371,6 +371,12 @@ pub trait IntoTokens {
 		let mut tokens = T::default();
 		self.into_tokens(root, &mut tokens);
 		tokens
+	}
+}
+
+impl<T: IntoTokens + Clone> IntoTokens for &T {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		T::into_tokens(self.clone(), root, tokens)
 	}
 }
 

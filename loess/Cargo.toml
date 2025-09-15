@@ -1,6 +1,6 @@
 [package]
 name = "loess"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Tamme Schichler <tamme@schichler.dev>"]
 edition = "2024"
 rust-version = "1.86"

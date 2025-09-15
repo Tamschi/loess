@@ -1,5 +1,18 @@
 # Loess Changelog
 
+## 0.2.5
+
+2025-09-15
+
+### Features
+
+- Added `impl<T: IntoTokens + Clone> IntoTokens for &T`.  
+  You can now prefix pasted values with `&` to automatically clone them.
+
+### Revisions
+
+- Updated docs wording ("token" vs. "symbol").
+
 ## 0.2.4
 
 2025-07-16

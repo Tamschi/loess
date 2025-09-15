@@ -295,6 +295,9 @@ macro_rules! grammar {
 ///
 /// Emits each `$expr` as/through [`IntoTokens`], without adjusting [`Span`]s.
 ///
+/// Note that `&T: IntoTokens` where `T: IntoTokens` (via [`Clone`]),
+/// so you can prefix pasted expressions with `&` to easily clone them.
+///
 /// ### `{#raw { $($tt:tt)* }}`
 ///
 /// More efficiently emits `$($tt)*` verbatim, by [`stringify!`]ing it in bulk but
