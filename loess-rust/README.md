@@ -14,11 +14,11 @@ Here's what not to expect:
 
 - Complete coverage of Rust's grammar. In fact, `loess-rust` really makes no attempt at all in this regard, since I only implement what I need. In particular, unstable grammar is generally out of scope. (Loess can help you supply it yourself!)
 
-  Temporary opaque implementations of additional grammar tokens are available in the [`loess-rust-opaque`](https://crates.io/crates/loess-rust-opaque) crate.
+  Temporary opaque implementations of additional grammar symbols are available in the [`loess-rust-opaque`](https://crates.io/crates/loess-rust-opaque) crate.
 
 - `Debug`-implementations. They aren't that useful here in my experience, but they would increase compile-times.
 
-- Absence of major version bumps. Rust's grammar is a moving target and Loess's grammar tokens aren't marked `#[non_exhaustive]` for ease of use.
+- Absence of major version bumps. Rust's grammar is a moving target and Loess's grammar symbols aren't marked `#[non_exhaustive]` for ease of use.
 
   However, shallow parsing should make upgrades fairly painless and errors should alert you specifically to grammar changes that are relevant to you.
 

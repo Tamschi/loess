@@ -71,7 +71,9 @@ macro_rules! delimiter_struct {
 		}
 
 		impl<T: PopFrom> PopFrom for $name<T> {
-			fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+			type Parsed = $name<T::Parsed>;
+
+			fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
 				let (span, mut contents) = input
 					.pop_or_replace(|tts, _| match tts {
 						[TokenTree::Group(group)] if group.delimiter() == $delimiter => Ok((
@@ -92,13 +94,12 @@ macro_rules! delimiter_struct {
 					})?;
 
 				match catch_unwind(AssertUnwindSafe(|| {
-					Ok(Self {
+					Ok(Self::Parsed {
 						span,
 						contents: Exhaustive::<T, UNCONSUMED_IN_DELIMITER>::pop_from(
 							&mut contents,
 							errors,
-						)?
-						.0,
+						)?,
 					})
 				})) {
 					Ok(result) => result,

@@ -34,6 +34,9 @@ syn = { version = "2.0.100", optional = true, default-features = false, features
     "printing",
 ] }
 
+[dev-dependencies]
+loess-rust = { path = "../loess-rust" }
+
 #TODO (breaking): Remove this alongside optional modules.
 [package.metadata.docs.rs]
 all-features = true

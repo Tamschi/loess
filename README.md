@@ -69,8 +69,8 @@ pub mod __ {
 use loess::{
     grammar, parse_once, parse_all,
     Errors, Input, IntoTokens,
-    rust_grammar::{SquareBrackets},
 };
+use loess_rust::SquareBrackets;
 use proc_macro2::{Span, TokenStream, TokenTree};
 
 // […]

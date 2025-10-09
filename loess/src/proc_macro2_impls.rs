@@ -41,6 +41,8 @@ impl PeekFrom for TokenStream {
 }
 
 impl PopFrom for Group {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -57,6 +59,8 @@ impl PopFrom for Group {
 }
 
 impl PopFrom for Ident {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -73,6 +77,8 @@ impl PopFrom for Ident {
 }
 
 impl PopFrom for Punct {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -89,6 +95,8 @@ impl PopFrom for Punct {
 }
 
 impl PopFrom for Literal {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -105,6 +113,8 @@ impl PopFrom for Literal {
 }
 
 impl PopFrom for TokenTree {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -117,6 +127,8 @@ impl PopFrom for TokenTree {
 
 /// Exhaustive, infallible.
 impl PopFrom for TokenStream {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, ()> {
 		Ok(input.tokens.drain(..).collect())
 	}

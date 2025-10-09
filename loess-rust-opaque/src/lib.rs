@@ -1,4 +1,4 @@
-//! Additional grammar tokens representing the stable Rust programming language,
+//! Additional grammar symbols representing the stable Rust programming language,
 //! closely following [The Rust Reference](https://doc.rust-lang.org/stable/reference/).
 //!
 //! Corrections in that regard are not automatically considered breaking changes,
@@ -60,6 +60,8 @@ macro_rules! wrappers {
 			$(
 				$(@ $PopFrom)?
 				impl PopFrom for $name {
+					type Parsed = Self;
+
 					fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 						fn parse(input: ParseStream) -> syn::Result<($wrapped, TokenStream)> {
 							Ok((<$wrapped>::parse(input)?, TokenStream::parse(input)?))
@@ -104,6 +106,8 @@ wrappers! {
 }
 
 impl PopFrom for ExpressionExceptStructExpression {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		fn parse(
 			input: ParseStream,
@@ -123,6 +127,8 @@ impl PopFrom for ExpressionExceptStructExpression {
 }
 
 impl PopFrom for Pattern {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		fn parse(input: ParseStream) -> syn::Result<(Pattern, TokenStream)> {
 			Ok((
@@ -140,6 +146,8 @@ impl PopFrom for Pattern {
 }
 
 impl PopFrom for SimplePath {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		fn parse(input: ParseStream) -> syn::Result<(SimplePath, TokenStream)> {
 			Ok((

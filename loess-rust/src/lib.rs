@@ -1,4 +1,4 @@
-//! Grammar tokens representing the stable Rust programming language,
+//! Grammar symbols representing the stable Rust programming language,
 //! closely following [The Rust Reference](https://doc.rust-lang.org/stable/reference/).
 //!
 //! Corrections in that regard are not automatically considered breaking changes,

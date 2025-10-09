@@ -7,12 +7,8 @@ use crate::{IntoTokens, grammar, quote_into_mixed_site, raw_quote_into_mixed_sit
 /// Parser- and serialiser-generator macro.
 ///
 /// ```
-/// use loess::{
-/// 	grammar,
-/// 	rust_grammar::{ // With the `"rust_grammar"` feature.
-/// 		Identifier, Let, Parentheses, SquareBrackets, Visibility,
-/// 	},
-/// };
+/// use loess::grammar;
+/// use loess_rust::{Identifier, Let, Parentheses, SquareBrackets, Visibility};
 /// use proc_macro2::{Ident, TokenTree, Punct};
 ///
 /// grammar! {
@@ -83,6 +79,8 @@ macro_rules! grammar {
 
 		    #[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		    impl $crate::PopFrom for $name {
+				type Parsed = Self;
+
 			    fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
 				    $crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopFrom>::peek_pop_from(input, errors)?),*) {
 					    Self::$variant(values)
@@ -135,6 +133,8 @@ macro_rules! grammar {
 
 		    #[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		    impl $crate::PopFrom for $name {
+				type Parsed = Self;
+
 			    fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
 				    $crate::__::Result::Ok(Self {
 					    $($field: <$type as $crate::PopFrom>::pop_from(input, errors)?,)*
@@ -181,6 +181,8 @@ macro_rules! grammar {
 
 		    #[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		    impl $crate::PopFrom for $name {
+				type Parsed = Self;
+
 			    fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
 				    $crate::__::Result::Ok(Self (
 					    $(<$type as $crate::PopFrom>::pop_from(input, errors)?,)*
@@ -230,7 +232,8 @@ macro_rules! grammar {
 /// better forwards-compatibility with future Rust edition consumers of your proc macro.
 ///
 /// ```rust
-/// use loess::{quote_into_mixed_site, rust_grammar::Identifier, SimpleSpanned};
+/// use loess::{quote_into_mixed_site, SimpleSpanned};
+/// use loess_rust::Identifier;
 /// use proc_macro2::TokenStream;
 ///
 /// fn my_quote(id1: Identifier, id2: Option<Identifier>, root: &TokenStream) -> TokenStream {

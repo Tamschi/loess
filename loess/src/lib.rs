@@ -70,11 +70,6 @@ use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
-//TODO (breaking): Remove this module here.
-#[deprecated = "The `rust_grammar` module has been spun out into the separate crates `loess-rust` and `loess-rust-opaque`."]
-#[cfg(any(doc, feature = "rust_grammar"))]
-pub mod rust_grammar;
-
 mod macros;
 pub use macros::__;
 
@@ -309,8 +304,8 @@ impl Errors {
 /// use loess::{
 /// 	grammar, parse_once, parse_all,
 /// 	Errors, Input, IntoTokens,
-/// 	rust_grammar::{SquareBrackets},
 /// };
+/// use loess_rust::SquareBrackets;
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
 /// // […]
@@ -537,6 +532,12 @@ impl Input {
 
 /// Consumes from [`Input`] to create <code>[`Result`]&lt;Self, ()></code> and emit to [`Errors`].
 pub trait PopFrom {
+	/// The result of parsing with this type.
+	///
+	/// This should usually be `Self` (except for decorators), but defaulting it is waiting on
+	/// the currently unstable feature [`associated_type_defaults`](https://github.com/rust-lang/rust/issues/29661).
+	type Parsed;
+
 	/// Tries to parse `Self` from an [`Input`], optionally emitting to [`Errors`].
 	///
 	/// # Returns
@@ -553,14 +554,14 @@ pub trait PopFrom {
 	///
 	/// It <em style=font-style:normal;font-variant:small-caps>may</em> still be recovered further up the call chain,
 	/// but there <em style=font-style:normal;font-variant:small-caps>should</em> be new [`Errors`] at this point!
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
 	where
 		Self: Sized;
 
 	/// Convenience function for <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.
 	///
 	/// This is used by [`grammar!`]-generated enum parsers.
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self::Parsed>, ()>
 	where
 		Self: PeekFrom + Sized,
 	{
@@ -569,7 +570,9 @@ pub trait PopFrom {
 }
 
 impl<T: PopFrom> PopFrom for Box<T> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	type Parsed = Box<T::Parsed>;
+
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
 	where
 		Self: Sized,
 	{
@@ -584,7 +587,9 @@ impl<T: IntoTokens> IntoTokens for Box<T> {
 }
 
 impl<T: PeekFrom + PopFrom> PopFrom for Option<T> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	type Parsed = Option<T::Parsed>;
+
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
 	where
 		Self: Sized,
 	{
@@ -636,7 +641,9 @@ const _: () = {
 	use crate::{EndOfInput, Errors, PopFrom};
 
 	impl<T: PopFrom> PopFrom for Vec<T> {
-		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		type Parsed = Vec<T::Parsed>;
+
+		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
 			let mut this = vec![];
 			while !input.is_empty() {
 				let before_len = input.len();
@@ -662,8 +669,10 @@ const _: () = {
 	}
 
 	impl<T: PopFrom> PopFrom for VecDeque<T> {
-		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-			let mut this = Self::default();
+		type Parsed = VecDeque<T::Parsed>;
+
+		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+			let mut this = Self::Parsed::default();
 			while !input.is_empty() {
 				let before_len = input.len();
 
@@ -693,10 +702,12 @@ const _: () = {
 pub struct Exhaustive<T, P: ConstErrorPriority>(pub T, PhantomData<P>);
 
 impl<T: PopFrom, P: ConstErrorPriority> PopFrom for Exhaustive<T, P> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	type Parsed = T::Parsed;
+
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
 		let value = T::pop_from(input, errors);
 		EndOfInput::<P>::pop_from(input, errors).ok();
-		Ok(Self(value?, PhantomData))
+		Ok(value?)
 	}
 }
 
@@ -712,18 +723,17 @@ pub struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
 
 /// Fails iff the [`Input`] isn't empty.
 impl<P: ConstErrorPriority> PopFrom for EndOfInput<P> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		input
-			.is_empty()
-			.then_some(Self(PhantomData))
-			.ok_or_else(|| {
-				let rest = input.tokens.iter().cloned().collect::<TokenStream>();
-				errors.push(Error::new(
-					P::PRIORITY,
-					format!("Unconsumed tokens: `{rest}`"),
-					rest.into_iter().map(|t| t.span()),
-				));
-			})
+	type Parsed = ();
+
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<(), ()> {
+		input.is_empty().then_some(()).ok_or_else(|| {
+			let rest = input.tokens.iter().cloned().collect::<TokenStream>();
+			errors.push(Error::new(
+				P::PRIORITY,
+				format!("Unconsumed tokens: `{rest}`"),
+				rest.into_iter().map(|t| t.span()),
+			));
+		})
 	}
 }
 
@@ -776,8 +786,12 @@ impl<T: ?Sized + PeekFrom> PeekFrom for Eager<T> {
 	}
 }
 
-impl<T: IntoIterator<Item: PeekFrom + PopFrom> + FromIterator<T::Item>> PopFrom for Eager<T> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl<T: IntoIterator<Item: PeekFrom + PopFrom> + FromIterator<<T::Item as PopFrom>::Parsed>> PopFrom
+	for Eager<T>
+{
+	type Parsed = T;
+
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
 	where
 		Self: Sized,
 	{
@@ -880,7 +894,10 @@ pub(crate) fn parse_once_with_impl<'a, T>(
 ///
 /// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
 /// <code>[parse_all](input, errors).[next()](`Iterator::next`)</code> instead.
-pub fn parse_once<'a, T: PopFrom>(input: &'a mut Input, errors: &'a mut Errors) -> Result<T, ()> {
+pub fn parse_once<'a, T: PopFrom>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+) -> Result<T::Parsed, ()> {
 	parse_once_with_impl(input, errors, T::pop_from)
 }
 
@@ -1107,7 +1124,7 @@ pub fn parse_all_with<'a, T: 'a>(
 /// 	};
 /// 	let mut errors = Errors::new();
 ///
-/// 	let tts: Vec<TokenTree> = parse_all(&mut input, &mut errors)
+/// 	let tts: Vec<TokenTree> = parse_all::<TokenTree>(&mut input, &mut errors)
 /// 		.collect(); // Checks for exhaustiveness.
 ///
 /// 	let root = TokenStream::new(); // See `IntoTokens`.
@@ -1154,6 +1171,6 @@ pub fn parse_all_with<'a, T: 'a>(
 pub fn parse_all<'a, T: 'a + PopFrom>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-) -> impl 'a + Iterator<Item = T> {
+) -> impl 'a + Iterator<Item = T::Parsed> {
 	parse_all_with(input, errors, T::pop_from)
 }

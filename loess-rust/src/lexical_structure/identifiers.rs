@@ -21,6 +21,8 @@ impl PeekFrom for Identifier {
 
 /// See <https://doc.rust-lang.org/stable/reference/identifiers.html?highlight=IDENTIFIER#identifiers> as of 2025-04-13.
 impl PopFrom for Identifier {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		let ident = Ident::peek_pop_from(input, errors)?;
 

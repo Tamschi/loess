@@ -32,6 +32,8 @@ impl PeekFrom for StringLiteral {
 }
 
 impl PopFrom for StringLiteral {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|t, _| match t {
@@ -64,6 +66,8 @@ impl PeekFrom for RawStringLiteral {
 }
 
 impl PopFrom for RawStringLiteral {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|t, _| match t {

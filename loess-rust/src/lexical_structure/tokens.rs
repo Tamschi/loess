@@ -25,6 +25,8 @@ impl PeekFrom for RArrow {
 }
 
 impl PopFrom for RArrow {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
@@ -77,6 +79,8 @@ impl PeekFrom for DotDot {
 }
 
 impl PopFrom for DotDot {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, rest| match tts {
@@ -122,6 +126,8 @@ impl PeekFrom for Semi {
 }
 
 impl PopFrom for Semi {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
@@ -161,6 +167,8 @@ impl PeekFrom for Comma {
 }
 
 impl PopFrom for Comma {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
@@ -200,6 +208,8 @@ impl PeekFrom for Or {
 }
 
 impl PopFrom for Or {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
@@ -241,6 +251,8 @@ impl PeekFrom for Dot {
 }
 
 impl PopFrom for Dot {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
@@ -284,6 +296,8 @@ impl PeekFrom for Colon {
 }
 
 impl PopFrom for Colon {
+	type Parsed = Self;
+
 	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
@@ -320,6 +334,8 @@ macro_rules! ident_token {
 		}
 
 		impl PopFrom for $name {
+			type Parsed = Self;
+
 			fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 			where
 				Self: Sized,
