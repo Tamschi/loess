@@ -16,27 +16,9 @@ categories = ["development-tools::procedural-macro-helpers"]
 publish = false
 
 [features]
-#TODO (breaking): Remove this alongside optional modules.
-rust_grammar = []
-
-# Uses Syn to add basic support for more Rust grammar.
-opaque_rust_grammar = ["rust_grammar", "dep:syn", "dep:quote"]
 
 [dependencies]
 proc-macro2 = { version = "1.0.34", features = ["span-locations"] }
-quote = { version = "1.0.40", default-features = false, optional = true }
-
-# Private dependency! Do not implement Loess traits on Syn types or vice versa.
-syn = { version = "2.0.100", optional = true, default-features = false, features = [
-    "clone-impls",
-    "full",
-    "parsing",
-    "printing",
-] }
-
-#TODO (breaking): Remove this alongside optional modules.
-[package.metadata.docs.rs]
-all-features = true
 
 [package.metadata.cargo-semver-checks.lints]
 workspace = true

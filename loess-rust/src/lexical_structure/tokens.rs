@@ -1,4 +1,7 @@
-use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, SimpleSpanned};
+use loess::{
+	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, SimpleSpanned,
+	grammar_helpers::PopParsedFrom,
+};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 
 /// `->`
@@ -24,8 +27,9 @@ impl PeekFrom for RArrow {
 	}
 }
 
-impl PopFrom for RArrow {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for RArrow {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(minus), TokenTree::Punct(gt)]
@@ -76,8 +80,9 @@ impl PeekFrom for DotDot {
 	}
 }
 
-impl PopFrom for DotDot {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for DotDot {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, rest| match tts {
 				[TokenTree::Punct(dot0), TokenTree::Punct(dot1)]
@@ -121,8 +126,9 @@ impl PeekFrom for Semi {
 	}
 }
 
-impl PopFrom for Semi {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for Semi {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(semi)] if semi.as_char() == ';' => Ok(Self(semi)),
@@ -160,8 +166,9 @@ impl PeekFrom for Comma {
 	}
 }
 
-impl PopFrom for Comma {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for Comma {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(comma)] if comma.as_char() == ',' => Ok(Self(comma)),
@@ -199,8 +206,9 @@ impl PeekFrom for Or {
 	}
 }
 
-impl PopFrom for Or {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for Or {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(or)] if or.as_char() == '|' && or.spacing() == Spacing::Alone => {
@@ -240,8 +248,9 @@ impl PeekFrom for Dot {
 	}
 }
 
-impl PopFrom for Dot {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for Dot {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(dot)]
@@ -283,8 +292,9 @@ impl PeekFrom for Colon {
 	}
 }
 
-impl PopFrom for Colon {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for Colon {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(colon)]
@@ -319,8 +329,9 @@ macro_rules! ident_token {
 			}
 		}
 
-		impl PopFrom for $name {
-			fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+		impl PopParsedFrom for $name {
+			type Parsed = Self;
+			fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 			where
 				Self: Sized,
 			{

@@ -1,6 +1,8 @@
-use crate::{ErrorPriority, Errors, Input, IntoTokens, PeekFrom, SimpleSpanned};
+use crate::{
+	ErrorPriority, Errors, Input, IntoTokens, PeekFrom, SimpleSpanned, grammar_helpers::PopParsedFrom,
+};
 
-use super::{Error, PopFrom};
+use super::Error;
 use proc_macro2::{Group, Ident, Literal, Punct, Span, TokenStream, TokenTree};
 
 impl PeekFrom for Group {
@@ -40,8 +42,9 @@ impl PeekFrom for TokenStream {
 	}
 }
 
-impl PopFrom for Group {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl PopParsedFrom for Group {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
 	{
@@ -56,8 +59,9 @@ impl PopFrom for Group {
 	}
 }
 
-impl PopFrom for Ident {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl PopParsedFrom for Ident {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
 	{
@@ -72,8 +76,9 @@ impl PopFrom for Ident {
 	}
 }
 
-impl PopFrom for Punct {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl PopParsedFrom for Punct {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
 	{
@@ -88,8 +93,9 @@ impl PopFrom for Punct {
 	}
 }
 
-impl PopFrom for Literal {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl PopParsedFrom for Literal {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
 	{
@@ -104,8 +110,9 @@ impl PopFrom for Literal {
 	}
 }
 
-impl PopFrom for TokenTree {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl PopParsedFrom for TokenTree {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
 	{
@@ -116,8 +123,9 @@ impl PopFrom for TokenTree {
 }
 
 /// Exhaustive, infallible.
-impl PopFrom for TokenStream {
-	fn pop_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for TokenStream {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, ()> {
 		Ok(input.tokens.drain(..).collect())
 	}
 }

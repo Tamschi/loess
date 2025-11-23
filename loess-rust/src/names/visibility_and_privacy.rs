@@ -1,4 +1,7 @@
-use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom};
+use loess::{
+	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom,
+	grammar_helpers::PopParsedFrom,
+};
 use proc_macro2::{TokenStream, TokenTree};
 
 use crate::{Parentheses, Pub};
@@ -19,13 +22,14 @@ impl<T> PeekFrom for Visibility<T> {
 	}
 }
 
-impl<T: PopFrom> PopFrom for Visibility<T> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl<T: PopParsedFrom> PopParsedFrom for Visibility<T> {
+	type Parsed = Visibility<T::Parsed>;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
 		if let Some(r#pub) = Pub::peek_pop_from(input, errors)? {
-			Ok(Self {
+			Ok(Self::Parsed {
 				r#pub,
 				parentheses: Parentheses::<TokenStream>::peek_from(input)
-					.then(|| Parentheses::pop_from(input, errors))
+					.then(|| Parentheses::<T>::pop_parsed_from(input, errors))
 					.transpose()?,
 			})
 		} else {

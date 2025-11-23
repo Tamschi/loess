@@ -1,4 +1,7 @@
-use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, grammar};
+use loess::{
+	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, grammar,
+	grammar_helpers::PopParsedFrom,
+};
 use proc_macro2::{Literal, TokenTree};
 
 grammar! {
@@ -31,8 +34,9 @@ impl PeekFrom for StringLiteral {
 	}
 }
 
-impl PopFrom for StringLiteral {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for StringLiteral {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|t, _| match t {
 				[TokenTree::Literal(literal)] if literal.to_string().starts_with('"') => {
@@ -63,8 +67,9 @@ impl PeekFrom for RawStringLiteral {
 	}
 }
 
-impl PopFrom for RawStringLiteral {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for RawStringLiteral {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|t, _| match t {
 				[TokenTree::Literal(literal)] if literal.to_string().starts_with('r') => {

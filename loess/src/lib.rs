@@ -60,7 +60,7 @@ use std::{
 	iter::{self},
 	marker::PhantomData,
 	mem,
-	ops::{Deref, DerefMut},
+	ops::RangeBounds,
 	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
 	vec,
 };
@@ -70,13 +70,13 @@ use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
-//TODO (breaking): Remove this module here.
-#[deprecated = "The `rust_grammar` module has been spun out into the separate crates `loess-rust` and `loess-rust-opaque`."]
-#[cfg(any(doc, feature = "rust_grammar"))]
-pub mod rust_grammar;
+pub mod grammar_helpers;
+use grammar_helpers::PopParsedFrom;
 
 mod macros;
 pub use macros::__;
+
+use crate::grammar_helpers::Vacant;
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  
 /// Usually submitted through [`Errors::push`].
@@ -533,10 +533,17 @@ impl Input {
 			self.push_front(t);
 		}
 	}
+
+	pub fn drain_spans(&mut self, range: impl RangeBounds<usize>) -> impl Iterator<Item = Span> {
+		let end = self.is_empty().then_some(self.end);
+		self.tokens.drain(range).map(|tt| tt.span()).chain(end)
+	}
 }
 
 /// Consumes from [`Input`] to create <code>[`Result`]&lt;Self, ()></code> and emit to [`Errors`].
-pub trait PopFrom {
+///
+/// This is a sealed trait with easier type inference. To implement this trait, implement <code>[`PopParsedFrom`]&lt;Parsed = Self></code>.
+pub trait PopFrom: PopParsedFrom<Parsed = Self> {
 	/// Tries to parse `Self` from an [`Input`], optionally emitting to [`Errors`].
 	///
 	/// # Returns
@@ -568,12 +575,26 @@ pub trait PopFrom {
 	}
 }
 
-impl<T: PopFrom> PopFrom for Box<T> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl<T: PopParsedFrom<Parsed = Self>> PopFrom for T {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		Self::pop_parsed_from(input, errors)
+	}
+
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
+	where
+		Self: PeekFrom,
+	{
+		Self::peek_pop_parsed_from(input, errors)
+	}
+}
+
+impl<T: PopParsedFrom> PopParsedFrom for Box<T> {
+	type Parsed = Box<T::Parsed>;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
 	where
 		Self: Sized,
 	{
-		Ok(Box::new(T::pop_from(input, errors)?))
+		Ok(Box::new(T::pop_parsed_from(input, errors)?))
 	}
 }
 
@@ -583,13 +604,14 @@ impl<T: IntoTokens> IntoTokens for Box<T> {
 	}
 }
 
-impl<T: PeekFrom + PopFrom> PopFrom for Option<T> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+impl<T: PeekFrom + PopParsedFrom> PopParsedFrom for Option<T> {
+	type Parsed = Option<T::Parsed>;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
 	where
 		Self: Sized,
 	{
 		T::peek_from(input)
-			.then(|| T::pop_from(input, errors))
+			.then(|| T::pop_parsed_from(input, errors))
 			.transpose()
 	}
 }
@@ -635,13 +657,14 @@ const _: () = {
 
 	use crate::{EndOfInput, Errors, PopFrom};
 
-	impl<T: PopFrom> PopFrom for Vec<T> {
-		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	impl<T: PopParsedFrom> PopParsedFrom for Vec<T> {
+		type Parsed = Vec<T::Parsed>;
+		fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
 			let mut this = vec![];
 			while !input.is_empty() {
 				let before_len = input.len();
 
-				match T::pop_from(input, errors) {
+				match T::pop_parsed_from(input, errors) {
 					Ok(item) => this.extend([item]),
 					Err(()) => {
 						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).ok();
@@ -661,13 +684,14 @@ const _: () = {
 		}
 	}
 
-	impl<T: PopFrom> PopFrom for VecDeque<T> {
-		fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-			let mut this = Self::default();
+	impl<T: PopParsedFrom> PopParsedFrom for VecDeque<T> {
+		type Parsed = VecDeque<T::Parsed>;
+		fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+			let mut this = Self::Parsed::default();
 			while !input.is_empty() {
 				let before_len = input.len();
 
-				match T::pop_from(input, errors) {
+				match T::pop_parsed_from(input, errors) {
 					Ok(item) => this.extend([item]),
 					Err(()) => {
 						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).ok();
@@ -689,20 +713,14 @@ const _: () = {
 };
 
 /// Doesn't fail to parse but emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`] after `T`.
-#[derive(Clone)]
-pub struct Exhaustive<T, P: ConstErrorPriority>(pub T, PhantomData<P>);
+pub struct Exhaustive<T, P: ConstErrorPriority>(PhantomData<(T, P)>, Vacant);
 
-impl<T: PopFrom, P: ConstErrorPriority> PopFrom for Exhaustive<T, P> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		let value = T::pop_from(input, errors);
+impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P> {
+	type Parsed = T::Parsed;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+		let value = T::pop_parsed_from(input, errors);
 		EndOfInput::<P>::pop_from(input, errors).ok();
-		Ok(Self(value?, PhantomData))
-	}
-}
-
-impl<T: IntoTokens, P: ConstErrorPriority> IntoTokens for Exhaustive<T, P> {
-	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		self.0.into_tokens(root, tokens)
+		Ok(value?)
 	}
 }
 
@@ -711,8 +729,9 @@ impl<T: IntoTokens, P: ConstErrorPriority> IntoTokens for Exhaustive<T, P> {
 pub struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
 
 /// Fails iff the [`Input`] isn't empty.
-impl<P: ConstErrorPriority> PopFrom for EndOfInput<P> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl<P: ConstErrorPriority> PopParsedFrom for EndOfInput<P> {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.is_empty()
 			.then_some(Self(PhantomData))
@@ -742,52 +761,6 @@ pub trait SimpleSpanned {
 	{
 		self.set_span(span);
 		self
-	}
-}
-
-/// Wraps a collection type to eagerly parse values that are [`PeekFrom`],
-/// but to stop when [`PopFrom::peek_pop_from`] returns [`None`].
-pub struct Eager<T: ?Sized>(pub T);
-
-impl<T: ?Sized> Deref for Eager<T> {
-	type Target = T;
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
-}
-
-impl<T: ?Sized> DerefMut for Eager<T> {
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.0
-	}
-}
-
-impl<T: FromIterator<A>, A> FromIterator<A> for Eager<T> {
-	fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
-		Self(iter.into_iter().collect())
-	}
-}
-
-impl<T: ?Sized + PeekFrom> PeekFrom for Eager<T> {
-	fn peek_from(input: &Input) -> bool {
-		// This, hypothetically, makes combinations like `Option<Eager<Vec1<_>>>` work correctly.
-		T::peek_from(input)
-	}
-}
-
-impl<T: IntoIterator<Item: PeekFrom + PopFrom> + FromIterator<T::Item>> PopFrom for Eager<T> {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
-	where
-		Self: Sized,
-	{
-		iter::from_fn(|| T::Item::peek_pop_from(input, errors).transpose()).collect()
-	}
-}
-
-impl<T: IntoTokens> IntoTokens for Eager<T> {
-	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
-		self.0.into_tokens(root, tokens);
 	}
 }
 

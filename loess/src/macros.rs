@@ -2,7 +2,7 @@
 use proc_macro2::{Span, TokenTree};
 
 #[cfg(doc)]
-use crate::{IntoTokens, grammar, quote_into_mixed_site, raw_quote_into_mixed_site};
+use crate::{IntoTokens, grammar_helpers, quote_into_mixed_site, raw_quote_into_mixed_site};
 
 /// Parser- and serialiser-generator macro.
 ///
@@ -52,6 +52,7 @@ use crate::{IntoTokens, grammar, quote_into_mixed_site, raw_quote_into_mixed_sit
 /// [`grammar!`] is fully hygienic and uses `$crate`, so can rename dependencies freely.
 #[macro_export]
 macro_rules! grammar {
+		//TODO: Adjust the rest of this to use PopParsedFrom!
 	    {
 		    $(#[$($attr:tt)*])*
 		    $vis:vis enum $name:ident$(: $(
@@ -70,7 +71,7 @@ macro_rules! grammar {
 		    $(#[$($attr)*])*
 		    $vis enum $name {$(
 			    $(#[$($variant_attr)*])*
-			    $variant($($type),*),
+			    $variant($(<$type as $crate::grammar_helpers::PopParsedFrom>::Parsed),*),
 		    )*}
 
 		    #[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
@@ -82,9 +83,10 @@ macro_rules! grammar {
 		    }
 
 		    #[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		    impl $crate::PopFrom for $name {
-			    fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				    $crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopFrom>::peek_pop_from(input, errors)?),*) {
+		    impl $crate::grammar_helpers::PopParsedFrom for $name {
+				type Parsed = Self;
+			    fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				    $crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::grammar_helpers::PopParsedFrom>::peek_pop_parsed_from(input, errors)?),*) {
 					    Self::$variant(values)
 				    } else)* {
 					    return $crate::__::Result::Err(errors.push($crate::Error::new(

@@ -9,7 +9,7 @@
 //! *Note that unstable grammar **is** accidentally accepted in some cases.*  
 //! ***Ceasing to accept unstable grammar is not by itself considered a breaking change for Loess.***
 
-use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PopFrom};
+use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, grammar_helpers::PopParsedFrom};
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
@@ -59,8 +59,9 @@ macro_rules! wrappers {
 
 			$(
 				$(@ $PopFrom)?
-				impl PopFrom for $name {
-					fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+				impl PopParsedFrom for $name {
+					type Parsed = Self;
+					fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 						fn parse(input: ParseStream) -> syn::Result<($wrapped, TokenStream)> {
 							Ok((<$wrapped>::parse(input)?, TokenStream::parse(input)?))
 						}
@@ -103,8 +104,9 @@ wrappers! {
 	Statement(Stmt): PopFrom, IntoTokens;
 }
 
-impl PopFrom for ExpressionExceptStructExpression {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for ExpressionExceptStructExpression {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		fn parse(
 			input: ParseStream,
 		) -> syn::Result<(ExpressionExceptStructExpression, TokenStream)> {
@@ -122,8 +124,9 @@ impl PopFrom for ExpressionExceptStructExpression {
 	}
 }
 
-impl PopFrom for Pattern {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for Pattern {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		fn parse(input: ParseStream) -> syn::Result<(Pattern, TokenStream)> {
 			Ok((
 				Pattern(Pat::parse_multi_with_leading_vert(input)?),
@@ -139,8 +142,9 @@ impl PopFrom for Pattern {
 	}
 }
 
-impl PopFrom for SimplePath {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+impl PopParsedFrom for SimplePath {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		fn parse(input: ParseStream) -> syn::Result<(SimplePath, TokenStream)> {
 			Ok((
 				SimplePath(Path::parse_mod_style(input)?),
