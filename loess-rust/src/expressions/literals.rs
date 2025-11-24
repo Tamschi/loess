@@ -1,7 +1,4 @@
-use loess::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, grammar,
-	grammar_helpers::PopParsedFrom,
-};
+use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopParsedFrom, grammar};
 use proc_macro2::{Literal, TokenTree};
 
 grammar! {

@@ -1,6 +1,5 @@
 use loess::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, SimpleSpanned,
-	grammar_helpers::PopParsedFrom,
+	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopParsedFrom, SimpleSpanned,
 };
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 

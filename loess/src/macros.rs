@@ -2,7 +2,7 @@
 use proc_macro2::{Span, TokenTree};
 
 #[cfg(doc)]
-use crate::{IntoTokens, grammar_helpers, quote_into_mixed_site, raw_quote_into_mixed_site};
+use crate::{IntoTokens, grammar, quote_into_mixed_site, raw_quote_into_mixed_site};
 
 /// Parser- and serialiser-generator macro.
 ///
@@ -52,173 +52,174 @@ use crate::{IntoTokens, grammar_helpers, quote_into_mixed_site, raw_quote_into_m
 /// [`grammar!`] is fully hygienic and uses `$crate`, so can rename dependencies freely.
 #[macro_export]
 macro_rules! grammar {
-		//TODO: Adjust the rest of this to use PopParsedFrom!
-	    {
-		    $(#[$($attr:tt)*])*
-		    $vis:vis enum $name:ident$(: $(
-			    $(doc $(@ $doc:tt)?)?
-			    $(PeekFrom $(@ $PeekFrom:tt)?)?
-			    $(PopFrom $(@ $PopFrom:tt)?)?
-			    $(IntoTokens $(@ $IntoTokens:tt)?)?
-		    ),*)? {$(
-			    $(#[$($variant_attr:tt)*])*
-			    $variant:ident($($type:ty),*$(,)?)
-		    ),*$(,)?} else $error:expr;
+	{
+		$(#[$($attr:tt)*])*
+		$vis:vis enum $name:ident$(: $(
+			$(doc $(@ $doc:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+		),*)? {$(
+			$(#[$($variant_attr:tt)*])*
+			$variant:ident($($type:ty),*$(,)?)
+		),*$(,)?} else $error:expr;
 
-		    $($tt:tt)*
-	    } => {
-		    #[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::grammar!(@enum_doc [$([$($type,)*])*]))]
-		    $(#[$($attr)*])*
-		    $vis enum $name {$(
-			    $(#[$($variant_attr)*])*
-			    $variant($(<$type as $crate::grammar_helpers::PopParsedFrom>::Parsed),*),
-		    )*}
+		$($tt:tt)*
+	} => {
+		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::grammar!(@enum_doc [$([$($type,)*])*]))]
+		$(#[$($attr)*])*
+		$vis enum $name {$(
+			$(#[$($variant_attr)*])*
+			$variant($(<$type as $crate::PopParsedFrom>::Parsed),*),
+		)*}
 
-		    #[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		    impl $crate::PeekFrom for $name {
-			    fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				    false
-				    $(|| $crate::grammar!(@peek_first $name input $($type,)*))*
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				false
+				$(|| $crate::grammar!(@peek_first $name input $($type,)*))*
+			}
+		}
 
-		    #[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		    impl $crate::grammar_helpers::PopParsedFrom for $name {
-				type Parsed = Self;
-			    fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				    $crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::grammar_helpers::PopParsedFrom>::peek_pop_parsed_from(input, errors)?),*) {
-					    Self::$variant(values)
-				    } else)* {
-					    return $crate::__::Result::Err(errors.push($crate::Error::new(
-						    $crate::ErrorPriority::GRAMMAR,
-						    $error,
-						    [input.front_span()],
-					    )));
-				    })
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
+		impl $crate::PopParsedFrom for $name {
+			type Parsed = Self;
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopParsedFrom>::peek_pop_parsed_from(input, errors)?),*) {
+					Self::$variant(values)
+				} else)* {
+					return $crate::__::Result::Err(errors.push($crate::Error::new(
+						$crate::ErrorPriority::GRAMMAR,
+						$error,
+						[input.front_span()],
+					)));
+				})
+			}
+		}
 
-		    #[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
-		    impl $crate::IntoTokens for $name {
-			    fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				    match self {
-					    $(Self::$variant(value) => $crate::IntoTokens::into_tokens(value, root, tokens),)*
-				    }
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
+		impl $crate::IntoTokens for $name {
+			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
+				match self {
+					$(Self::$variant(value) => $crate::IntoTokens::into_tokens(value, root, tokens),)*
+				}
+			}
+		}
 
-		    $crate::grammar!($($tt)*);
-	    };
-	    {
-		    $(#[$($attr:tt)*])*
-		    $vis:vis struct $name:ident$(: $(
-			    $(PeekFrom $(@ $PeekFrom:tt)?)?
-			    $(PopFrom $(@ $PopFrom:tt)?)?
-			    $(IntoTokens $(@ $IntoTokens:tt)?)?
-		    ),*)? {$(
-			    $(#[$($field_attr:tt)*])*
-			    $field_vis:vis $field:ident: $type:ty
-		    ),*$(,)?}
+		$crate::grammar!($($tt)*);
+	};
+	{
+		$(#[$($attr:tt)*])*
+		$vis:vis struct $name:ident$(: $(
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+		),*)? {$(
+			$(#[$($field_attr:tt)*])*
+			$field_vis:vis $field:ident: $type:ty
+		),*$(,)?}
 
-		    $($tt:tt)*
-	    } => {
-		    $(#[$($attr)*])*
-		    $vis struct $name {$(
-			    $(#[$($field_attr)*])*
-			    $field_vis $field: $type,
-		    )*}
+		$($tt:tt)*
+	} => {
+		$(#[$($attr)*])*
+		$vis struct $name {$(
+			$(#[$($field_attr)*])*
+			$field_vis $field: <$type as $crate::PopParsedFrom>::Parsed,
+		)*}
 
-		    #[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		    impl $crate::PeekFrom for $name {
-			    fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				    $crate::grammar!(@peek_first $name input $($type,)*)
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				$crate::grammar!(@peek_first $name input $($type,)*)
+			}
+		}
 
-		    #[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		    impl $crate::PopFrom for $name {
-			    fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				    $crate::__::Result::Ok(Self {
-					    $($field: <$type as $crate::PopFrom>::pop_from(input, errors)?,)*
-				    })
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
+		impl $crate::PopParsedFrom for $name {
+			type Parsed = Self;
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok(Self {
+					$($field: <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,)*
+				})
+			}
+		}
 
-		    #[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
-		    impl $crate::IntoTokens for $name {
-			    fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				    let Self {
-					    $($field,)*
-				    } = self;
-				    $($crate::IntoTokens::into_tokens($field, root, tokens);)*
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
+		impl $crate::IntoTokens for $name {
+			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
+				let Self {
+					$($field,)*
+				} = self;
+				$($crate::IntoTokens::into_tokens($field, root, tokens);)*
+			}
+		}
 
-		    $crate::grammar!($($tt)*);
-	    };
-	    {
-		    $(#[$($attr:tt)*])*
-		    $vis:vis struct $name:ident$(: $(
-			    $(PeekFrom $(@ $PeekFrom:tt)?)?
-			    $(PopFrom $(@ $PopFrom:tt)?)?
-		    ),*)? ($(
-			    $(#[$($field_attr:tt)*])*
-			    $field_vis:vis $type:ty
-		    ),*$(,)?);
+		$crate::grammar!($($tt)*);
+	};
+	{
+		$(#[$($attr:tt)*])*
+		$vis:vis struct $name:ident$(: $(
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+		),*)? ($(
+			$(#[$($field_attr:tt)*])*
+			$field_vis:vis $type:ty
+		),*$(,)?);
 
-		    $($tt:tt)*
-	    } => {
-		    $(#[$($attr)*])*
-		    $vis struct $name ($(
-			    $(#[$($field_attr)*])*
-			    $field_vis $type,
-		    )*);
+		$($tt:tt)*
+	} => {
+		$(#[$($attr)*])*
+		$vis struct $name ($(
+			$(#[$($field_attr)*])*
+			$field_vis <$type as $crate::PopParsedFrom>::Parsed,
+		)*);
 
-		    #[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		    impl $crate::PeekFrom for $name {
-			    fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				    $crate::grammar!(@peek_first $name input $($type,)*)
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				$crate::grammar!(@peek_first $name input $($type,)*)
+			}
+		}
 
-		    #[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		    impl $crate::PopFrom for $name {
-			    fn pop_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				    $crate::__::Result::Ok(Self (
-					    $(<$type as $crate::PopFrom>::pop_from(input, errors)?,)*
-				    ))
-			    }
-		    }
+		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
+		impl $crate::PopParsedFrom for $name {
+			type Parsed = Self;
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok(Self (
+					$(<$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,)*
+				))
+			}
+		}
 
-		    $crate::grammar!($($tt)*);
-	    };
-	    (@peek_first $name:ident $input:ident $type:ty, $($rest:ty,)*) => (
-		    <$type as $crate::PeekFrom>::peek_from($input)
-	    );
-	    (@peek_first $name:ident $input:ident) => (
-		    ::core::compile_error!($crate::__::concat!("To implement `PeekFrom` for `", $crate::__::stringify!($name), "`, at least one field is necessary."))
-	    );
-	    (@enum_doc []) => (
-		    // Empty.
-		    ""
-	    );
-	    (@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*]) => (
-		    // Start.
-		    $crate::grammar!(@enum_doc [$([$($type,)*])*] [$("[`", $crate::__::stringify!($type0), "`] ", )*])
-	    );
-	    (@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*] [$($output:tt)*]) => (
-		    // Continue.
-		    $crate::grammar!(@enum_doc [$([$($type,)*])*] [$($output)* "| ", $("[`", $crate::__::stringify!($type0), "`] ", )*])
-	    );
-	    (@enum_doc [] [$($output:tt)*]) => (
-		    // End.
-		    $crate::__::concat!($($output)*)
-	    );
-	    {$t:tt $($tt:tt)*} => {
-		    // Error
-		    ::core::compile_error!($crate::__::concat!("Unexpected grammar input: ", $crate::__::stringify!($t $($tt)*)));
-	    };
-	    {} => {}; // Stop.
+		$crate::grammar!($($tt)*);
+	};
+	(@peek_first $name:ident $input:ident $type:ty, $($rest:ty,)*) => (
+		<$type as $crate::PeekFrom>::peek_from($input)
+	);
+	(@peek_first $name:ident $input:ident) => (
+		::core::compile_error!($crate::__::concat!("To implement `PeekFrom` for `", $crate::__::stringify!($name), "`, at least one field is necessary."))
+	);
+	(@enum_doc []) => (
+		// Empty.
+		""
+	);
+	(@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*]) => (
+		// Start.
+		$crate::grammar!(@enum_doc [$([$($type,)*])*] [$("[`", $crate::__::stringify!($type0), "`] ", )*])
+	);
+	(@enum_doc [[$($type0:ty,)*] $([$($type:ty,)*])*] [$($output:tt)*]) => (
+		// Continue.
+		$crate::grammar!(@enum_doc [$([$($type,)*])*] [$($output)* "| ", $("[`", $crate::__::stringify!($type0), "`] ", )*])
+	);
+	(@enum_doc [] [$($output:tt)*]) => (
+		// End.
+		$crate::__::concat!($($output)*)
+	);
+	{$t:tt $($tt:tt)*} => {
+		// Error
+		::core::compile_error!($crate::__::concat!("Unexpected grammar input: ", $crate::__::stringify!($t $($tt)*)));
+	};
+	{} => {}; // Stop.
 }
 
 /// Simple generic quotation (statement) macro that works well with Loess's types.
@@ -1107,9 +1108,9 @@ pub mod __ {
 
 	pub fn raw(span: Span, tokens: &mut impl Extend<TokenTree>, stringified: &str) {
 		tokens.extend(assign_span(
-			    span,
-			    TokenStream::from_str(stringified).expect("Failed to parse stringified tokens, somehow. (Are you using the internal API from another crate? Please don't.)"),
-		    ))
+			span,
+			TokenStream::from_str(stringified).expect("Failed to parse stringified tokens, somehow. (Are you using the internal API from another crate? Please don't.)"),
+		))
 	}
 
 	pub const fn strip_dot(s: &str) -> &str {

@@ -2,7 +2,7 @@ use std::{any::type_name, iter, marker::PhantomData};
 
 use crate::{Error, ErrorPriority, Errors, Input, PeekFrom};
 
-//TODO: Publish from crate root!
+/// Consumes from [`Input`] to create <code>[`Result`]&lt;Self::[Parsed](`PopParsedFrom::Parsed`), ()></code> and emit to [`Errors`].
 pub trait PopParsedFrom {
 	type Parsed;
 

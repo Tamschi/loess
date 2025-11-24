@@ -33,22 +33,7 @@
 //! due to e.g. missing items, making it much easier for your macro's users to find problems with the input.
 //!
 //! You can download a *.code-snippets* file for Loess's macros and quote macro directives here:
-//! <https://github.com/Tamschi/Asteracea/blob/develop/.vscode/Loess.code-snippets>
-//!
-//! # Features
-//!
-//! None are default, as DSL macros might not need Rust's grammar at all.
-//!
-//! ## `"rust_grammar"`
-//!
-//! Enables [`rust_grammar`].
-//!
-//! ## `"opaque_rust_grammar"` <sub>enables `"rust_grammar"`, depends on `syn` and `quote`</sub>
-//!
-//! Adds additional opaque Rust grammar symbols, to consume, paste and clone for example
-//! Statements and Patterns.
-//!
-//! These preliminary implementations are [Syn](https://docs.rs/syn)-based and can't be inspected.
+//! <https://github.com/Tamschi/loess/blob/develop/.vscode/Loess.code-snippets>
 
 #![warn(clippy::pedantic, missing_docs)]
 
@@ -70,11 +55,26 @@ use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
-pub mod grammar_helpers;
-use grammar_helpers::PopParsedFrom;
+mod groups;
+
+mod grammar_helpers;
+pub use grammar_helpers::PopParsedFrom;
 
 mod macros;
 pub use macros::__;
+
+//TODO: Reorganise folder structure.
+pub mod scaffold {
+	pub use crate::{
+		grammar_helpers::{Eager, OnePlusEager, Separated},
+		groups::{CurlyBraces, MetaGroup, Parentheses, SquareBrackets},
+	};
+
+	//TODO: EagerPlusOne -> Eager<Repeat>
+	//TODO: Repeat -> Lower and upper bound on repetition.
+	//TODO: Repeat<Separated>
+	//TODO: Eager<Repeat<Separated>>
+}
 
 use crate::grammar_helpers::Vacant;
 
@@ -309,7 +309,7 @@ impl Errors {
 /// use loess::{
 /// 	grammar, parse_once, parse_all,
 /// 	Errors, Input, IntoTokens,
-/// 	rust_grammar::{SquareBrackets},
+/// 	SquareBrackets,
 /// };
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
@@ -540,9 +540,9 @@ impl Input {
 	}
 }
 
-/// Consumes from [`Input`] to create <code>[`Result`]&lt;Self, ()></code> and emit to [`Errors`].
+/// Proxies <code>[`PopParsedFrom`]&lt;Parsed = Self></code> with easier type inference.
 ///
-/// This is a sealed trait with easier type inference. To implement this trait, implement <code>[`PopParsedFrom`]&lt;Parsed = Self></code>.
+/// This is effectively a sealed trait. To implement this trait, implement [`PopParsedFrom`] with `type Parsed = Self;`.
 pub trait PopFrom: PopParsedFrom<Parsed = Self> {
 	/// Tries to parse `Self` from an [`Input`], optionally emitting to [`Errors`].
 	///
@@ -616,8 +616,8 @@ impl<T: PeekFrom + PopParsedFrom> PopParsedFrom for Option<T> {
 	}
 }
 
-/// Determines if `Self` may be be parseable from an [`Input`].  
-/// This is often a cursory check!
+/// Determines if `Self` may be be parseable from an [`Input`].
+/// **This is often a cursory check!**
 ///
 /// Used for variant selection in <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.  
 /// Does **not** affect <code>[`Vec`]&lt;Self></code> or <code>[`VecDeque`]&lt;Self></code> parsing, which is exhaustive.
@@ -712,6 +712,7 @@ const _: () = {
 	}
 };
 
+//TODO: Move into grammar module.
 /// Doesn't fail to parse but emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`] after `T`.
 pub struct Exhaustive<T, P: ConstErrorPriority>(PhantomData<(T, P)>, Vacant);
 
@@ -724,6 +725,8 @@ impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P>
 	}
 }
 
+//TODO: Move into grammar module.
+//TODO: Unpublish? Probably! Maybe replace on input with some into_unconsumed_tokens_error.
 /// Fails to parse and emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`].
 #[derive(Clone)]
 pub struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);

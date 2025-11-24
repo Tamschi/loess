@@ -1,10 +1,10 @@
 use loess::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom,
-	grammar_helpers::PopParsedFrom,
+	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, PopParsedFrom,
+	scaffold::Parentheses,
 };
 use proc_macro2::{TokenStream, TokenTree};
 
-use crate::{Parentheses, Pub};
+use crate::Pub;
 
 /// [*Visibility*](https://doc.rust-lang.org/stable/reference/visibility-and-privacy.html#r-vis.syntax):
 /// [`pub`](`Pub`) [`(`](`Parentheses`) [`T`](`TokenStream`) [`)`](`Parentheses`)<sup>?</sup>

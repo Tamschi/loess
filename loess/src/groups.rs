@@ -3,16 +3,16 @@ use std::{
 	panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
 };
 
-use loess::{
+use crate::{
 	Error, ErrorPriority, Errors, Exhaustive, HandledPanic, Input, IntoTokens, PeekFrom,
-	error_priorities::UNCONSUMED_IN_DELIMITER, grammar_helpers::PopParsedFrom,
+	PopParsedFrom, error_priorities::UNCONSUMED_IN_DELIMITER,
 };
 use proc_macro2::{Delimiter, Group, TokenStream, TokenTree, extra::DelimSpan};
 
 macro_rules! delimiter_struct {
 	($name:ident, $delimiter:expr, $opening:literal $closing:literal) => {
-		#[doc = concat!('`', $opening, "` [`T`](`TokenStream`) `", $closing, '`')]
-		#[derive(Clone)]
+		#[doc = concat!($opening, " [`T`](`TokenStream`) ", $closing)]
+		#[derive(Clone, Debug)]
 		pub struct $name<T = TokenStream> {
 			#[allow(missing_docs)]
 			pub span: DelimSpan,
@@ -72,7 +72,7 @@ macro_rules! delimiter_struct {
 
 		impl<T: PopParsedFrom> PopParsedFrom for $name<T> {
 			type Parsed = $name<T::Parsed>;
-			fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+			fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<<Self as PopParsedFrom>::Parsed, ()> {
 				let (span, mut contents) = input
 					.pop_or_replace(|tts, _| match tts {
 						[TokenTree::Group(group)] if group.delimiter() == $delimiter => Ok((
@@ -87,7 +87,7 @@ macro_rules! delimiter_struct {
 					.map_err(|spans| {
 						errors.push(Error::new(
 							ErrorPriority::TOKEN,
-							concat!("Expected `", $opening, "`."),
+							concat!("Expected ", $opening, "."),
 							spans,
 						))
 					})?;
@@ -145,6 +145,7 @@ macro_rules! delimiter_struct {
 	};
 }
 
-delimiter_struct!(CurlyBraces, Delimiter::Brace, '{' '}');
-delimiter_struct!(SquareBrackets, Delimiter::Bracket, '[' ']');
-delimiter_struct!(Parentheses, Delimiter::Parenthesis, '(' ')');
+delimiter_struct!(CurlyBraces, Delimiter::Brace, "`{`" "`}`");
+delimiter_struct!(SquareBrackets, Delimiter::Bracket, "`[`" "`]`");
+delimiter_struct!(Parentheses, Delimiter::Parenthesis, "`(`" "`)`");
+delimiter_struct!(MetaGroup, Delimiter::None, "*meta-group-start*" "*meta-group-end*");

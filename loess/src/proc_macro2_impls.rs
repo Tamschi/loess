@@ -1,6 +1,4 @@
-use crate::{
-	ErrorPriority, Errors, Input, IntoTokens, PeekFrom, SimpleSpanned, grammar_helpers::PopParsedFrom,
-};
+use crate::{ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopParsedFrom, SimpleSpanned};
 
 use super::Error;
 use proc_macro2::{Group, Ident, Literal, Punct, Span, TokenStream, TokenTree};

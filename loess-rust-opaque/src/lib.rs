@@ -9,7 +9,7 @@
 //! *Note that unstable grammar **is** accidentally accepted in some cases.*  
 //! ***Ceasing to accept unstable grammar is not by itself considered a breaking change for Loess.***
 
-use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, grammar_helpers::PopParsedFrom};
+use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PopParsedFrom};
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{

@@ -1,6 +1,3 @@
-mod delimiters;
-pub use delimiters::*;
-
 mod identifiers;
 pub use identifiers::*;
 

@@ -9,10 +9,10 @@ When you start work on your change, please create a draft PR for ongoing discuss
 
 Don't use procedural macros in and (in most cases) don't add dependencies to other crates to Loess.
 
-The `rust_grammar` module is organised roughly like [<cite>The Rust Reference</cite>](https://doc.rust-lang.org/stable/reference/), with opaque implementations split into a separate subfolder. Type names <em style=font-style:normal;font-variant:small-caps>should</em> correspond directly to named grammar symbols or other applicable names in <cite>The Rust Reference</cite>.
+The *loess-rust* crate is organised roughly like [<cite>The Rust Reference</cite>](https://doc.rust-lang.org/stable/reference/), with opaque implementations split into a separate subfolder. Type names <em style=font-style:normal;font-variant:small-caps>should</em> correspond directly to named grammar symbols or other applicable names in <cite>The Rust Reference</cite>.
 
 Grammar symbols <em style=font-style:normal;font-variant:small-caps>should</em> be documented to show their immediate pattern in the module overview.
-(See `rust_grammar` for examples. `grammar!` can generate this documentation for you in some cases.) This is not required for temporary opaque implementations, which instead should identify themselves as such.
+(See *loess-rust* for examples. `grammar!` can generate this documentation for you in some cases.) This is not required for temporary opaque implementations, which instead should identify themselves as such.
 
 **I'm open to adding additional feature-gated grammars** for common text file formats,
 as long as they can be parsed accurately on stable Rust. (That means no YAML, but JSON would be okay.)  
@@ -35,11 +35,8 @@ cargo +nightly fmt
 Please test with:
 
 ```sh
-cargo test --features rust_grammar
-cargo test --features opaque_rust_grammar
+cargo test
 ```
-
-Tests outside the opaque grammar module <em style=font-style:normal;font-variant:small-caps>must not</em> require Syn.
 
 ## Publishing
 
@@ -55,6 +52,6 @@ cargo semver-checks
 Publish with:
 
 ```sh
-cargo publish --dry-run --locked -F opaque_rust_grammar
-cargo publish --locked -F opaque_rust_grammar
+cargo publish --dry-run --locked
+cargo publish --locked
 ```
