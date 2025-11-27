@@ -2,22 +2,32 @@ use std::marker::PhantomData;
 
 use crate::{Errors, Input, PeekFrom, PopParsedFrom};
 
-pub trait PopNextFrom {
+pub trait Stepper<'a> {
 	type Item;
 
-	fn pop_next_from(&mut self, input: &mut Input, errors: &mut Errors) -> Option<Self::Item>;
+	fn attach(input: &'a mut Input, errors: &'a mut Errors) -> Self;
 
-	fn peek_pop_next_from(&mut self, input: &mut Input, errors: &mut Errors) -> Option<Self::Item>
+	fn pop_next(&mut self) -> Option<Self::Item>;
+
+	fn peek_pop_next(&mut self) -> Option<Self::Item>
 	where
-		Self: PeekNextFrom,
+		Self: PeekNext,
 	{
-		self.peek_next_from(input)
-			.then_some(self.pop_next_from(input, errors))
-			.flatten()
+		self.peek_next().then_some(self.pop_next()).flatten()
 	}
+
+	fn input(&self) -> &Input;
+	fn input_mut(&mut self) -> &mut Input {
+		self.split_mut().0
+	}
+	fn errors(&self) -> &Errors;
+	fn errors_mut(&mut self) -> &mut Errors {
+		self.split_mut().1
+	}
+	fn split_mut(&mut self) -> (&mut Input, &mut Errors);
 }
 
-pub trait PeekNextFrom {
+pub trait PeekNext {
 	/// # Returns
 	///
 	/// ## [`true`]
@@ -27,27 +37,95 @@ pub trait PeekNextFrom {
 	/// ## [`false`]
 	///
 	/// [`StatefulPopParsedFrom::pop_parsed_from`] <em style=font-style:normal;font-variant:small-caps>should</em> fail **and** push to [`Errors`].
-	fn peek_next_from(&self, input: &Input) -> bool;
+	fn peek_next(&self) -> bool;
 }
 
-pub struct SimpleStepper<T>(PhantomData<T>);
-
-impl<T> Default for SimpleStepper<T> {
-	fn default() -> Self {
-		Self(PhantomData)
-	}
+pub struct SimpleStepper<'a, T> {
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+	_phantom: PhantomData<T>,
 }
 
-impl<T: PopParsedFrom> PopNextFrom for SimpleStepper<T> {
+impl<'a, T: PopParsedFrom> Stepper<'a> for SimpleStepper<'a, T> {
 	type Item = T::Parsed;
 
-	fn pop_next_from(&mut self, input: &mut Input, errors: &mut Errors) -> Option<Self::Item> {
-		T::pop_parsed_from(input, errors).map_or_else(|()| None, Some)
+	fn attach(input: &'a mut Input, errors: &'a mut Errors) -> Self {
+		Self {
+			input,
+			errors,
+			_phantom: PhantomData,
+		}
+	}
+
+	fn pop_next(&mut self) -> Option<Self::Item> {
+		T::pop_parsed_from(self.input, self.errors).map_or_else(|()| None, Some)
+	}
+
+	fn input(&self) -> &Input {
+		self.input
+	}
+
+	fn errors(&self) -> &Errors {
+		self.errors
+	}
+
+	fn split_mut(&mut self) -> (&mut Input, &mut Errors) {
+		(self.input, self.errors)
 	}
 }
 
-impl<T: PeekFrom> PeekNextFrom for SimpleStepper<T> {
-	fn peek_next_from(&self, input: &Input) -> bool {
-		T::peek_from(input)
+impl<'a, T: PeekFrom> PeekNext for SimpleStepper<'a, T> {
+	fn peek_next(&self) -> bool {
+		T::peek_from(self.input)
+	}
+}
+
+pub struct RepeatConstraint<S, const MIN: usize, const MAX: usize> {
+	inner: S,
+	counter: usize,
+}
+
+impl<'a, S: Stepper<'a>, const MIN: usize, const MAX: usize> Stepper<'a>
+	for RepeatConstraint<S, MIN, MAX>
+{
+	type Item = S::Item;
+
+	fn attach(input: &'a mut Input, errors: &'a mut Errors) -> Self {
+		Self {
+			inner: S::attach(input, errors),
+			counter: 0,
+		}
+	}
+
+	fn pop_next(&mut self) -> Option<Self::Item> {
+		self.inner.pop_next()
+	}
+
+	fn input(&self) -> &Input {
+		self.inner.input()
+	}
+
+	fn errors(&self) -> &Errors {
+		self.inner.errors()
+	}
+
+	fn split_mut(&mut self) -> (&mut Input, &mut Errors) {
+		self.inner.split_mut()
+	}
+}
+
+impl<'a, S: Stepper<'a>, const MIN: usize, const MAX: usize> PeekNext
+	for RepeatConstraint<S, MIN, MAX>
+where
+	S: PeekNext,
+{
+	fn peek_next(&self) -> bool {
+		(self.counter < MIN) || self.inner.peek_next()
+	}
+}
+
+impl<S, const MIN: usize, const MAX: usize> Drop for RepeatConstraint<S, MIN, MAX> {
+	fn drop(&mut self) {
+		todo!()
 	}
 }

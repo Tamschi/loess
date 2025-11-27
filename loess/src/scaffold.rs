@@ -1,4 +1,4 @@
-use std::{any::type_name, collections::VecDeque, iter, marker::PhantomData, mem};
+use std::{any::type_name, collections::VecDeque, iter, marker::PhantomData};
 
 use never_say_never::Never;
 use proc_macro2::{TokenStream, TokenTree};
@@ -6,7 +6,7 @@ use proc_macro2::{TokenStream, TokenTree};
 use crate::{
 	ConstErrorPriority, Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom,
 	error_priorities::UNCONSUMED_AFTER_REPEATS,
-	stateful::{PeekNextFrom, PopNextFrom, SimpleStepper},
+	stateful::{PeekNext, SimpleStepper, Stepper},
 };
 
 mod groups;
@@ -62,34 +62,36 @@ pub enum Greedy<T: ?Sized> {
 	Vacant(PhantomData<T>, Never),
 }
 
-//TODO: Abstract this more so that it works for Separated and Delimited.
+//TODO: Use this also for Separated and Delimited.
 pub trait Repeats {
-	type Projected: FromIterator<<Self::Stepper as PopNextFrom>::Item>;
-	type Stepper: Default + PopNextFrom;
+	type Projected: for<'a> FromIterator<<Self::Stepper<'a> as Stepper<'a>>::Item>;
+	type Stepper<'a>: Stepper<'a>;
 }
 
 impl<T: Repeats> PopParsedFrom for ToEnd<T> {
 	type Parsed = T::Projected;
 
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
-		let mut stepper = T::Stepper::default();
+		let mut stepper = T::Stepper::attach(input, errors);
 		let mut stop = false;
 
 		iter::from_fn(|| {
-			if stop || input.is_empty() {
+			if stop || stepper.input().is_empty() {
 				return None;
 			}
-			let len_before = input.len();
-			let item = match stepper.pop_next_from(input, errors) {
+			let len_before = stepper.input().len();
+			let item = match stepper.pop_next() {
 				Some(item) => item,
 				None => {
+					let (input, errors) = stepper.split_mut();
 					EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_parsed_from(input, errors).ok();
 					stop = true;
 					return None;
 				}
 			};
 
-			if input.len() == len_before {
+			if stepper.input().len() == len_before {
+				let (input, errors) = stepper.split_mut();
 				errors.push(Error::new(
 					ErrorPriority::UNCONSUMED_INPUT,
 					format!(
@@ -109,20 +111,20 @@ impl<T: Repeats> PopParsedFrom for ToEnd<T> {
 
 impl<T: Repeats> PopParsedFrom for Greedy<T>
 where
-	T::Stepper: PeekNextFrom,
+	for<'a> T::Stepper<'a>: PeekNext,
 {
 	type Parsed = T::Projected;
 
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
-		let mut stepper = T::Stepper::default();
+		let mut stepper = T::Stepper::attach(input, errors);
 		let mut stop = false;
 
 		iter::from_fn(|| {
-			if stop || input.is_empty() {
+			if stop || stepper.input().is_empty() {
 				return None;
 			}
-			let len_before = input.len();
-			let item = match stepper.peek_pop_next_from(input, errors) {
+			let len_before = stepper.input().len();
+			let item = match stepper.peek_pop_next() {
 				Some(item) => item,
 				None => {
 					stop = true;
@@ -130,7 +132,8 @@ where
 				}
 			};
 
-			if input.len() == len_before {
+			if stepper.input().len() == len_before {
+				let (input, errors) = stepper.split_mut();
 				errors.push(Error::new(
 					ErrorPriority::UNCONSUMED_INPUT,
 					format!(
@@ -150,7 +153,7 @@ where
 
 impl<T: PopParsedFrom> Repeats for Vec<T> {
 	type Projected = Vec<T::Parsed>;
-	type Stepper = SimpleStepper<T>;
+	type Stepper<'a> = SimpleStepper<'a, T>;
 }
 
 impl<T: PopParsedFrom> PopParsedFrom for Vec<T> {
@@ -163,7 +166,7 @@ impl<T: PopParsedFrom> PopParsedFrom for Vec<T> {
 
 impl<T: PopParsedFrom> Repeats for VecDeque<T> {
 	type Projected = VecDeque<T::Parsed>;
-	type Stepper = SimpleStepper<T>;
+	type Stepper<'a> = SimpleStepper<'a, T>;
 }
 
 impl<T: PopParsedFrom> PopParsedFrom for VecDeque<T> {
@@ -176,7 +179,7 @@ impl<T: PopParsedFrom> PopParsedFrom for VecDeque<T> {
 
 impl Repeats for TokenStream {
 	type Projected = TokenStream;
-	type Stepper = SimpleStepper<TokenTree>;
+	type Stepper<'a> = SimpleStepper<'a, TokenTree>;
 }
 
 /// A series of alternating `T` and `D` where either can be last.
