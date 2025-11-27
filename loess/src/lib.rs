@@ -51,32 +51,21 @@ use std::{
 };
 
 use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
+use never_say_never::Never;
 use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
-mod groups;
-
-mod grammar_helpers;
-pub use grammar_helpers::PopParsedFrom;
+//TODO: EagerPlusOne -> Eager<Repeat>
+//TODO: Repeat -> Lower and upper bound on repetition.
+//TODO: Repeat<Separated>
+//TODO: Eager<Repeat<Separated>>
+pub mod scaffold;
 
 mod macros;
 pub use macros::__;
 
-//TODO: Reorganise folder structure.
-pub mod scaffold {
-	pub use crate::{
-		grammar_helpers::{Eager, OnePlusEager, Separated},
-		groups::{CurlyBraces, MetaGroup, Parentheses, SquareBrackets},
-	};
-
-	//TODO: EagerPlusOne -> Eager<Repeat>
-	//TODO: Repeat -> Lower and upper bound on repetition.
-	//TODO: Repeat<Separated>
-	//TODO: Eager<Repeat<Separated>>
-}
-
-use crate::grammar_helpers::Vacant;
+use crate::scaffold::EndOfInput;
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  
 /// Usually submitted through [`Errors::push`].
@@ -540,6 +529,24 @@ impl Input {
 	}
 }
 
+/// Consumes from [`Input`] to create <code>[`Result`]&lt;Self::[Parsed](`PopParsedFrom::Parsed`), ()></code> and emit to [`Errors`].
+pub trait PopParsedFrom {
+	type Parsed;
+
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>;
+	fn peek_pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Option<Self::Parsed>, ()>
+	where
+		Self: PeekFrom,
+	{
+		Self::peek_from(input)
+			.then_some(Self::pop_parsed_from(input, errors))
+			.transpose()
+	}
+}
+
 /// Proxies <code>[`PopParsedFrom`]&lt;Parsed = Self></code> with easier type inference.
 ///
 /// This is effectively a sealed trait. To implement this trait, implement [`PopParsedFrom`] with `type Parsed = Self;`.
@@ -649,103 +656,6 @@ impl<T: PeekFrom> PeekFrom for Vec<T> {
 impl<T: PeekFrom> PeekFrom for VecDeque<T> {
 	fn peek_from(input: &Input) -> bool {
 		input.is_empty() || T::peek_from(input)
-	}
-}
-
-const _: () = {
-	use std::collections::VecDeque;
-
-	use crate::{EndOfInput, Errors, PopFrom};
-
-	impl<T: PopParsedFrom> PopParsedFrom for Vec<T> {
-		type Parsed = Vec<T::Parsed>;
-		fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
-			let mut this = vec![];
-			while !input.is_empty() {
-				let before_len = input.len();
-
-				match T::pop_parsed_from(input, errors) {
-					Ok(item) => this.extend([item]),
-					Err(()) => {
-						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).ok();
-						return Ok(this);
-					}
-				}
-
-				if input.len() == before_len {
-					assert!(
-						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).is_err()
-					);
-					break;
-				}
-			}
-
-			Ok(this)
-		}
-	}
-
-	impl<T: PopParsedFrom> PopParsedFrom for VecDeque<T> {
-		type Parsed = VecDeque<T::Parsed>;
-		fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
-			let mut this = Self::Parsed::default();
-			while !input.is_empty() {
-				let before_len = input.len();
-
-				match T::pop_parsed_from(input, errors) {
-					Ok(item) => this.extend([item]),
-					Err(()) => {
-						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).ok();
-						return Ok(this);
-					}
-				}
-
-				if input.len() == before_len {
-					assert!(
-						EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_from(input, errors).is_err()
-					);
-					break;
-				}
-			}
-
-			Ok(this)
-		}
-	}
-};
-
-//TODO: Move into grammar module.
-/// Doesn't fail to parse but emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`] after `T`.
-pub struct Exhaustive<T, P: ConstErrorPriority>(PhantomData<(T, P)>, Vacant);
-
-impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P> {
-	type Parsed = T::Parsed;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
-		let value = T::pop_parsed_from(input, errors);
-		EndOfInput::<P>::pop_from(input, errors).ok();
-		Ok(value?)
-	}
-}
-
-//TODO: Move into grammar module.
-//TODO: Unpublish? Probably! Maybe replace on input with some into_unconsumed_tokens_error.
-/// Fails to parse and emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`].
-#[derive(Clone)]
-pub struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
-
-/// Fails iff the [`Input`] isn't empty.
-impl<P: ConstErrorPriority> PopParsedFrom for EndOfInput<P> {
-	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		input
-			.is_empty()
-			.then_some(Self(PhantomData))
-			.ok_or_else(|| {
-				let rest = input.tokens.iter().cloned().collect::<TokenStream>();
-				errors.push(Error::new(
-					P::PRIORITY,
-					format!("Unconsumed tokens: `{rest}`"),
-					rest.into_iter().map(|t| t.span()),
-				));
-			})
 	}
 }
 

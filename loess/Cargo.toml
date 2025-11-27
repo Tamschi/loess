@@ -18,6 +18,7 @@ publish = false
 [features]
 
 [dependencies]
+never-say-never = "6.6.666"
 proc-macro2 = { version = "1.0.34", features = ["span-locations"] }
 
 [package.metadata.cargo-semver-checks.lints]

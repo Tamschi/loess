@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-	Error, ErrorPriority, Errors, Exhaustive, HandledPanic, Input, IntoTokens, PeekFrom,
-	PopParsedFrom, error_priorities::UNCONSUMED_IN_DELIMITER,
+	Error, ErrorPriority, Errors, HandledPanic, Input, IntoTokens, PeekFrom, PopParsedFrom,
+	error_priorities::UNCONSUMED_IN_DELIMITER, scaffold::Exhaustive,
 };
 use proc_macro2::{Delimiter, Group, TokenStream, TokenTree, extra::DelimSpan};
 

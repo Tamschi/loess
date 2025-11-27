@@ -233,10 +233,10 @@ macro_rules! grammar {
 /// better forwards-compatibility with future Rust edition consumers of your proc macro.
 ///
 /// ```rust
-/// use loess::{quote_into_mixed_site, rust_grammar::Identifier, SimpleSpanned};
-/// use proc_macro2::TokenStream;
+/// use loess::{quote_into_mixed_site, SimpleSpanned};
+/// use proc_macro2::{Ident, TokenStream};
 ///
-/// fn my_quote(id1: Identifier, id2: Option<Identifier>, root: &TokenStream) -> TokenStream {
+/// fn my_quote(id1: Ident, id2: Option<Ident>, root: &TokenStream) -> TokenStream {
 /// 	let mut output = TokenStream::new();
 ///
 /// 	quote_into_mixed_site!(id1.span(), root, &mut output, {
