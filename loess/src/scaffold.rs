@@ -6,6 +6,7 @@ use proc_macro2::{TokenStream, TokenTree};
 use crate::{
 	ConstErrorPriority, Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom,
 	error_priorities::UNCONSUMED_AFTER_REPEATS,
+	stateful::{PeekNextFrom, PopNextFrom, SimpleStepper},
 };
 
 mod groups;
@@ -63,14 +64,15 @@ pub enum Greedy<T: ?Sized> {
 
 //TODO: Abstract this more so that it works for Separated and Delimited.
 pub trait Repeats {
-	type Projected: FromIterator<<Self::Template as PopParsedFrom>::Parsed>;
-	type Template: PopParsedFrom;
+	type Projected: FromIterator<<Self::Stepper as PopNextFrom>::Item>;
+	type Stepper: Default + PopNextFrom;
 }
 
 impl<T: Repeats> PopParsedFrom for ToEnd<T> {
 	type Parsed = T::Projected;
 
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+		let mut stepper = T::Stepper::default();
 		let mut stop = false;
 
 		iter::from_fn(|| {
@@ -78,9 +80,9 @@ impl<T: Repeats> PopParsedFrom for ToEnd<T> {
 				return None;
 			}
 			let len_before = input.len();
-			let item = match T::Template::pop_parsed_from(input, errors) {
-				Ok(item) => item,
-				Err(()) => {
+			let item = match stepper.pop_next_from(input, errors) {
+				Some(item) => item,
+				None => {
 					EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_parsed_from(input, errors).ok();
 					stop = true;
 					return None;
@@ -107,25 +109,25 @@ impl<T: Repeats> PopParsedFrom for ToEnd<T> {
 
 impl<T: Repeats> PopParsedFrom for Greedy<T>
 where
-	T::Template: PeekFrom,
+	T::Stepper: PeekNextFrom,
 {
 	type Parsed = T::Projected;
 
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+		let mut stepper = T::Stepper::default();
 		let mut stop = false;
+
 		iter::from_fn(|| {
 			if stop || input.is_empty() {
 				return None;
 			}
 			let len_before = input.len();
-			let item = match T::Template::peek_pop_parsed_from(input, errors) {
-				Ok(Some(item)) => item,
-				Err(()) => {
-					EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_parsed_from(input, errors).ok();
+			let item = match stepper.peek_pop_next_from(input, errors) {
+				Some(item) => item,
+				None => {
 					stop = true;
 					return None;
 				}
-				Ok(None) => return None,
 			};
 
 			if input.len() == len_before {
@@ -148,17 +150,33 @@ where
 
 impl<T: PopParsedFrom> Repeats for Vec<T> {
 	type Projected = Vec<T::Parsed>;
-	type Template = T;
+	type Stepper = SimpleStepper<T>;
+}
+
+impl<T: PopParsedFrom> PopParsedFrom for Vec<T> {
+	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
+
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+		ToEnd::<Self>::pop_parsed_from(input, errors)
+	}
 }
 
 impl<T: PopParsedFrom> Repeats for VecDeque<T> {
 	type Projected = VecDeque<T::Parsed>;
-	type Template = T;
+	type Stepper = SimpleStepper<T>;
+}
+
+impl<T: PopParsedFrom> PopParsedFrom for VecDeque<T> {
+	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
+
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+		ToEnd::<Self>::pop_parsed_from(input, errors)
+	}
 }
 
 impl Repeats for TokenStream {
 	type Projected = TokenStream;
-	type Template = TokenTree;
+	type Stepper = SimpleStepper<TokenTree>;
 }
 
 /// A series of alternating `T` and `D` where either can be last.
@@ -234,7 +252,7 @@ where
 	}
 }
 
-/// A series of alternating `T` and `D` where either can be last. **`D` has precedence!**
+/// A series of alternating `T` and **precedent** `D` where either can be last.
 ///
 /// # Recovery
 ///
@@ -325,64 +343,4 @@ where
 
 pub enum RepeatConstraint<T, const MIN: usize, const MAX: usize = MIN> {
 	Vacant(PhantomData<T>, Never),
-}
-
-pub trait Repeating {
-	type Aggregator: Extend<<Self::Repeat as PopParsedFrom>::Parsed>;
-	type Repeat: PopParsedFrom;
-	type Collected: TryFrom<Self::Aggregator>;
-
-	fn aggregator(size_hint_lower: usize, size_hint_upper: Option<usize>) -> Self::Aggregator;
-
-	//TODO
-}
-
-pub trait SimpleRepeating: Repeating + IntoIterator + Extend<Self::Item> {}
-
-/// TODO: Adjust!
-///
-/// Determines if `Self` may be be parseable from an [`Input`].
-/// **This is often a cursory check!**
-///
-/// Used for variant selection in <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.  
-/// Does **not** affect <code>[`Vec`]&lt;Self></code> or <code>[`VecDeque`]&lt;Self></code> parsing, which is exhaustive.
-///
-/// Also enables [`PopFrom::peek_pop_from`] for `Self`, which is used in [`grammar!`]-generated enum parsers.
-///
-/// Intentionally not implemented for [`Option`], as it would always match, which is too error-prone.
-pub trait PeekRepeatFrom {
-	/// # Returns
-	///
-	/// ## [`true`]
-	///
-	/// [`PopFrom::pop_from`] <em style=font-style:normal;font-variant:small-caps>may</em> still fail and/or push to [`Errors`].
-	///
-	/// ## [`false`]
-	///
-	/// [`PopFrom::pop_from`] <em style=font-style:normal;font-variant:small-caps>should</em> fail **and** push to [`Errors`].
-	fn peek_repeat_from(input: &Input) -> bool;
-}
-
-impl<T: Repeating, const MIN: usize, const MAX: usize> PopParsedFrom
-	for RepeatConstraint<T, MIN, MAX>
-{
-	type Parsed = T::Collected;
-
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
-		todo!()
-	}
-}
-
-impl<T: PeekRepeatFrom, const MIN: usize, const MAX: usize> PeekFrom
-	for RepeatConstraint<T, MIN, MAX>
-{
-	fn peek_from(input: &Input) -> bool {
-		if MAX < MIN {
-			false
-		} else if MIN == 0 {
-			true
-		} else {
-			T::peek_repeat_from(input)
-		}
-	}
 }

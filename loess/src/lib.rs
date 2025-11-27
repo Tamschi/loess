@@ -62,6 +62,8 @@ mod proc_macro2_impls;
 //TODO: Eager<Repeat<Separated>>
 pub mod scaffold;
 
+pub mod stateful;
+
 mod macros;
 pub use macros::__;
 
@@ -298,7 +300,7 @@ impl Errors {
 /// use loess::{
 /// 	grammar, parse_once, parse_all,
 /// 	Errors, Input, IntoTokens,
-/// 	SquareBrackets,
+/// 	scaffold::SquareBrackets,
 /// };
 /// use proc_macro2::{Span, TokenStream, TokenTree};
 ///
@@ -542,7 +544,7 @@ pub trait PopParsedFrom {
 		Self: PeekFrom,
 	{
 		Self::peek_from(input)
-			.then_some(Self::pop_parsed_from(input, errors))
+			.then(|| Self::pop_parsed_from(input, errors))
 			.transpose()
 	}
 }
@@ -637,11 +639,11 @@ pub trait PeekFrom {
 	///
 	/// ## [`true`]
 	///
-	/// [`PopFrom::pop_from`] <em style=font-style:normal;font-variant:small-caps>may</em> still fail and/or push to [`Errors`].
+	/// [`PopParsedFrom::pop_parsed_from`] <em style=font-style:normal;font-variant:small-caps>may</em> still fail and/or push to [`Errors`].
 	///
 	/// ## [`false`]
 	///
-	/// [`PopFrom::pop_from`] <em style=font-style:normal;font-variant:small-caps>should</em> fail **and** push to [`Errors`].
+	/// [`PopParsedFrom::pop_parsed_from`] <em style=font-style:normal;font-variant:small-caps>should</em> fail **and** push to [`Errors`].
 	fn peek_from(input: &Input) -> bool;
 }
 
