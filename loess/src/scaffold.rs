@@ -75,6 +75,7 @@ impl<T: Repeats> PopParsedFrom for ToEnd<T> {
 		let mut stepper = T::Stepper::attach(input, errors);
 		let mut stop = false;
 
+		//TODO: Revise error emission wrt constraint errors!
 		iter::from_fn(|| {
 			if stop || stepper.input().is_empty() {
 				return None;
@@ -119,6 +120,7 @@ where
 		let mut stepper = T::Stepper::attach(input, errors);
 		let mut stop = false;
 
+		//TODO: Revise error emission wrt constraint errors!
 		iter::from_fn(|| {
 			if stop || stepper.input().is_empty() {
 				return None;
