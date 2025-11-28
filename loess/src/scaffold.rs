@@ -1,6 +1,8 @@
 //! Modular helper types mainly for use within [`grammar!`](`crate::grammar!`).
 //!
 //! The enums in this module are vacant, as they parse their wrapped types' projections.
+//!
+//! See also [`PopParsedFrom`#foreign-impls] for additional, mostly lower-level building blocks.
 
 use std::{any::type_name, collections::VecDeque, iter, marker::PhantomData};
 
