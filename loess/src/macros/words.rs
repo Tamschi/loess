@@ -18,7 +18,7 @@
 /// 	pub keyword as pub Keyword: doc, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
 ///
 /// 	#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// 	pub _ as pub Identifier: doc, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
+/// 	pub _ as pub Identifier: PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
 /// }
 /// ```
 ///
@@ -144,7 +144,6 @@ macro_rules! words_muncher {
 		$(#[$($attr:tt)*])*
 		$ident_vis:vis _ as $vis:vis $name:ident
 		$(: $(
-			$(doc $(@ $doc:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
@@ -155,10 +154,6 @@ macro_rules! words_muncher {
 
 		$($($rest:tt)+)?
 	) => {
-		$($($(
-			$(@ $doc)?
-			#[doc = $crate::__::concat!('`', stringify!($kw), '`')] //TODO
-		)?)*)?
 		$(#[$($attr)*])*
 		$vis struct $name($ident_vis $crate::__::Ident);
 
