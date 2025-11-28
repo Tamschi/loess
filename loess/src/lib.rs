@@ -45,15 +45,13 @@ use std::{
 	collections::{VecDeque, vec_deque},
 	fmt::Debug,
 	iter::{self},
-	marker::PhantomData,
 	mem,
 	ops::RangeBounds,
 	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
 	vec,
 };
 
-use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
-use never_say_never::Never;
+use error_priorities::UNCONSUMED_INPUT;
 use proc_macro2::{Ident, Literal, Punct, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;

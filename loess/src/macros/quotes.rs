@@ -607,6 +607,7 @@ macro_rules! block_directive {
 		};
 	}
 
+#[expect(missing_docs, reason = "macro-internal")]
 pub fn grouped(
 	span: Span,
 	delimiter: Delimiter,
@@ -637,6 +638,7 @@ fn assign_span(
 	})
 }
 
+#[expect(missing_docs, reason = "macro-internal")]
 pub fn raw(span: Span, tokens: &mut impl Extend<TokenTree>, stringified: &str) {
 	tokens.extend(assign_span(
 			span,
@@ -644,10 +646,12 @@ pub fn raw(span: Span, tokens: &mut impl Extend<TokenTree>, stringified: &str) {
 		))
 }
 
+#[expect(missing_docs, reason = "macro-internal")]
 pub const fn strip_dot(s: &str) -> &str {
 	s.split_at(s.len() - 1).0
 }
 
+#[expect(missing_docs, reason = "macro-internal")]
 pub fn tt(span: Span, tokens: &mut impl Extend<TokenTree>, stringified: &str) {
 	// Note that there can actually be multiple tokens here, since `$tt:tt` grabs lifetimes and certain operators in one go!
 	let mut ts = TokenStream::from_str(stringified).expect("Failed to parse stringified tokens, somehow. (Are you using the internal API from another crate? Please don't.)").into_iter().collect::<Box<[_]>>();
