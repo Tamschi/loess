@@ -288,15 +288,19 @@ macro_rules! grammar {
 /// `$root` pattern from Loess's README that can be viewed [in the root module](crate),
 /// with [`quote_into_mixed_site`] instead of this macro).
 ///
+/// ## <code>$root: [`TokenStream`]</code>
+///
+/// A module path that is pasted by the `{#root}` and `{#error { … }}` directives.
+///
 /// ## <code>$tokens: impl [`Extend`]&lt;[`TokenTree`]></code>
 ///
 /// The collection (or other sink) of [`TokenTree`]s to extend.
 ///
-/// # `[$($tt:tt)*]`
+/// ## `{$($tt:tt)*}`
 ///
-/// Within square brackets, tokens to emit with `$span` as [`Span`] into `$tokens`.
+/// Within curly braces, tokens to emit with `$span` as [`Span`] into `$tokens`.
 ///
-/// Directives are supported within the square brackets, unless noted otherwise.
+/// Directives are supported within the curly braces, unless noted otherwise.
 ///
 /// # Directives
 ///
