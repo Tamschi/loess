@@ -1,4 +1,5 @@
 mod grammar;
+mod quotes;
 mod words;
 
 #[doc(hidden)]
@@ -16,7 +17,7 @@ pub mod __ {
 	};
 
 	pub use super::{
-		grammar::{
+		quotes::{
 			Paste, block_directive, grouped, quote_one2, raw, rust_statement_directive, strip_dot,
 			tt,
 		},
