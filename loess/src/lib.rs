@@ -52,7 +52,7 @@ use std::{
 
 use error_priorities::{UNCONSUMED_AFTER_REPEATS, UNCONSUMED_INPUT};
 use never_say_never::Never;
-use proc_macro2::{Literal, Span, TokenStream, TokenTree};
+use proc_macro2::{Ident, Literal, Punct, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
@@ -1044,4 +1044,52 @@ pub fn parse_all<'a, T: 'a + PopFrom>(
 	errors: &'a mut Errors,
 ) -> impl 'a + Iterator<Item = T> {
 	parse_all_with(input, errors, T::pop_from)
+}
+
+pub trait LocatedAt {
+	fn located_at(self, span: Span) -> Self;
+}
+
+impl LocatedAt for Span {
+	fn located_at(self, span: Span) -> Self {
+		(&self).located_at(span)
+	}
+}
+
+impl LocatedAt for Ident {
+	fn located_at(mut self, span: Span) -> Self {
+		self.set_span(self.span().located_at(span));
+		self
+	}
+}
+
+impl LocatedAt for Punct {
+	fn located_at(mut self, span: Span) -> Self {
+		self.set_span(self.span().located_at(span));
+		self
+	}
+}
+
+pub trait ResolvedAt {
+	fn resolved_at(self, span: Span) -> Self;
+}
+
+impl ResolvedAt for Span {
+	fn resolved_at(self, span: Span) -> Self {
+		(&self).resolved_at(span)
+	}
+}
+
+impl ResolvedAt for Ident {
+	fn resolved_at(mut self, span: Span) -> Self {
+		self.set_span(self.span().resolved_at(span));
+		self
+	}
+}
+
+impl ResolvedAt for Punct {
+	fn resolved_at(mut self, span: Span) -> Self {
+		self.set_span(self.span().resolved_at(span));
+		self
+	}
 }
