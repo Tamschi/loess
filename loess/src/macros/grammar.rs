@@ -10,14 +10,29 @@ pub use crate::{block_directive, quote_one2, rust_statement_directive};
 ///
 /// ```
 /// use loess::{
-/// 	grammar,
-/// 	rust_grammar::{ // With the `"rust_grammar"` feature.
-/// 		Identifier, Let, Parentheses, SquareBrackets, Visibility,
-/// 	},
+/// 	grammar, words,
+/// 	scaffold::{Parentheses, SquareBrackets},
 /// };
 /// use proc_macro2::{Ident, TokenTree, Punct};
 ///
+/// words! {
+/// 	#[derive(Clone)]
+/// 	pub let as Let: doc, PeekFrom, PopFrom, IntoTokens;
+///
+/// 	#[derive(Clone)]
+/// 	pub put as Pub: doc, PeekFrom, PopFrom, IntoTokens;
+///
+/// 	#[derive(Clone)]
+/// 	pub _ as Identifier: PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
+/// }
+///
 /// grammar! {
+/// 	#[derive(Clone)]
+/// 	pub struct Visibility: PeekFrom, PopFrom, IntoTokens {
+/// 		pub r#pub: Pub,
+/// 		parens: Option<Parentheses>,
+/// 	}
+///
 /// 	///
 /// 	/// Has auto-documented grammar.
 /// 	#[derive(Clone)]
