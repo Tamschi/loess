@@ -34,6 +34,8 @@
 //!
 //! You can download a *.code-snippets* file for Loess's macros and quote macro directives here:
 //! <https://github.com/Tamschi/loess/blob/develop/.vscode/Loess.code-snippets>
+//!
+//! All macros published by this crate are fully hygienic and use `$crate`, so you can rename dependencies freely.
 
 #![warn(clippy::pedantic, missing_docs)]
 

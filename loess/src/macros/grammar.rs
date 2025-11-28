@@ -8,6 +8,8 @@ pub use crate::{block_directive, quote_one2, rust_statement_directive};
 
 /// Parser- and serialiser-generator macro.
 ///
+/// # Example
+///
 /// ```
 /// use loess::{
 /// 	grammar, words,
@@ -65,8 +67,6 @@ pub use crate::{block_directive, quote_one2, rust_statement_directive};
 /// 	);
 /// }
 /// ```
-///
-/// [`grammar!`] is fully hygienic and uses `$crate`, so can rename dependencies freely.
 #[macro_export]
 macro_rules! grammar {
 	//TODO: Change impl separator to `+`.
