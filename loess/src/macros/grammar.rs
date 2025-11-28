@@ -22,7 +22,7 @@ pub use crate::{block_directive, quote_one2, rust_statement_directive};
 /// 	pub let as Let: doc, PeekFrom, PopFrom, IntoTokens;
 ///
 /// 	#[derive(Clone)]
-/// 	pub put as Pub: doc, PeekFrom, PopFrom, IntoTokens;
+/// 	pub pub as Pub: doc, PeekFrom, PopFrom, IntoTokens;
 ///
 /// 	#[derive(Clone)]
 /// 	pub _ as Identifier: PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
