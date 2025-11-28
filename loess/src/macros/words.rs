@@ -8,7 +8,7 @@
 /// 	keyword as Keyword;
 ///
 /// 	// Defines a catch-other identifier. Must be last.
-/// 	pub _ as pub Identifier: doc, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
+/// 	_ as Identifier;
 /// }
 /// ```
 ///
