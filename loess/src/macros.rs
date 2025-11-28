@@ -15,8 +15,11 @@ pub mod __ {
 		Ident, Span, TokenStream, TokenTree,
 	};
 
-	pub use super::grammar::{
-		Paste, block_directive, grouped, quote_one2, raw, rust_statement_directive, strip_dot, tt,
+	pub use super::{
+		grammar::{
+			Paste, block_directive, grouped, quote_one2, raw, rust_statement_directive, strip_dot,
+			tt,
+		},
+		words::{impl_word, words_muncher},
 	};
-	pub use super::words::{impl_word, words_muncher};
 }
