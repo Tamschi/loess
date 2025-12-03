@@ -5,9 +5,13 @@ macro_rules! punctuation {
 		($($punct:tt)+) $(not before [$($not:tt)*])?
 		as $vis:vis $name:ident$(: $(
 			$(doc $(@ $doc:tt)?)?
+			$(Default $(@ $Default:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
+			$(SimpleSpanned $(@ $SimpleSpanned:tt)?)?
+			$(LocatedAt $(@ $LocatedAt:tt)?)?
+			$(ResolvedAt $(@ $ResolvedAt:tt)?)?
 		),*)? {
 			$(
 				$(#[$($field_attr:tt)*])*
@@ -19,7 +23,13 @@ macro_rules! punctuation {
 	} => {
 		$crate::__validate_punctuation!($($punct)*);
 
-		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::__::concat!('`', $crate::__::stringify!($($punct)+), '`'))]
+		#[cfg_attr(
+			any($($($(all(), $(@ $doc)?)?)?)*),
+			doc = $crate::__::concat!(
+				'`', $crate::__::stringify!($($punct)+), '`',
+				$(" <sub>not before [", $(" `", $crate::__::stringify!($not), "`",)* "]</sub>",)?
+			),
+		)]
 		$(#[$($attr)*])*
 		$vis struct $name {
 			$(
@@ -49,9 +59,13 @@ macro_rules! punctuation {
 		($($punct:tt)+) $(not before [$($not:tt)*])?
 		as $vis:vis $name:ident$(: $(
 			$(doc $(@ $doc:tt)?)?
+			$(Default $(@ $Default:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
+			$(SimpleSpanned $(@ $SimpleSpanned:tt)?)?
+			$(LocatedAt $(@ $LocatedAt:tt)?)?
+			$(ResolvedAt $(@ $ResolvedAt:tt)?)?
 		),*)?(
 			$(#[$($field_attr:tt)*])*
 			$($punct_vis:vis),+
@@ -61,7 +75,13 @@ macro_rules! punctuation {
 	} => {
 		$crate::__validate_punctuation!($($punct)*);
 
-		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::__::concat!('`', $crate::__::stringify!($($punct)+), '`'))]
+		#[cfg_attr(
+			any($($($(all(), $(@ $doc)?)?)?)*),
+			doc = $crate::__::concat!(
+				'`', $crate::__::stringify!($($punct)+), '`',
+				$(" <sub>not before [", $(" `", $crate::__::stringify!($not), "`",)* "]</sub>",)?
+			),
+		)]
 		$(#[$($attr)*])*
 		$vis struct $name(
 			$($punct_vis $crate::__::Punct),+
@@ -88,16 +108,26 @@ macro_rules! punctuation {
 		($($punct:tt)+) $(not before [$($not:tt)*])?
 		as $vis:vis $name:ident$(: $(
 			$(doc $(@ $doc:tt)?)?
+			$(Default $(@ $Default:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
+			$(SimpleSpanned $(@ $SimpleSpanned:tt)?)?
+			$(LocatedAt $(@ $LocatedAt:tt)?)?
+			$(ResolvedAt $(@ $ResolvedAt:tt)?)?
 		),*)?;
 
 		$($rest:tt)*
 	} => {
 		$crate::__validate_punctuation!($($punct)*);
 
-		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::__::concat!('`', $crate::__::stringify!($($punct)+), '`'))]
+		#[cfg_attr(
+			any($($($(all(), $(@ $doc)?)?)?)*),
+			doc = $crate::__::concat!(
+				'`', $crate::__::stringify!($($punct)+), '`',
+				$(" <sub>not before [", $(" `", $crate::__::stringify!($not), "`",)* "]</sub>",)?
+			),
+		)]
 		$(#[$($attr)*])*
 		$vis struct $name;
 
@@ -179,10 +209,10 @@ macro_rules! __validate_punctuation {
 macro_rules! __impl_punctuation {
 	(PeekFrom for $name:ident, $OP:expr, $NOT:expr) => {
 		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &crate::Input) -> bool {
+			fn peek_from(input: &$crate::Input) -> bool {
 				const LEN: usize = $OP.len();
 
-				crate::__::assert!(
+				$crate::__::assert!(
 					!$OP.contains(' '),
 					"Unexpected space in punctuation definition `{}`.",
 					$OP,

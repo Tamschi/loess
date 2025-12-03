@@ -77,6 +77,7 @@ macro_rules! __words_muncher {
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
+			$(SimpleSpanned $(@ $SimpleSpanned:tt)?)?
 			$(LocatedAt $(@ $LocatedAt:tt)?)?
 			$(ResolvedAt $(@ $ResolvedAt:tt)?)?
 		),*$(,)?)?
@@ -107,6 +108,73 @@ macro_rules! __words_muncher {
 			$(
 				$(@ $IntoTokens)?
 				$crate::__impl_word!(IntoTokens for $name);
+			)?
+			$(
+				$(@ $SimpleSpanned)?
+				$crate::__impl_word!(SimpleSpanned for $name);
+			)?
+			$(
+				$(@ $LocatedAt)?
+				$crate::__impl_word!(LocatedAt for $name);
+			)?
+			$(
+				$(@ $ResolvedAt)?
+				$crate::__impl_word!(ResolvedAt for $name);
+			)?
+		)*)?
+
+		$crate::__words_muncher! {
+			[$($kws)* $kw] [$($excluded_kws)*]
+			$($rest)*
+		}
+	};
+
+	// Lifetime-like keyword.
+	(
+		[$($kws:tt)*] [$($excluded_kws:tt)*]
+
+		$(#[$($attr:tt)*])*
+		$ident_vis:vis ($kw:lifetime) as $vis:vis $name:ident
+		$(: $(
+			$(doc $(@ $doc:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+			$(SimpleSpanned $(@ $SimpleSpanned:tt)?)?
+			$(LocatedAt $(@ $LocatedAt:tt)?)?
+			$(ResolvedAt $(@ $ResolvedAt:tt)?)?
+		),*$(,)?)?
+		;
+
+		$($rest:tt)*
+	) => {
+		$($($(
+			$(@ $doc)?
+			#[doc = $crate::__::concat!('`', stringify!($kw), '`')]
+		)?)*)?
+		$(#[$($attr)*])*
+		$vis struct $name($ident_vis $crate::__::Ident);
+
+		$($(
+			$(
+				$(@ $PeekFrom)?
+				$crate::__impl_word!(PeekFrom for $name, ident => ident == stringify!($kw));
+			)?
+			$(
+				$(@ $PopFrom)?
+				$crate::__impl_word!(
+					PopFrom for $name,
+					ident => ident == stringify!($kw),
+					$crate::__::concat!("Expected `", stringify!($kw), "`."),
+				);
+			)?
+			$(
+				$(@ $IntoTokens)?
+				$crate::__impl_word!(IntoTokens for $name);
+			)?
+			$(
+				$(@ $SimpleSpanned)?
+				$crate::__impl_word!(SimpleSpanned for $name);
 			)?
 			$(
 				$(@ $LocatedAt)?
@@ -146,6 +214,7 @@ macro_rules! __words_muncher {
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
+			$(SimpleSpanned $(@ $SimpleSpanned:tt)?)?
 			$(LocatedAt $(@ $LocatedAt:tt)?)?
 			$(ResolvedAt $(@ $ResolvedAt:tt)?)?
 		),*$(,)?)?
@@ -182,6 +251,10 @@ macro_rules! __words_muncher {
 				$(
 					$(@ $IntoTokens)?
 					$crate::__impl_word!(IntoTokens for $name);
+				)?
+				$(
+					$(@ $SimpleSpanned)?
+					$crate::__impl_word!(SimpleSpanned for $name);
 				)?
 				$(
 					$(@ $LocatedAt)?
@@ -256,6 +329,18 @@ macro_rules! __impl_word {
 		impl $crate::IntoTokens for $name {
 			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
 				self.0.into_tokens(root, tokens)
+			}
+		}
+	};
+
+	(SimpleSpanned for $name:ty$(,)?) => {
+		impl $crate::SimpleSpanned for $name {
+			fn span(&self) -> $crate::__::Span {
+				self.0.span()
+			}
+
+			fn set_span(&mut self, span: $crate::__::Span) {
+				self.0.set_span(span)
 			}
 		}
 	};
