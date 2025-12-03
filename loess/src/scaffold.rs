@@ -365,9 +365,9 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for Delimited<
 }
 
 /// Wraps around other <code>C: [`Repeats`]</code> to constrain item count.
-pub enum RepeatCount<T, const MIN: usize, const MAX: usize> {
+pub enum RepeatCount<C, const MIN: usize, const MAX: usize> {
 	#[expect(missing_docs)]
-	_Vacant(PhantomData<T>, Never),
+	_Vacant(PhantomData<C>, Never),
 }
 
 impl<C: Repeats, const MIN: usize, const MAX: usize> Repeats for RepeatCount<C, MIN, MAX> {
