@@ -1,0 +1,214 @@
+#[macro_export]
+macro_rules! punctuation {
+	{
+		$(#[$($attr:tt)*])*
+		($($punct:tt)+) $(not before [$($not:tt)*])?
+		as $vis:vis $name:ident$(: $(
+			$(doc $(@ $doc:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+		),*)? {
+			$(
+				$(#[$($field_attr:tt)*])*
+				$punct_vis:vis $punct_name:ident
+			),+$(,)?
+		}$(;)?
+
+		$($rest:tt)*
+	} => {
+		$crate::__validate_punctuation!($($punct)*);
+
+		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::__::concat!('`', $crate::__::stringify!($($punct)+), '`'))]
+		$(#[$($attr)*])*
+		$vis struct $name {
+			$(
+				$(#[$($field_attr)*])*
+				$punct_vis $punct_name: $crate::__::Punct,
+			)+
+		}
+
+		// Implementations.
+		const _: () = {
+			const OP: &str = $crate::__::stringify!($($punct)+);
+			const NOT: &str = $crate::__::concat!($($crate::__::stringify!($($not)+))?);
+			$($(
+				$(
+					$(@ $PeekFrom)?
+					$crate::__impl_punctuation!(PeekFrom for $name, OP, NOT);
+				)?
+				//TODO
+			)*)?
+		};
+
+		$crate::punctuation!($($rest)*);
+	};
+
+	{
+		$(#[$($attr:tt)*])*
+		($($punct:tt)+) $(not before [$($not:tt)*])?
+		as $vis:vis $name:ident$(: $(
+			$(doc $(@ $doc:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+		),*)?(
+			$(#[$($field_attr:tt)*])*
+			$($punct_vis:vis),+
+		);
+
+		$($rest:tt)*
+	} => {
+		$crate::__validate_punctuation!($($punct)*);
+
+		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::__::concat!('`', $crate::__::stringify!($($punct)+), '`'))]
+		$(#[$($attr)*])*
+		$vis struct $name(
+			$($punct_vis $crate::__::Punct),+
+		);
+
+		// Implementations.
+		const _: () = {
+			const OP: &str = $crate::__::stringify!($($punct)+);
+			const NOT: &str = $crate::__::concat!($($crate::__::stringify!($($not)+))?);
+			$($(
+				$(
+					$(@ $PeekFrom)?
+					$crate::__impl_punctuation!(PeekFrom for $name, OP, NOT);
+				)?
+				//TODO
+			)*)?
+		};
+
+		$crate::punctuation!($($rest)*);
+	};
+
+	{
+		$(#[$($attr:tt)*])*
+		($($punct:tt)+) $(not before [$($not:tt)*])?
+		as $vis:vis $name:ident$(: $(
+			$(doc $(@ $doc:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)?)?
+		),*)?;
+
+		$($rest:tt)*
+	} => {
+		$crate::__validate_punctuation!($($punct)*);
+
+		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::__::concat!('`', $crate::__::stringify!($($punct)+), '`'))]
+		$(#[$($attr)*])*
+		$vis struct $name;
+
+		// Implementations.
+		const _: () = {
+			const OP: &str = $crate::__::stringify!($($punct)+);
+			const NOT: &str = $crate::__::concat!($($crate::__::stringify!($($not)+))?);
+			$($(
+				$(
+					$(@ $PeekFrom)?
+					$crate::__impl_punctuation!(PeekFrom for $name, OP, NOT);
+				)?
+				//TODO
+			)*)?
+		};
+
+		$crate::punctuation!($($rest)*);
+	};
+
+	// End.
+	{} => {};
+}
+
+punctuation! {
+	///
+	/// asdf
+	(.) not before [.] as pub Dot: doc, PeekFrom {
+		/// `.`
+		pub dot,
+	}
+
+	///
+	/// jkloe
+	(..) not before [.] as pub Dot2: doc, PeekFrom (pub, pub);
+
+	///
+	/// abc
+	(...) not before [.] as pub Dot3: doc, PeekFrom;
+
+	(....) as pub Dot4: doc, PeekFrom;
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __validate_punctuation {
+	($other:ident $($rest:tt)*) => {
+		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
+		$crate::__validate_punctuation!($($rest)*);
+	};
+
+	($other:block $($rest:tt)*) => {
+		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
+		$crate::__validate_punctuation!($($rest)*);
+	};
+
+	($other:lifetime $($rest:tt)*) => {
+		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
+		$crate::__validate_punctuation!($($rest)*);
+	};
+
+	($other:literal $($rest:tt)*) => {
+		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
+		$crate::__validate_punctuation!($($rest)*);
+	};
+
+	(($($other:tt)*) $($rest:tt)*) => {
+		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: (", $crate::__::stringify!($($other),*), ")"));
+		$crate::__validate_punctuation!($($rest)*);
+	};
+
+	($tt:tt $($rest:tt)*) => ( $crate::__validate_punctuation!($($rest)*); );
+
+	// End.
+	() => ();
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_punctuation {
+	(PeekFrom for $name:ident, $OP:expr, $NOT:expr) => {
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &crate::Input) -> bool {
+				const LEN: usize = $OP.len();
+
+				crate::__::assert!(
+					!$OP.contains(' '),
+					"Unexpected space in punctuation definition `{}`.",
+					$OP,
+				);
+
+				input.peek(|tts: [&$crate::__::TokenTree; LEN], mut rest| {
+					tts.into_iter().enumerate().all(|(i, tt)| match tt {
+						$crate::__::TokenTree::Punct(punct)
+							if punct.as_char() == $OP.chars().nth(i).expect("") =>
+						{
+							if i < const { LEN - 1 } {
+								punct.spacing() == $crate::__::Spacing::Joint
+							} else {
+								punct.spacing() == $crate::__::Spacing::Alone || {
+									if let Some($crate::__::TokenTree::Punct(next)) = rest.next() {
+										!$NOT.contains(next.as_char())
+									} else {
+										true
+									}
+								}
+							}
+						}
+						_ => false,
+					})
+				})
+			}
+		}
+	};
+}

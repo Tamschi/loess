@@ -59,14 +59,13 @@
 #[macro_export]
 macro_rules! words {
 	($($input:tt)*) => {
-		$crate::__::words_muncher!([] [] $($input)*);
+		$crate::__words_muncher!([] [] $($input)*);
 	}
 }
 
-pub use crate::words_muncher;
 #[doc(hidden)]
 #[macro_export]
-macro_rules! words_muncher {
+macro_rules! __words_muncher {
 	// Keyword.
 	(
 		[$($kws:tt)*] [$($excluded_kws:tt)*]
@@ -95,11 +94,11 @@ macro_rules! words_muncher {
 		$($(
 			$(
 				$(@ $PeekFrom)?
-				$crate::__::impl_word!(PeekFrom for $name, ident => ident == stringify!($kw));
+				$crate::__impl_word!(PeekFrom for $name, ident => ident == stringify!($kw));
 			)?
 			$(
 				$(@ $PopFrom)?
-				$crate::__::impl_word!(
+				$crate::__impl_word!(
 					PopFrom for $name,
 					ident => ident == stringify!($kw),
 					$crate::__::concat!("Expected `", stringify!($kw), "`."),
@@ -107,19 +106,19 @@ macro_rules! words_muncher {
 			)?
 			$(
 				$(@ $IntoTokens)?
-				$crate::__::impl_word!(IntoTokens for $name);
+				$crate::__impl_word!(IntoTokens for $name);
 			)?
 			$(
 				$(@ $LocatedAt)?
-				$crate::__::impl_word!(LocatedAt for $name);
+				$crate::__impl_word!(LocatedAt for $name);
 			)?
 			$(
 				$(@ $ResolvedAt)?
-				$crate::__::impl_word!(ResolvedAt for $name);
+				$crate::__impl_word!(ResolvedAt for $name);
 			)?
 		)*)?
 
-		$crate::__::words_muncher! {
+		$crate::__words_muncher! {
 			[$($kws)* $kw] [$($excluded_kws)*]
 			$($rest)*
 		}
@@ -131,7 +130,7 @@ macro_rules! words_muncher {
 		$kw:ident as _;
 		$($rest:tt)*
 	) => {
-		$crate::__::words_muncher! {
+		$crate::__words_muncher! {
 			[$($kws)*] [$($excluded_kws)* $kw]
 			$($rest)*
 		}
@@ -167,14 +166,14 @@ macro_rules! words_muncher {
 			$($(
 				$(
 					$(@ $PeekFrom)?
-					$crate::__::impl_word!(
+					$crate::__impl_word!(
 						PeekFrom for $name,
 						ident => __LOESS__WORDS_EXCLUSIONS.into_iter().copied().all(|kw| ident != kw),
 					);
 				)?
 				$(
 					$(@ $PopFrom)?
-					$crate::__::impl_word!(
+					$crate::__impl_word!(
 						PopFrom for $name,
 						ident => __LOESS__WORDS_EXCLUSIONS.into_iter().copied().all(|kw| ident != kw),
 						$crate::__::concat!("Expected ", stringify!($name), "."),
@@ -182,15 +181,15 @@ macro_rules! words_muncher {
 				)?
 				$(
 					$(@ $IntoTokens)?
-					$crate::__::impl_word!(IntoTokens for $name);
+					$crate::__impl_word!(IntoTokens for $name);
 				)?
 				$(
 					$(@ $LocatedAt)?
-					$crate::__::impl_word!(LocatedAt for $name);
+					$crate::__impl_word!(LocatedAt for $name);
 				)?
 				$(
 					$(@ $ResolvedAt)?
-					$crate::__::impl_word!(ResolvedAt for $name);
+					$crate::__impl_word!(ResolvedAt for $name);
 				)?
 			)*)?
 		};
@@ -204,7 +203,7 @@ macro_rules! words_muncher {
 		allow_prior_unused!;
 		$($rest:tt)*
 	) => {
-		$crate::__::words_muncher! {
+		$crate::__words_muncher! {
 			[$($kws)* $($excluded_kws)*] []
 			$($rest)*
 		}
@@ -218,10 +217,9 @@ macro_rules! words_muncher {
 	}
 }
 
-pub use crate::impl_word;
 #[macro_export]
 #[doc(hidden)]
-macro_rules! impl_word {
+macro_rules! __impl_word {
 	(PeekFrom for $name:ty, $ident:pat => $condition:expr$(,)?) => {
 		impl $crate::PeekFrom for $name {
 			fn peek_from(input: &$crate::Input) -> bool {
