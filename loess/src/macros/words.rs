@@ -187,10 +187,13 @@ macro_rules! __words_muncher {
 		)*)?
 
 		$crate::__words_muncher! {
-			[$($kws)* $kw] [$($excluded_kws)*]
+			//TODO: Exclude from other lifetimes?
+			[$($kws)*] [$($excluded_kws)*]
 			$($rest)*
 		}
 	};
+
+	//TODO: Lifetime exclusions?
 
 	// Exclude keyword.
 	(
@@ -203,6 +206,9 @@ macro_rules! __words_muncher {
 			$($rest)*
 		}
 	};
+
+	//TODO: Other lifetime?
+	//TODO: It's likely better to split this, so that other identifiers and lifetimes are separately final.
 
 	// Other identifier. Final.
 	(

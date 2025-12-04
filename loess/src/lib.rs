@@ -67,8 +67,6 @@ pub mod stateful;
 mod macros;
 pub use macros::__;
 
-pub use macros::{Dot, Dot2, Dot3, Dot4};
-
 use crate::scaffold::EndOfInput;
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  

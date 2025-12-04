@@ -21,5 +21,3 @@ pub mod __ {
 		Paste, block_directive, grouped, quote_one2, raw, rust_statement_directive, strip_dot, tt,
 	};
 }
-
-pub use punctuation::{Dot, Dot2, Dot3, Dot4};

@@ -151,25 +151,6 @@ macro_rules! punctuation {
 	{} => {};
 }
 
-punctuation! {
-	///
-	/// asdf
-	(.) not before [.] as pub Dot: doc, PeekFrom {
-		/// `.`
-		pub dot,
-	}
-
-	///
-	/// jkloe
-	(..) not before [.] as pub Dot2: doc, PeekFrom (pub, pub);
-
-	///
-	/// abc
-	(...) not before [.] as pub Dot3: doc, PeekFrom;
-
-	(....) as pub Dot4: doc, PeekFrom;
-}
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __validate_punctuation {
@@ -188,11 +169,14 @@ macro_rules! __validate_punctuation {
 		$crate::__validate_punctuation!($($rest)*);
 	};
 
-	// //TODO: Prevents `-`. Compiler bug?
-	// ($other:literal $($rest:tt)*) => {
-	// 	$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
-	// 	$crate::__validate_punctuation!($($rest)*);
-	// };
+	// The `literal` fragment doesn't fall back if it encounters `-`.
+	(- $($rest:tt)*) => {
+		$crate::__validate_punctuation!($($rest)*);
+	};
+	($other:literal $($rest:tt)*) => {
+		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
+		$crate::__validate_punctuation!($($rest)*);
+	};
 
 	(($($other:tt)*) $($rest:tt)*) => {
 		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: (", $crate::__::stringify!($($other),*), ")"));
