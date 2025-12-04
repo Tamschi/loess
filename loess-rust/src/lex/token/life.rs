@@ -1,4 +1,4 @@
-//! [lex.token.life](https://doc.rust-lang.org/stable/reference/tokens.html#r-lex.token.life)
+//! [lex.token.life](https://doc.rust-lang.org/stable/reference/tokens.html#r-lex.token.life): Lifetimes and loop labels
 
 use loess::{Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom, PopParsedFrom, lifetimes};
 use proc_macro2::{Ident, TokenTree};

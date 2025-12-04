@@ -1,4 +1,4 @@
-//! [lex.token.punct](https://doc.rust-lang.org/stable/reference/tokens.html#r-lex.token.punct)
+//! [lex.token.punct](https://doc.rust-lang.org/stable/reference/tokens.html#r-lex.token.punct): Punctuation
 //!
 //! Punctuation is implemented as structs with named [`Punct`] fields.  
 //! Where collisions would happen, they have a 0-based suffix.
