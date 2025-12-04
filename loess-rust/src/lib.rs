@@ -12,8 +12,7 @@
 mod expressions;
 pub use expressions::*;
 
-mod lexical_structure;
-pub use lexical_structure::*;
+pub mod lex;
 
 mod names;
 pub use names::*;

@@ -4,7 +4,7 @@ use loess::{
 };
 use proc_macro2::{TokenStream, TokenTree};
 
-use crate::tokens::Pub;
+use crate::lex::keywords::Pub;
 
 /// [*Visibility*](https://doc.rust-lang.org/stable/reference/visibility-and-privacy.html#r-vis.syntax):
 /// [`pub`](`Pub`) [`(`](`Parentheses`) [`T`](`TokenStream`) [`)`](`Parentheses`)<sup>?</sup>
