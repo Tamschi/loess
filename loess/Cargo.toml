@@ -4,7 +4,7 @@ version = "0.2.5"
 authors = ["Tamme Schichler <tamme@schichler.dev>"]
 edition = "2024"
 rust-version = "1.86"
-description = "Small proc macro grammar- and parser-generator providing great UX."
+description = "Small grammar- and parser-generator for proc macros that provides great UX."
 # documentation intentionally defaulted
 readme = "../README.md"
 # homepage
