@@ -1,77 +1,77 @@
-/// Defines keywords and identifiers (excluding lifetimes).
+/// Defines key and catch-other lifetimes.
 ///
 /// # Examples
 ///
 /// ```rust
-/// loess::words! {
-/// 	// Defines a keyword.
-/// 	keyword as Keyword;
+/// loess::lifetimes! {
+/// 	// Defines a key lifetime.
+/// 	('key) as LifetimeKey;
 ///
-/// 	// Defines a catch-other identifier. Must be last.
-/// 	_ as Identifier;
+/// 	// Defines a catch-other lifetime. Must be last.
+/// 	_ as Lifetime;
 /// }
 /// ```
 ///
 /// ```rust
-/// loess::words! {
+/// loess::lifetimes! {
 /// 	#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// 	pub keyword as pub Keyword: doc, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
+/// 	pub ('key) as pub LifetimeKey: doc, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
 ///
 /// 	#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// 	pub _ as pub Identifier: PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
+/// 	pub _ as pub Lifetime: PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt;
 /// }
 /// ```
 ///
-/// ## Exclude keywords without declaration
+/// ## Exclude key lifetimes without declaration
 ///
 /// ```rust
-/// loess::words! {
-/// 	// Exclude keyword for catch-other identifier.
+/// loess::lifetimes! {
+/// 	// Exclude 'key for catch-other lifetime.
 /// 	// Must not have otherwise optional elements.
-/// 	keyword as _;
+/// 	('key) as _;
 ///
-/// 	// Matches any except `keyword`.
-/// 	pub _ as pub Identifier;
+/// 	// Matches any except `'key`.
+/// 	pub _ as pub Lifetime;
 /// }
 /// ```
 ///
 /// ```rust,compile_fail
-/// loess::words! {
-/// 	keyword as _; //Error: Unused keyword exclusion: keyword
+/// loess::lifetimes! {
+/// 	('key) as _; //Error: Unused key lifetime exclusion: 'key
 /// }
 /// ```
 ///
 /// ### For macros
 ///
 /// ```rust
-/// loess::words! {
-/// 	keyword as _;
+/// loess::lifetimes! {
+/// 	('key) as _;
 /// 	allow_prior_unused!;
 /// }
 /// ```
 ///
 /// ```rust,compile_fail
-/// loess::words! {
+/// loess::lifetimes! {
 /// 	allow_prior_unused!;
-/// 	keyword as _;
+/// 	('key) as _;
 /// }
 /// ```
 #[macro_export]
-macro_rules! words {
+macro_rules! lifetimes {
 	($($input:tt)*) => {
-		$crate::__words_muncher!([] [] $($input)*);
+		$crate::__lifetimes_muncher!([] [] $($input)*);
 	}
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __words_muncher {
-	// Keyword.
+macro_rules! __lifetimes_muncher {
+	// Keylifetime.
 	(
 		[$($kws:tt)*] [$($excluded_kws:tt)*]
 
 		$(#[$($attr:tt)*])*
-		$ident_vis:vis $kw:ident as $vis:vis $name:ident
+		$ident_vis:vis ($kw:lifetime) as $vis:vis $name:ident
 		$(: $(
 			$(doc $(@ $doc:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
@@ -95,11 +95,11 @@ macro_rules! __words_muncher {
 		$($(
 			$(
 				$(@ $PeekFrom)?
-				$crate::__impl_word!(PeekFrom for $name, ident => ident == stringify!($kw));
+				$crate::__impl_lifetime!(PeekFrom for $name, ident => ident == stringify!($kw));
 			)?
 			$(
 				$(@ $PopFrom)?
-				$crate::__impl_word!(
+				$crate::__impl_lifetime!(
 					PopFrom for $name,
 					ident => ident == stringify!($kw),
 					$crate::__::concat!("Expected `", stringify!($kw), "`."),
@@ -107,41 +107,41 @@ macro_rules! __words_muncher {
 			)?
 			$(
 				$(@ $IntoTokens)?
-				$crate::__impl_word!(IntoTokens for $name);
+				$crate::__impl_lifetime!(IntoTokens for $name);
 			)?
 			$(
 				$(@ $SimpleSpanned)?
-				$crate::__impl_word!(SimpleSpanned for $name);
+				$crate::__impl_lifetime!(SimpleSpanned for $name);
 			)?
 			$(
 				$(@ $LocatedAt)?
-				$crate::__impl_word!(LocatedAt for $name);
+				$crate::__impl_lifetime!(LocatedAt for $name);
 			)?
 			$(
 				$(@ $ResolvedAt)?
-				$crate::__impl_word!(ResolvedAt for $name);
+				$crate::__impl_lifetime!(ResolvedAt for $name);
 			)?
 		)*)?
 
-		$crate::__words_muncher! {
+		$crate::__lifetimes_muncher! {
 			[$($kws)* $kw] [$($excluded_kws)*]
 			$($rest)*
 		}
 	};
 
-	// Exclude keyword.
+	// Exclude key lifetime.
 	(
 		[$($kws:tt)*] [$($excluded_kws:tt)*]
-		$kw:ident as _;
+		($kw:lifetime) as _;
 		$($rest:tt)*
 	) => {
-		$crate::__words_muncher! {
+		$crate::__lifetimes_muncher! {
 			[$($kws)*] [$($excluded_kws)* $kw]
 			$($rest)*
 		}
 	};
 
-	// Other identifier. Final.
+	// Other lifetime. Final.
 	(
 		[$($kws:tt)*] [$($excluded_kws:tt)*]
 
@@ -172,14 +172,14 @@ macro_rules! __words_muncher {
 			$($(
 				$(
 					$(@ $PeekFrom)?
-					$crate::__impl_word!(
+					$crate::__impl_lifetime!(
 						PeekFrom for $name,
 						ident => __LOESS__WORDS_EXCLUSIONS.into_iter().copied().all(|kw| ident != kw),
 					);
 				)?
 				$(
 					$(@ $PopFrom)?
-					$crate::__impl_word!(
+					$crate::__impl_lifetime!(
 						PopFrom for $name,
 						ident => __LOESS__WORDS_EXCLUSIONS.into_iter().copied().all(|kw| ident != kw),
 						$crate::__::concat!("Expected ", stringify!($name), "."),
@@ -187,24 +187,24 @@ macro_rules! __words_muncher {
 				)?
 				$(
 					$(@ $IntoTokens)?
-					$crate::__impl_word!(IntoTokens for $name);
+					$crate::__impl_lifetime!(IntoTokens for $name);
 				)?
 				$(
 					$(@ $SimpleSpanned)?
-					$crate::__impl_word!(SimpleSpanned for $name);
+					$crate::__impl_lifetime!(SimpleSpanned for $name);
 				)?
 				$(
 					$(@ $LocatedAt)?
-					$crate::__impl_word!(LocatedAt for $name);
+					$crate::__impl_lifetime!(LocatedAt for $name);
 				)?
 				$(
 					$(@ $ResolvedAt)?
-					$crate::__impl_word!(ResolvedAt for $name);
+					$crate::__impl_lifetime!(ResolvedAt for $name);
 				)?
 			)*)?
 		};
 
-		$($crate::__::compile_error!($crate::__::concat!("Catch-other identifier must be last, but was followed by: ", $crate::__::stringify!($($rest)+)));)?
+		$($crate::__::compile_error!($crate::__::concat!("Catch-other lifetime must be last, but was followed by: ", $crate::__::stringify!($($rest)+)));)?
 	};
 
 	// For macro authors.
@@ -213,7 +213,7 @@ macro_rules! __words_muncher {
 		allow_prior_unused!;
 		$($rest:tt)*
 	) => {
-		$crate::__words_muncher! {
+		$crate::__lifetimes_muncher! {
 			[$($kws)* $($excluded_kws)*] []
 			$($rest)*
 		}
@@ -222,18 +222,18 @@ macro_rules! __words_muncher {
 	// Other end.
 	([$($kws:tt)*] [$($excluded_kws:tt)*]) => {
 		$(
-			$crate::__::compile_error!($crate::__::concat!("Unused keyword exclusion: ", $crate::__::stringify!($excluded_kws)));
+			$crate::__::compile_error!($crate::__::concat!("Unused key lifetime exclusion: ", $crate::__::stringify!($excluded_kws)));
 		)*
 	}
 }
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! __impl_word {
+macro_rules! __impl_lifetime {
 	(PeekFrom for $name:ty, $ident:ident => $condition:expr$(,)?) => {
 		impl $crate::PeekFrom for $name {
 			fn peek_from(input: &$crate::Input) -> bool {
-				input.peek(|tts, _| matches!(tts, [$crate::__::TokenTree::Ident($ident)] if $condition && !<$crate::__::Ident as $crate::__::ToString>::to_string($ident).as_str().starts_with('\'')))
+				input.peek(|tts, _| matches!(tts, [$crate::__::TokenTree::Ident($ident)] if $condition && <$crate::__::Ident as $crate::__::ToString>::to_string($ident).as_str().starts_with('\'')))
 			}
 		}
 	};
@@ -248,7 +248,7 @@ macro_rules! __impl_word {
 			) -> Result<Self::Parsed, ()> {
 				input
 					.pop_or_replace(|tts, _| match tts {
-						[$crate::__::TokenTree::Ident($ident)] if $condition && !<$crate::__::Ident as $crate::__::ToString>::to_string(&$ident).as_str().starts_with('\'') => Ok(Self($ident)),
+						[$crate::__::TokenTree::Ident($ident)] if $condition && <$crate::__::Ident as $crate::__::ToString>::to_string(&$ident).as_str().starts_with('\'') => Ok(Self($ident)),
 						tts => Err(tts),
 					})
 					.map_err(|spans| {

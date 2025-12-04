@@ -1,3 +1,5 @@
+//! [vis](https://doc.rust-lang.org/stable/reference/visibility-and-privacy.html#r-vis): Visibility and Privacy
+
 use loess::{
 	Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopFrom, PopParsedFrom,
 	scaffold::Parentheses,

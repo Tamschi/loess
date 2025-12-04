@@ -1,5 +1,5 @@
 //! [ident](https://doc.rust-lang.org/stable/reference/identifiers.html#r-ident):
-//! Identifiers (not [keywords](`crate::lex::keywords`)).
+//! Identifiers (not [keywords](`crate::lex::keywords`) or [lifetimes](`crate::lex::token::life`)).
 
 use loess::{Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom as _, PopParsedFrom};
 use proc_macro2::{Ident, TokenTree};
@@ -53,5 +53,6 @@ pub fn is_identifier(ident: &Ident) -> bool {
 		.into_iter()
 		.any(|s| ident == s)
 		|| is_strict_keyword(&ident)
-		|| is_reserved_keyword(&ident))
+		|| is_reserved_keyword(&ident)
+		|| ident.to_string().starts_with('\''))
 }

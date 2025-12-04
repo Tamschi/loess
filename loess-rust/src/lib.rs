@@ -14,6 +14,4 @@ pub use expressions::*;
 
 pub mod ident;
 pub mod lex;
-
-mod names;
-pub use names::*;
+pub mod vis;

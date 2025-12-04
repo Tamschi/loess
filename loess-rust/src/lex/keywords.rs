@@ -2,7 +2,7 @@
 //!
 //! Keywords are implemented as tuple structs with single public [`Ident`].
 
-use loess::words;
+use loess::{lifetimes, words};
 use proc_macro2::Ident;
 
 pub(crate) mod words_impl {
@@ -87,9 +87,11 @@ pub use words_impl::{
 
 // Weak keywords.
 // See <https://doc.rust-lang.org/stable/reference/keywords.html#r-lex.keywords.weak>.
-words! {
+lifetimes! {
 	/// [(weak)](https://doc.rust-lang.org/stable/reference/keywords.html#r-lex.keywords.weak.lifetime-static)
 	#[derive(Clone)] pub ('static) as pub LifetimeStatic: doc, PeekFrom, PopFrom, IntoTokens, SimpleSpanned, LocatedAt, ResolvedAt;
+}
+words! {
 
 	/// [(weak)](https://doc.rust-lang.org/stable/reference/keywords.html#r-lex.keywords.weak.macro_rules)
 	#[derive(Clone)] pub macro_rules as pub MacroRules: doc, PeekFrom, PopFrom, IntoTokens, SimpleSpanned, LocatedAt, ResolvedAt;

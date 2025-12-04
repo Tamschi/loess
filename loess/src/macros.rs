@@ -1,4 +1,5 @@
 mod grammar;
+mod lifetimes;
 mod punctuation;
 mod quotes;
 mod words;
@@ -11,6 +12,8 @@ pub mod __ {
 		clone::Clone, compile_error, concat, debug_assert, iter::Extend, primitive::bool,
 		result::Result, stringify,
 	};
+
+	pub use std::string::ToString;
 
 	pub use proc_macro2::{
 		Delimiter::{Brace, Bracket, Parenthesis},
