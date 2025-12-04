@@ -291,3 +291,32 @@ impl IntoTokens for RArrow {
 		tokens.extend([minus.into(), gt.into()])
 	}
 }
+
+// `#`
+impl Default for Pound {
+	fn default() -> Self {
+		Self {
+			pound: Punct::new('#', Spacing::Alone).with_span(Span::mixed_site()),
+		}
+	}
+}
+
+impl PopParsedFrom for Pound {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|tts, _| match tts {
+				[TokenTree::Punct(pound)] if pound.as_char() == '#' => Ok(Self { pound }),
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `#`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for Pound {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.pound.into_tokens(root, tokens)
+	}
+}
