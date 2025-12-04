@@ -61,7 +61,7 @@
 /// ```
 #[macro_export]
 macro_rules! grammar {
-	//TODO: Change impl separator to `+`.
+	//TODO: Change impl separator to `+`?
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis enum $name:ident$(: $(

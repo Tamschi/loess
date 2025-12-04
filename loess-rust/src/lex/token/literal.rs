@@ -1,5 +1,9 @@
+//! [lex.token.literal](https://doc.rust-lang.org/stable/reference/tokens.html#r-lex.token.literal): Literals
+
 use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopParsedFrom, grammar};
 use proc_macro2::{Literal, TokenTree};
+
+use crate::lex::keywords::{False, True};
 
 grammar! {
 	/// [STRING_LITERAL](https://doc.rust-lang.org/stable/reference/tokens.html#r-lex.token.literal.str.syntax):
@@ -17,12 +21,22 @@ grammar! {
 	pub struct RawStringLiteral(pub Literal);
 
 	#[derive(Clone)]
+	#[non_exhaustive]
 	pub enum AnyStringLiteral: doc, PeekFrom, PopFrom, IntoTokens {
 		/// `"…"`
 		Plain(StringLiteral),
 		/// `r#"…"#` and similar.
 		Raw(RawStringLiteral),
 	} else "Expected &str literal.";
+
+	#[derive(Clone)]
+	#[non_exhaustive]
+	pub enum AnyBoolLiteral: doc, PeekFrom, PopFrom, IntoTokens {
+		/// `true`
+		True(True),
+		/// `false`
+		False(False),
+	} else "Expected bool literal.";
 }
 
 impl PeekFrom for StringLiteral {
