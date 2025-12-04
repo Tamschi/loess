@@ -12,6 +12,7 @@
 mod expressions;
 pub use expressions::*;
 
+pub mod ident;
 pub mod lex;
 
 mod names;
