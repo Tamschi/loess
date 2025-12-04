@@ -265,7 +265,7 @@ macro_rules! quote_into_call_site {
 /// tokens (but not pasted [`IntoTokens`] values!). This isolates resolution for scoped
 /// bindings (but not items, so please use fully qualified paths and ideally the `$crate`-
 /// `$root` pattern from Loess's README that can be viewed [in the root module](crate),
-/// with [`quote_into_mixed_site`] instead of this macro).
+/// with [`quote_into_mixed_site`](`crate::quote_into_mixed_site`) instead of this macro).
 ///
 /// ## <code>$tokens: impl [`Extend`]&lt;[`TokenTree`]></code>
 ///

@@ -8,8 +8,8 @@ pub mod __ {
 	#![allow(missing_docs)] // Internal.
 
 	pub use core::{
-		assert, clone::Clone, compile_error, concat, iter::Extend, primitive::bool, result::Result,
-		stringify,
+		clone::Clone, compile_error, concat, debug_assert, iter::Extend, primitive::bool,
+		result::Result, stringify,
 	};
 
 	pub use proc_macro2::{

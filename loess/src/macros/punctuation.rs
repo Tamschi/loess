@@ -188,10 +188,11 @@ macro_rules! __validate_punctuation {
 		$crate::__validate_punctuation!($($rest)*);
 	};
 
-	($other:literal $($rest:tt)*) => {
-		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
-		$crate::__validate_punctuation!($($rest)*);
-	};
+	// //TODO: Prevents `-`. Compiler bug?
+	// ($other:literal $($rest:tt)*) => {
+	// 	$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: ", $crate::__::stringify!($other)));
+	// 	$crate::__validate_punctuation!($($rest)*);
+	// };
 
 	(($($other:tt)*) $($rest:tt)*) => {
 		$crate::__::compile_error!($crate::__::concat!("Expected punct, but found: (", $crate::__::stringify!($($other),*), ")"));
@@ -212,11 +213,14 @@ macro_rules! __impl_punctuation {
 			fn peek_from(input: &$crate::Input) -> bool {
 				const LEN: usize = $OP.len();
 
-				$crate::__::assert!(
+				//FIXME: Should be a constant asset once possible.
+				$crate::__::debug_assert!(
 					!$OP.contains(' '),
 					"Unexpected space in punctuation definition `{}`.",
 					$OP,
 				);
+
+				//TODO: Assert length.
 
 				input.peek(|tts: [&$crate::__::TokenTree; LEN], mut rest| {
 					tts.into_iter().enumerate().all(|(i, tt)| match tt {
