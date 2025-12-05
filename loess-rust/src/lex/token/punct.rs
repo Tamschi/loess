@@ -64,6 +64,37 @@ punctuation! {
 	#[derive(Clone)] (~) as pub Tilde: doc, Default, PeekFrom, PopFrom, IntoTokens, SimpleSpanned, LocatedAt, ResolvedAt { pub tilde }
 }
 
+// `!`
+impl Default for Not {
+	fn default() -> Self {
+		Self {
+			not: Punct::new('!', Spacing::Alone).with_span(Span::mixed_site()),
+		}
+	}
+}
+
+impl PopParsedFrom for Not {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|tts, _| match tts {
+				[TokenTree::Punct(not)] if not.as_char() == '!' && not.spacing() == Spacing::Alone => {
+					Ok(Self { not })
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `!`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for Not {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.not.into_tokens(root, tokens)
+	}
+}
+
 // `|`
 impl Default for Or {
 	fn default() -> Self {

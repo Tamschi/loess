@@ -18,5 +18,9 @@
 pub mod attributes;
 pub mod expr;
 pub mod ident;
+pub mod items;
 pub mod lex;
+pub mod r#macro;
+pub mod paths;
+pub mod statement;
 pub mod vis;
