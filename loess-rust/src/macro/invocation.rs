@@ -5,10 +5,10 @@ use loess::{
 	scaffold::{CurlyBraces, Parentheses, SquareBrackets},
 };
 
-use crate::lex::token::{
+use crate::{lex::token::{
 	Token,
 	punct::{Not, Semi},
-};
+}, paths::simple::SimplePath};
 
 grammar! {
 	#[derive(Clone)]

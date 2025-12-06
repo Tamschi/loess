@@ -24,7 +24,7 @@ grammar! {
 	pub enum SimplePathSegment {
 		Identifier(Identifier),
 		Super(Super),
-		Self_(SelfUppercase),
+		SelfUppercase(SelfUppercase),
 		Crate(Crate),
 		DollarCrate(Dollar, Crate),
 	} else "Expected SimplePathSegment.";

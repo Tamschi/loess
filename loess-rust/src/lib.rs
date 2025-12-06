@@ -18,6 +18,7 @@
 pub mod attributes;
 pub mod expr;
 pub mod ident;
+#[path = "items.rs"]
 pub mod items;
 pub mod lex;
 pub mod r#macro;

@@ -3,7 +3,7 @@ use loess::{
 	scaffold::{CurlyBraces, Greedy, RepeatCount},
 };
 
-use crate::{attributes::InnerAttribute, expr::ExpressionWithoutBlock};
+use crate::{attributes::InnerAttribute, expr::ExpressionWithoutBlock, statement::Statement};
 
 grammar! {
 	#[derive(Clone)]

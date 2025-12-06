@@ -7,7 +7,7 @@ use crate::lex::token::punct::{Not, Pound};
 grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
-	/// [InnerAttribute](https://doc.rust-lang.org/reference/attributes.html?highlight-InnerAttribute#r-attributes.syntax)
+	/// [InnerAttribute](https://doc.rust-lang.org/reference/attributes.html#grammar-InnerAttribute)
 	pub struct InnerAttribute: PeekFrom, PopFrom, IntoTokens {
 		pound: Pound,
 		not: Not,
@@ -17,7 +17,7 @@ grammar! {
 
 	#[derive(Clone)]
 	#[non_exhaustive]
-	/// [OuterAttribute](https://doc.rust-lang.org/reference/attributes.html?highlight-OuterAttribute#r-attributes.syntax)
+	/// [OuterAttribute](https://doc.rust-lang.org/reference/attributes.html#grammar-OuterAttribute)
 	pub struct OuterAttribute: PeekFrom, PopFrom, IntoTokens {
 		pound: Pound,
 		/// Continue inside with [`Attr`].

@@ -2,12 +2,17 @@
 
 use loess::{grammar, scaffold::Greedy};
 
-use crate::{attributes::OuterAttribute, vis::Visibility};
+use crate::{attributes::OuterAttribute, items::extern_crate::ExternCrate, vis::Visibility};
+
+#[path ="items/extern_crate.rs"]
+pub mod extern_crate;
+#[path ="items/mod.rs"]
+pub mod r#mod;
 
 grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
-	/// [Item](https://doc.rust-lang.org/reference/items.html?highlight=Item#r-items.syntax)
+	/// [Item](https://doc.rust-lang.org/reference/items.html#grammar-Item)
 	pub struct Item: PeekFrom, PopFrom, IntoTokens {
 		outer_attributes: Greedy<Vec<OuterAttribute>>,
 		variant: ItemVariant,
@@ -23,7 +28,7 @@ grammar! {
 
 	#[derive(Clone)]
 	#[non_exhaustive]
-	/// [VisItem](https://doc.rust-lang.org/reference/items.html?highlight=VisItem#r-items.syntax)
+	/// [VisItem](https://doc.rust-lang.org/reference/items.html#grammar-VisItem)
 	pub struct VisItem: PeekFrom, PopFrom, IntoTokens {
 		visibility: Option<Visibility>,
 		variant: VisItemVariant,
@@ -31,7 +36,7 @@ grammar! {
 
 	#[derive(Clone)]
 	#[non_exhaustive]
-	/// [`Item::variant`]
+	/// [`VisItem::variant`]
 	pub enum VisItemVariant: PeekFrom, PopFrom, IntoTokens {
 		Module(Module),
 		ExternCrate(ExternCrate),
@@ -50,7 +55,7 @@ grammar! {
 
 	#[derive(Clone)]
 	#[non_exhaustive]
-	/// [MacroItem](https://doc.rust-lang.org/reference/items.html?highlight=MacroItem#r-items.syntax)
+	/// [MacroItem](https://doc.rust-lang.org/reference/items.html#grammar-MacroItem)
 	pub enum MacroItem: PeekFrom, PopFrom, IntoTokens {
 		MacroInvocationSemi(MacroInvocationSemi),
 		MacroRulesDefinition(MacroRulesDefinition),

@@ -75,7 +75,7 @@ pub(crate) mod words_impl {
 		gen as _;
 
 		//TODO: Move this elsewhere in the API?
-		/// [IDENTIFIER](https://doc.rust-lang.org/stable/reference/identifiers.html#r-ident.syntax)
+		/// [IDENTIFIER](https://doc.rust-lang.org/reference/identifiers.html#grammar-IDENTIFIER)
 		#[derive(Clone)] pub _ as pub Identifier: IntoTokens, SimpleSpanned, LocatedAt, ResolvedAt;
 	}
 }

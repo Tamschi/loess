@@ -66,8 +66,8 @@ macro_rules! grammar {
 		$(#[$($attr:tt)*])*
 		$vis:vis enum $name:ident$(: $(
 			$(doc $(@ $doc:tt)?)?
-			$(PeekFrom $(@ $PeekFrom:tt)?)?
-			$(PopFrom $(@ $PopFrom:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)? $(via $PeekFromViaType:ident)?)?
+			$(PopFrom $(@ $PopFrom:tt)? $(via $PopFromViaType:ident)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
 		),*)? {$(
 			$(#[$($variant_attr:tt)*])*
@@ -84,28 +84,10 @@ macro_rules! grammar {
 		)*}
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				false
-				$(|| $crate::grammar!(@peek_first $name input $($type,)*))*
-			}
-		}
+		$crate::grammar!(@PeekFrom for enum $name $($($($(via $PeekFromViaType)?)?)*)?, [$([$($type),*]),*]);
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		impl $crate::PopParsedFrom for $name {
-			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopParsedFrom>::peek_pop_parsed_from(input, errors)?),*) {
-					Self::$variant(values)
-				} else)* {
-					return $crate::__::Result::Err(errors.push($crate::Error::new(
-						$crate::ErrorPriority::GRAMMAR,
-						$error,
-						[input.front_span()],
-					)));
-				})
-			}
-		}
+		$crate::grammar!(@PopFrom for enum $name $($($($(via $PeekFromViaType)?)?)*)?, [$($variant[$($type),*]),*], $error);
 
 		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
 		impl $crate::IntoTokens for $name {
@@ -121,7 +103,7 @@ macro_rules! grammar {
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis struct $name:ident$(: $(
-			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)? $(via $PeekFromViaType:ident)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
 		),*)? {$(
@@ -138,11 +120,7 @@ macro_rules! grammar {
 		)*}
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				$crate::grammar!(@peek_first $name input $($type,)*)
-			}
-		}
+		$crate::grammar!(@PeekFrom for struct $name $($($($(via $PeekFromViaType)?)?)*)?, $($type),*);
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopParsedFrom for $name {
@@ -169,7 +147,7 @@ macro_rules! grammar {
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis struct $name:ident$(: $(
-			$(PeekFrom $(@ $PeekFrom:tt)?)?
+			$(PeekFrom $(@ $PeekFrom:tt)? $(via $PeekFromViaType:ident)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 		),*)? ($(
 			$(#[$($field_attr:tt)*])*
@@ -185,11 +163,7 @@ macro_rules! grammar {
 		)*);
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		impl $crate::PeekFrom for $name {
-			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
-				$crate::grammar!(@peek_first $name input $($type,)*)
-			}
-		}
+		$crate::grammar!(@PeekFrom for struct $name $($($($(via $PeekFromViaType)?)?)*)?, $($type),*);
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopParsedFrom for $name {
@@ -203,6 +177,67 @@ macro_rules! grammar {
 
 		$crate::grammar!($($tt)*);
 	};
+
+	(@PeekFrom for enum $name:ident, [$([$($type:ty),*$(,)?]),*$(,)?]$(,)?) => {
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				false
+				$(|| $crate::grammar!(@peek_first $name input $($type,)*))*
+			}
+		}
+	};
+	(@PeekFrom for struct $name:ident, $($type:ty),*$(,)?) => {
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				$crate::grammar!(@peek_first $name input $($type,)*)
+			}
+		}
+	};
+	(@PeekFrom for $_either:tt $name:ident via $PeekFromViaType:ident, $($_ignored:tt)*) => {
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				<$PeekFromViaType as $crate::PeekFrom>::peek_from(input)
+			}
+		}
+	};
+
+	(@PopFrom for enum $name:ident, [$($variant:ident[$($type:ty),*$(,)?]),*$(,)?], $error:expr$(,)?) => {
+		impl $crate::PopParsedFrom for $name {
+			type Parsed = Self;
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopParsedFrom>::peek_pop_parsed_from(input, errors)?),*) {
+					Self::$variant(values)
+				} else)* {
+					return $crate::__::Result::Err(errors.push($crate::Error::new(
+						$crate::ErrorPriority::GRAMMAR,
+						$error,
+						[input.front_span()],
+					)));
+				})
+			}
+		}
+	};
+	//TODO
+	(@PopFrom for struct $name:ident, $($type:ty),*$(,)?) => {
+		impl $crate::PeekFrom for $name {
+			fn peek_from(input: &$crate::Input) -> $crate::__::bool {
+				$crate::grammar!(@peek_first $name input $($type,)*)
+			}
+		}
+	};
+	(@PopFrom for $_either:tt $name:ident via $PopFromViaType:ident, $($_ignored:tt)*) => {
+		impl $crate::PopParsedFrom for $name {
+			type Parsed = Self;
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+				$crate::__::Result::Ok(
+					<Self as $crate::__::From<<$PopFromViaType as $crate::PopParsedFrom>::Parsed>>::from(
+						<$PopFromViaType as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,
+					),
+				)
+			}
+		}
+	};
+
 	(@peek_first $name:ident $input:ident $type:ty, $($rest:ty,)*) => (
 		<$type as $crate::PeekFrom>::peek_from($input)
 	);

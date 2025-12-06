@@ -9,8 +9,8 @@ pub mod __ {
 	#![allow(missing_docs)] // Internal.
 
 	pub use core::{
-		clone::Clone, compile_error, concat, debug_assert, iter::Extend, primitive::bool,
-		result::Result, stringify,
+		clone::Clone, compile_error, concat, convert::From, debug_assert, iter::Extend,
+		primitive::bool, result::Result, stringify,
 	};
 
 	pub use std::string::ToString;

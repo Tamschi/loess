@@ -78,7 +78,9 @@ impl PopParsedFrom for Not {
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.pop_or_replace(|tts, _| match tts {
-				[TokenTree::Punct(not)] if not.as_char() == '!' && not.spacing() == Spacing::Alone => {
+				[TokenTree::Punct(not)]
+					if not.as_char() == '!' && not.spacing() == Spacing::Alone =>
+				{
 					Ok(Self { not })
 				}
 				other => Err(other),
@@ -123,6 +125,37 @@ impl PopParsedFrom for Or {
 impl IntoTokens for Or {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		self.or.into_tokens(root, tokens)
+	}
+}
+
+// `_`
+impl Default for Underscore {
+	fn default() -> Self {
+		Self {
+			underscore: Punct::new('_', Spacing::Alone).with_span(Span::mixed_site()),
+		}
+	}
+}
+
+impl PopParsedFrom for Underscore {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|tts, _| match tts {
+				[TokenTree::Punct(underscore)] if underscore.as_char() == '_' => {
+					Ok(Self { underscore })
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `_`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for Underscore {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.underscore.into_tokens(root, tokens)
 	}
 }
 

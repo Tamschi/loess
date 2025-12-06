@@ -45,11 +45,11 @@ grammar! {
 	} else "Expected literal expression.";
 }
 
-impl LiteralExpression {
-	pub fn group_by_type(self) -> LiteralExpressionByType {
+impl From<LiteralExpression> for LiteralExpressionByType {
+	fn from(value: LiteralExpression) -> Self {
 		use LiteralExpression::*;
 		use LiteralExpressionByType::*;
-		match self {
+		match value {
 			StringLiteral(s) => AnyString(AnyStringLiteral::Plain(s)),
 			RawStringLiteral(r) => AnyString(AnyStringLiteral::Raw(r)),
 			True(t) => AnyBool(AnyBoolLiteral::True(t)),
@@ -58,11 +58,11 @@ impl LiteralExpression {
 	}
 }
 
-impl LiteralExpressionByType {
-	pub fn flatten(self) -> LiteralExpression {
+impl From<LiteralExpressionByType> for LiteralExpression {
+	fn from(value: LiteralExpressionByType) -> Self {
 		use LiteralExpression::*;
 		use LiteralExpressionByType::*;
-		match self {
+		match value {
 			AnyString(s) => match s {
 				AnyStringLiteral::Plain(s) => StringLiteral(s),
 				AnyStringLiteral::Raw(r) => RawStringLiteral(r),
