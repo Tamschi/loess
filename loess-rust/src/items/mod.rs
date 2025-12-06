@@ -54,6 +54,7 @@ grammar! {
 	}
 }
 
+/// `mod` or `unsafe mod`
 impl PeekFrom for ModuleFlattened {
 	fn peek_from(input: &Input) -> bool {
 		input.peek(|[tt], mut rest| match tt {
