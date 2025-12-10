@@ -319,6 +319,44 @@ impl IntoTokens for Colon {
 	}
 }
 
+// `::`
+impl Default for PathSep {
+	fn default() -> Self {
+		Self {
+			colon0: Punct::new(':', Spacing::Joint).with_span(Span::mixed_site()),
+			colon1: Punct::new(':', Spacing::Alone).with_span(Span::mixed_site()),
+		}
+	}
+}
+
+impl PopParsedFrom for PathSep {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|tts, _| match tts {
+				[TokenTree::Punct(colon0), TokenTree::Punct(colon1)]
+					if colon0.as_char() == ':'
+						&& colon0.spacing() == Spacing::Joint
+						&& colon1.as_char() == ':'
+						&& colon1.spacing() == Spacing::Alone =>
+				{
+					Ok(Self { colon0, colon1 })
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `::`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for PathSep {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.colon0.into_tokens(root, tokens);
+		self.colon1.into_tokens(root, tokens);
+	}
+}
+
 // `->`
 impl Default for RArrow {
 	fn default() -> Self {
@@ -382,5 +420,38 @@ impl PopParsedFrom for Pound {
 impl IntoTokens for Pound {
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		self.pound.into_tokens(root, tokens)
+	}
+}
+
+// `$`
+impl Default for Dollar {
+	fn default() -> Self {
+		Self {
+			dollar: Punct::new('$', Spacing::Alone).with_span(Span::mixed_site()),
+		}
+	}
+}
+
+impl PopParsedFrom for Dollar {
+	type Parsed = Self;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+		input
+			.pop_or_replace(|tts, _| match tts {
+				[TokenTree::Punct(dollar)]
+					if dollar.as_char() == '$' && dollar.spacing() == Spacing::Alone =>
+				{
+					Ok(Self { dollar })
+				}
+				other => Err(other),
+			})
+			.map_err(|spans| {
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `$`.", spans))
+			})
+	}
+}
+
+impl IntoTokens for Dollar {
+	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		self.dollar.into_tokens(root, tokens)
 	}
 }

@@ -2,11 +2,14 @@
 
 use loess::{grammar, scaffold::Greedy};
 
-use crate::{attributes::OuterAttribute, items::extern_crate::ExternCrate, vis::Visibility};
+use crate::{
+	attributes::OuterAttribute, items::extern_crate::ExternCrate,
+	r#macro::invocation::MacroInvocationSemi, vis::Visibility,
+};
 
-#[path ="items/extern_crate.rs"]
+#[path = "items/extern_crate.rs"]
 pub mod extern_crate;
-#[path ="items/mod.rs"]
+#[path = "items/mod.rs"]
 pub mod r#mod;
 
 grammar! {

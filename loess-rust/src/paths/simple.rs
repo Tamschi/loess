@@ -13,7 +13,7 @@ use crate::{
 grammar! {
 	#[non_exhaustive]
 	/// [SimplePath](https://doc.rust-lang.org/reference/paths.html#grammar-SimplePath)
-	pub struct SimplePath {
+	pub struct SimplePath: PeekFrom, PopFrom, IntoTokens {
 		path_sep: Option<PathSep>,
 		simple_path_segment: SimplePathSegment,
 		path_sep_simple_path_segments: Greedy<Vec<(PathSep, SimplePathSegment)>>,
@@ -21,7 +21,7 @@ grammar! {
 
 	#[non_exhaustive]
 	/// [SimplePathSegment](https://doc.rust-lang.org/reference/paths.html#grammar-SimplePathSegment)
-	pub enum SimplePathSegment {
+	pub enum SimplePathSegment: PeekFrom, PopFrom, IntoTokens {
 		Identifier(Identifier),
 		Super(Super),
 		SelfUppercase(SelfUppercase),
