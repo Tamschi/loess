@@ -2,7 +2,7 @@
 
 use loess::grammar;
 
-use crate::lex::token::literal::{RawStringLiteral, StringLiteral};
+use self::literal::{RawStringLiteral, StringLiteral};
 
 pub mod delim;
 pub mod life;

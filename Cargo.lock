@@ -15,6 +15,24 @@ name = "loess-rust"
 version = "0.1.0+0.2"
 dependencies = [
  "loess",
+ "loess-rust-lex",
+ "proc-macro2",
+]
+
+[[package]]
+name = "loess-rust-fragments"
+version = "0.1.0"
+dependencies = [
+ "loess",
+ "loess-rust-lex",
+ "proc-macro2",
+]
+
+[[package]]
+name = "loess-rust-lex"
+version = "0.1.0"
+dependencies = [
+ "loess",
  "proc-macro2",
 ]
 

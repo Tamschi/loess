@@ -14,6 +14,7 @@ categories = ["development-tools::procedural-macro-helpers"]
 publish = false
 
 [dependencies]
+loess-rust-lex = { version = "0.1.0", path = "../loess-rust-lex" }
 loess = { version = "0.2.3", path = "../loess" }
 proc-macro2 = { version = "1.0.95", default-features = false }
 

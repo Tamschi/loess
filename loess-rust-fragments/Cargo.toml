@@ -1,0 +1,12 @@
+[package]
+name = "loess-rust-fragments"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+loess = { version = "0.2.3", path = "../loess" }
+loess-rust-lex = { version = "0.1.0", path = "../loess-rust-lex" }
+proc-macro2 = { version = "1.0.95", default-features = false }
+
+[package.metadata.cargo-semver-checks.lints]
+workspace = true

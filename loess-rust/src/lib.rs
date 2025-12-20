@@ -15,12 +15,12 @@
 
 //TODO: Make another crate that provides quote-like e.g. `reparse_mixed_site` macros?
 
+pub use loess_rust_lex::{ident, lex};
+
 pub mod attributes;
 pub mod expr;
-pub mod ident;
 #[path = "items.rs"]
 pub mod items;
-pub mod lex;
 pub mod r#macro;
 pub mod paths;
 pub mod statement;

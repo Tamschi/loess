@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["loess", "loess-rust", "loess-rust-opaque"]
+members = [
+    "loess",
+    "loess-rust",
+    "loess-rust-fragments",
+    "loess-rust-lex",
+    "loess-rust-opaque",
+]
 
 [workspace.metadata.cargo-semver-checks.lints]
 function_marked_deprecated = "warn"
