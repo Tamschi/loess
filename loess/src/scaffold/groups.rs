@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
 	Error, ErrorPriority, Errors, HandledPanic, Input, IntoTokens, PeekFrom, PopParsedFrom,
-	error_priorities::UNCONSUMED_IN_DELIMITER, scaffold::Exhaustive,
+	Remnant, error_priorities::UNCONSUMED_IN_DELIMITER, scaffold::Exhaustive,
 };
 use proc_macro2::{Delimiter, Group, TokenStream, TokenTree, extra::DelimSpan};
 
@@ -72,7 +72,9 @@ macro_rules! delimiter_struct {
 
 		impl<T: PopParsedFrom> PopParsedFrom for $name<T> {
 			type Parsed = $name<T::Parsed>;
-			fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<<Self as PopParsedFrom>::Parsed, ()> {
+			type Remnant = <<T::Remnant as Remnant<T::Parsed>>::Mapped<$name<T::Parsed>> as Remnant<$name<T::Parsed>>>::Option;
+
+			fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<<Self as PopParsedFrom>::Parsed, Self::Remnant> {
 				let (span, mut contents) = input
 					.pop_or_replace(|tts, _| match tts {
 						[TokenTree::Group(group)] if group.delimiter() == $delimiter => Ok((

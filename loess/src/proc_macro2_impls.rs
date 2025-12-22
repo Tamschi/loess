@@ -42,6 +42,8 @@ impl PeekFrom for TokenStream {
 
 impl PopParsedFrom for Group {
 	type Parsed = Self;
+	type Remnant = ();
+
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -59,6 +61,8 @@ impl PopParsedFrom for Group {
 
 impl PopParsedFrom for Ident {
 	type Parsed = Self;
+	type Remnant = ();
+
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -76,6 +80,8 @@ impl PopParsedFrom for Ident {
 
 impl PopParsedFrom for Punct {
 	type Parsed = Self;
+	type Remnant = ();
+
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -93,6 +99,8 @@ impl PopParsedFrom for Punct {
 
 impl PopParsedFrom for Literal {
 	type Parsed = Self;
+	type Remnant = ();
+
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -110,6 +118,8 @@ impl PopParsedFrom for Literal {
 
 impl PopParsedFrom for TokenTree {
 	type Parsed = Self;
+	type Remnant = ();
+
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
 	where
 		Self: Sized,
@@ -123,6 +133,8 @@ impl PopParsedFrom for TokenTree {
 /// Exhaustive, infallible.
 impl PopParsedFrom for TokenStream {
 	type Parsed = Self;
+	type Remnant = ();
+
 	fn pop_parsed_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, ()> {
 		Ok(input.tokens.drain(..).collect())
 	}

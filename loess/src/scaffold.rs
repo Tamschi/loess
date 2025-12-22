@@ -4,9 +4,8 @@
 //!
 //! See also [`PopParsedFrom`#foreign-impls] for additional, mostly lower-level building blocks.
 
-use std::{any::type_name, collections::VecDeque, iter, marker::PhantomData};
+use std::{any::type_name, collections::VecDeque, convert::Infallible, iter, marker::PhantomData};
 
-use never_say_never::Never;
 use proc_macro2::{TokenStream, TokenTree};
 
 use crate::{
@@ -23,7 +22,7 @@ pub use groups::{CurlyBraces, MetaGroup, Parentheses, SquareBrackets};
 
 /// Doesn't fail to parse but emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`] after `T`.
 pub(crate) enum Exhaustive<T, P: ConstErrorPriority> {
-	_Vacant(PhantomData<(T, P)>, Never),
+	_Vacant(PhantomData<(T, P)>, Infallible),
 }
 
 impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P> {
@@ -43,6 +42,8 @@ pub(crate) struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
 /// Fails iff the [`Input`] isn't empty.
 impl<P: ConstErrorPriority> PopParsedFrom for EndOfInput<P> {
 	type Parsed = Self;
+	type Remnant = ();
+
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
 		input
 			.is_empty()
@@ -62,13 +63,13 @@ impl<P: ConstErrorPriority> PopParsedFrom for EndOfInput<P> {
 /// Often implicit via <code>impl [`PopParsedFrom`]</code>.
 pub enum ToEnd<C: ?Sized> {
 	#[expect(missing_docs)]
-	_Vacant(PhantomData<C>, Never),
+	_Vacant(PhantomData<C>, Infallible),
 }
 
 /// Greedy parsing of <code>C: [`Repeats`]</code>.
 pub enum Greedy<C: ?Sized> {
 	#[expect(missing_docs)]
-	_Vacant(PhantomData<C>, Never),
+	_Vacant(PhantomData<C>, Infallible),
 }
 
 //TODO: Use this also for Separated and Delimited.
@@ -367,7 +368,7 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for Delimited<
 /// Wraps around other <code>C: [`Repeats`]</code> to constrain item count.
 pub enum RepeatCount<C, const MIN: usize, const MAX: usize> {
 	#[expect(missing_docs)]
-	_Vacant(PhantomData<C>, Never),
+	_Vacant(PhantomData<C>, Infallible),
 }
 
 impl<C: Repeats, const MIN: usize, const MAX: usize> Repeats for RepeatCount<C, MIN, MAX> {
@@ -412,7 +413,7 @@ where
 // /// Transparent to errors only during the initial attempt.
 // pub enum Slide<T> {
 // 	#[expect(missing_docs)]
-// 	_Vacant(PhantomData<T>, Never),
+// 	_Vacant(PhantomData<T>, Infallible),
 // }
 
 // impl<T: PopParsedFrom + PeekFrom> PopParsedFrom for Slide<T> {

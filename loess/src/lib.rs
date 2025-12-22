@@ -43,6 +43,7 @@ use std::{
 	self,
 	any::Any,
 	collections::{VecDeque, vec_deque},
+	convert::Infallible,
 	fmt::Debug,
 	iter::{self},
 	mem,
@@ -531,15 +532,153 @@ impl Input {
 	}
 }
 
+mod sealed {
+	use std::convert::Infallible;
+
+	use crate::{Fallback, Remnant};
+
+	pub trait Sealed<T> {}
+
+	impl<T> Sealed<T> for () {}
+	impl<T> Sealed<T> for Infallible {}
+	impl<T> Sealed<T> for Option<T> {}
+	impl<T> Sealed<T> for Fallback<T> {}
+	impl<R, T> Sealed<Box<T>> for Box<R> where R: Remnant<T> {}
+}
+use sealed::Sealed;
+
+pub trait Remnant<T>: Sealed<T> {
+	type Option: Remnant<T>;
+	type Mapped<U>: Remnant<U>;
+
+	fn retrieve(self) -> Option<T>;
+	fn into_some(self) -> Self::Option;
+	fn none() -> Self::Option;
+	fn map<U>(self, f: impl FnOnce(T) -> U) -> Self::Mapped<U>;
+}
+
+impl<T> Remnant<T> for () {
+	type Option = ();
+	type Mapped<U> = ();
+
+	fn retrieve(self) -> Option<T> {
+		None
+	}
+
+	fn into_some(self) -> Self::Option {
+		self
+	}
+
+	fn none() -> Self::Option {
+		()
+	}
+
+	fn map<U>(self, _: impl FnOnce(T) -> U) -> Self::Mapped<U> {
+		self
+	}
+}
+
+impl<T> Remnant<T> for Infallible {
+	type Option = ();
+	type Mapped<U> = Infallible;
+	fn retrieve(self) -> Option<T> {
+		match self {}
+	}
+
+	fn into_some(self) -> Self::Option {
+		match self {}
+	}
+
+	fn none() -> Self::Option {
+		()
+	}
+
+	fn map<U>(self, _: impl FnOnce(T) -> U) -> Self::Mapped<U> {
+		self
+	}
+}
+
+impl<T> Remnant<T> for Option<T> {
+	type Option = Option<T>;
+	type Mapped<U> = Option<U>;
+
+	fn retrieve(self) -> Option<T> {
+		self
+	}
+
+	fn into_some(self) -> Self::Option {
+		self
+	}
+
+	fn none() -> Self::Option {
+		None
+	}
+
+	fn map<U>(self, f: impl FnOnce(T) -> U) -> Self::Mapped<U> {
+		self.map(f)
+	}
+}
+
+pub struct Fallback<T>(pub T);
+
+impl<T> Remnant<T> for Fallback<T> {
+	type Option = Option<T>;
+	type Mapped<U> = Fallback<U>;
+
+	fn retrieve(self) -> Option<T> {
+		Some(self.0)
+	}
+
+	fn into_some(self) -> Self::Option {
+		Some(self.0)
+	}
+
+	fn none() -> Self::Option {
+		None
+	}
+
+	fn map<U>(self, f: impl FnOnce(T) -> U) -> Self::Mapped<U> {
+		Fallback(f(self.0))
+	}
+}
+
+impl<R, T> Remnant<Box<T>> for Box<R>
+where
+	R: Remnant<T>,
+{
+	type Option = Box<R::Option>;
+	type Mapped<U> = R::Mapped<U>;
+
+	fn retrieve(self) -> Option<Box<T>> {
+		(*self).retrieve().map(Box::new)
+	}
+
+	fn into_some(self) -> Self::Option {
+		(*self).into_some().into()
+	}
+
+	fn none() -> Self::Option {
+		R::none().into()
+	}
+
+	fn map<U>(self, f: impl FnOnce(Box<T>) -> U) -> Self::Mapped<U> {
+		(*self).map(|t| f(Box::new(t)))
+	}
+}
+
 /// Consumes from [`Input`] to create <code>[`Result`]&lt;Self::[Parsed](`PopParsedFrom::Parsed`), ()></code> and emit to [`Errors`].
 pub trait PopParsedFrom {
 	type Parsed;
+	type Remnant: Remnant<Self::Parsed>;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>;
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant>;
 	fn peek_pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Parsed>, ()>
+	) -> Result<Option<Self::Parsed>, Self::Remnant>
 	where
 		Self: PeekFrom,
 	{
@@ -569,27 +708,29 @@ pub trait PopFrom: PopParsedFrom<Parsed = Self> {
 	///
 	/// It <em style=font-style:normal;font-variant:small-caps>may</em> still be recovered further up the call chain,
 	/// but there <em style=font-style:normal;font-variant:small-caps>should</em> be new [`Errors`] at this point!
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Self::Remnant>
 	where
 		Self: Sized;
 
 	/// Convenience function for <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.
 	///
 	/// This is used by [`grammar!`]-generated enum parsers.
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Self::Remnant>
 	where
 		Self: PeekFrom + Sized,
 	{
-		Option::<Self>::pop_from(input, errors)
+		Self::peek_from(input)
+			.then(move || Self::pop_from(input, errors))
+			.transpose()
 	}
 }
 
 impl<T: PopParsedFrom<Parsed = Self>> PopFrom for T {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Self::Remnant> {
 		Self::pop_parsed_from(input, errors)
 	}
 
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, ()>
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Self::Remnant>
 	where
 		Self: PeekFrom,
 	{
@@ -599,7 +740,11 @@ impl<T: PopParsedFrom<Parsed = Self>> PopFrom for T {
 
 impl<T: PopParsedFrom> PopParsedFrom for Box<T> {
 	type Parsed = Box<T::Parsed>;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
+	type Remnant = Box<T::Remnant>;
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant>
 	where
 		Self: Sized,
 	{
@@ -615,13 +760,18 @@ impl<T: IntoTokens> IntoTokens for Box<T> {
 
 impl<T: PeekFrom + PopParsedFrom> PopParsedFrom for Option<T> {
 	type Parsed = Option<T::Parsed>;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()>
+	type Remnant = Fallback<Self::Parsed>;
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Fallback<Self::Parsed>>
 	where
 		Self: Sized,
 	{
 		T::peek_from(input)
 			.then(|| T::pop_parsed_from(input, errors))
 			.transpose()
+			.map_err(|remnant| Fallback(remnant.retrieve()))
 	}
 }
 
@@ -753,14 +903,14 @@ pub fn parse_once_with<'a, T>(
 }
 
 /// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
-pub(crate) fn parse_once_with_impl<'a, T>(
+pub(crate) fn parse_once_with_impl<'a, T, E: Remnant<T>>(
 	input: &mut Input,
 	errors: &mut Errors,
-	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> Result<T, ()>,
-) -> Result<T, ()> {
+	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> Result<T, E>,
+) -> Result<T, E::Option> {
 	match parse_once_with_infallible_impl(input, errors, f) {
-		Ok(ok) => ok,
-		Err(()) => Err(()),
+		Ok(ok) => ok.map_err(Remnant::into_some),
+		Err(()) => Err(E::none()),
 	}
 }
 
@@ -768,7 +918,10 @@ pub(crate) fn parse_once_with_impl<'a, T>(
 ///
 /// Does **not** check for unconsumed [`Input`]! To parse the last part of the input, use
 /// <code>[parse_all](input, errors).[next()](`Iterator::next`)</code> instead.
-pub fn parse_once<'a, T: PopFrom>(input: &'a mut Input, errors: &'a mut Errors) -> Result<T, ()> {
+pub fn parse_once<'a, T: PopFrom>(
+	input: &'a mut Input,
+	errors: &'a mut Errors,
+) -> Result<T, <T::Remnant as Remnant<T>>::Option> {
 	parse_once_with_impl(input, errors, T::pop_from)
 }
 
@@ -963,14 +1116,24 @@ pub(crate) fn parse_all_with_infallible_impl<'a, T>(
 /// 	output
 /// }
 /// ```
-pub fn parse_all_with<'a, T: 'a>(
+pub fn parse_all_with<'a, T: 'a, E: 'a + Remnant<T>>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> Result<T, ()>,
+	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> Result<T, E>,
 ) -> impl 'a + Iterator<Item = T> {
-	parse_all_with_infallible_impl(input, errors, f).map_while(|item| match item {
-		Ok(ok) => Some(ok),
-		Err(()) => None,
+	let mut stop = false;
+	parse_all_with_infallible_impl(input, errors, f).map_while(move |item| {
+		if stop {
+			None
+		} else {
+			match item {
+				Ok(ok) => Some(ok),
+				Err(r) => {
+					stop = true;
+					r.retrieve()
+				}
+			}
+		}
 	})
 }
 
