@@ -43,7 +43,6 @@ use std::{
 	self,
 	any::Any,
 	collections::{VecDeque, vec_deque},
-	convert::Infallible,
 	fmt::Debug,
 	iter::{self},
 	mem,
@@ -57,6 +56,8 @@ use proc_macro2::{Ident, Literal, Punct, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
+pub mod remnants;
+
 //TODO: EagerPlusOne -> Eager<Repeat>
 //TODO: Repeat -> Lower and upper bound on repetition.
 //TODO: Repeat<Separated>
@@ -68,7 +69,7 @@ pub mod stateful;
 mod macros;
 pub use macros::__;
 
-use crate::scaffold::EndOfInput;
+use crate::{remnants::Remnant, scaffold::EndOfInput};
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  
 /// Usually submitted through [`Errors::push`].
@@ -532,140 +533,6 @@ impl Input {
 	}
 }
 
-mod sealed {
-	use std::convert::Infallible;
-
-	use crate::{Fallback, Remnant};
-
-	pub trait Sealed<T> {}
-
-	impl<T> Sealed<T> for () {}
-	impl<T> Sealed<T> for Infallible {}
-	impl<T> Sealed<T> for Option<T> {}
-	impl<T> Sealed<T> for Fallback<T> {}
-	impl<R, T> Sealed<Box<T>> for Box<R> where R: Remnant<T> {}
-}
-use sealed::Sealed;
-
-pub trait Remnant<T>: Sealed<T> {
-	type Option: Remnant<T>;
-	type Mapped<U>: Remnant<U>;
-
-	fn retrieve(self) -> Option<T>;
-	fn into_some(self) -> Self::Option;
-	fn none() -> Self::Option;
-	fn map<U>(self, f: impl FnOnce(T) -> U) -> Self::Mapped<U>;
-}
-
-impl<T> Remnant<T> for () {
-	type Option = ();
-	type Mapped<U> = ();
-
-	fn retrieve(self) -> Option<T> {
-		None
-	}
-
-	fn into_some(self) -> Self::Option {
-		self
-	}
-
-	fn none() -> Self::Option {
-		()
-	}
-
-	fn map<U>(self, _: impl FnOnce(T) -> U) -> Self::Mapped<U> {
-		self
-	}
-}
-
-impl<T> Remnant<T> for Infallible {
-	type Option = ();
-	type Mapped<U> = Infallible;
-	fn retrieve(self) -> Option<T> {
-		match self {}
-	}
-
-	fn into_some(self) -> Self::Option {
-		match self {}
-	}
-
-	fn none() -> Self::Option {
-		()
-	}
-
-	fn map<U>(self, _: impl FnOnce(T) -> U) -> Self::Mapped<U> {
-		self
-	}
-}
-
-impl<T> Remnant<T> for Option<T> {
-	type Option = Option<T>;
-	type Mapped<U> = Option<U>;
-
-	fn retrieve(self) -> Option<T> {
-		self
-	}
-
-	fn into_some(self) -> Self::Option {
-		self
-	}
-
-	fn none() -> Self::Option {
-		None
-	}
-
-	fn map<U>(self, f: impl FnOnce(T) -> U) -> Self::Mapped<U> {
-		self.map(f)
-	}
-}
-
-pub struct Fallback<T>(pub T);
-
-impl<T> Remnant<T> for Fallback<T> {
-	type Option = Option<T>;
-	type Mapped<U> = Fallback<U>;
-
-	fn retrieve(self) -> Option<T> {
-		Some(self.0)
-	}
-
-	fn into_some(self) -> Self::Option {
-		Some(self.0)
-	}
-
-	fn none() -> Self::Option {
-		None
-	}
-
-	fn map<U>(self, f: impl FnOnce(T) -> U) -> Self::Mapped<U> {
-		Fallback(f(self.0))
-	}
-}
-
-impl<R, T> Remnant<Box<T>> for Box<R>
-where
-	R: Remnant<T>,
-{
-	type Option = Box<R::Option>;
-	type Mapped<U> = R::Mapped<U>;
-
-	fn retrieve(self) -> Option<Box<T>> {
-		(*self).retrieve().map(Box::new)
-	}
-
-	fn into_some(self) -> Self::Option {
-		(*self).into_some().into()
-	}
-
-	fn none() -> Self::Option {
-		R::none().into()
-	}
-
-	fn map<U>(self, f: impl FnOnce(Box<T>) -> U) -> Self::Mapped<U> {
-		(*self).map(|t| f(Box::new(t)))
-	}
-}
-
 /// Consumes from [`Input`] to create <code>[`Result`]&lt;Self::[Parsed](`PopParsedFrom::Parsed`), ()></code> and emit to [`Errors`].
 pub trait PopParsedFrom {
 	type Parsed;
@@ -760,18 +627,18 @@ impl<T: IntoTokens> IntoTokens for Box<T> {
 
 impl<T: PeekFrom + PopParsedFrom> PopParsedFrom for Option<T> {
 	type Parsed = Option<T::Parsed>;
-	type Remnant = Fallback<Self::Parsed>;
+	type Remnant = (Self::Parsed,);
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Fallback<Self::Parsed>>
+	) -> Result<Self::Parsed, (Self::Parsed,)>
 	where
 		Self: Sized,
 	{
 		T::peek_from(input)
 			.then(|| T::pop_parsed_from(input, errors))
 			.transpose()
-			.map_err(|remnant| Fallback(remnant.retrieve()))
+			.map_err(|remnant| (remnant.retrieve(),))
 	}
 }
 

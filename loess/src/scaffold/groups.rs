@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
 	Error, ErrorPriority, Errors, HandledPanic, Input, IntoTokens, PeekFrom, PopParsedFrom,
-	Remnant, error_priorities::UNCONSUMED_IN_DELIMITER, scaffold::Exhaustive,
+	error_priorities::UNCONSUMED_IN_DELIMITER, remnants::Remnant, scaffold::Exhaustive,
 };
 use proc_macro2::{Delimiter, Group, TokenStream, TokenTree, extra::DelimSpan};
 
@@ -91,7 +91,8 @@ macro_rules! delimiter_struct {
 							ErrorPriority::TOKEN,
 							concat!("Expected ", $opening, "."),
 							spans,
-						))
+						));
+						<<T::Remnant as Remnant<T::Parsed>>::Mapped<$name<T::Parsed>> as Remnant<$name<T::Parsed>>>::none()
 					})?;
 
 				match catch_unwind(AssertUnwindSafe(|| {
@@ -100,7 +101,10 @@ macro_rules! delimiter_struct {
 						contents: Exhaustive::<T, UNCONSUMED_IN_DELIMITER>::pop_parsed_from(
 							&mut contents,
 							errors,
-						)?,
+						).map_err(|remnant| remnant.map(|placeholder| Self::Parsed {
+							span,
+							contents: placeholder
+						}).into_some())?,
 					})
 				})) {
 					Ok(result) => result,

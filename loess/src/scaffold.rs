@@ -27,10 +27,17 @@ pub(crate) enum Exhaustive<T, P: ConstErrorPriority> {
 
 impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P> {
 	type Parsed = T::Parsed;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	type Remnant = T::Remnant;
+
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant> {
 		let value = T::pop_parsed_from(input, errors);
-		EndOfInput::<P>::pop_parsed_from(input, errors).ok();
-		Ok(value?)
+		match EndOfInput::<P>::pop_parsed_from(input, errors) {
+			Ok(_) => Ok(value?),
+			Err(()) => todo!(),
+		}
 	}
 }
 
@@ -105,8 +112,9 @@ pub trait Repeats {
 
 impl<C: Repeats> PopParsedFrom for ToEnd<C> {
 	type Parsed = C::Projected;
+	type Remnant = (C::Projected,);
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, Self::Remnant> {
 		let mut stepper = C::Stepper::default();
 		let mut stop = false;
 
@@ -144,8 +152,12 @@ where
 	C::Stepper: PeekNextFrom,
 {
 	type Parsed = C::Projected;
+	type Remnant = (C::Projected,);
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant> {
 		let mut stepper = C::Stepper::default();
 		let mut stop = false;
 
@@ -208,8 +220,9 @@ impl<C: PopParsedFrom> Repeats for Vec<C> {
 /// Implicit [`ToEnd`].
 impl<C: PopParsedFrom> PopParsedFrom for Vec<C> {
 	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
+	type Remnant = <ToEnd<Self> as PopParsedFrom>::Remnant;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, Self::Remnant> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
@@ -233,8 +246,12 @@ impl<C: PopParsedFrom> Repeats for VecDeque<C> {
 /// Implicit [`ToEnd`].
 impl<C: PopParsedFrom> PopParsedFrom for VecDeque<C> {
 	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
+	type Remnant = <ToEnd<Self> as PopParsedFrom>::Remnant;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
@@ -304,8 +321,12 @@ where
 /// Implicit [`ToEnd`].
 impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> PopParsedFrom for Separated<T, S> {
 	type Parsed = <ToEnd<Separated<T, S>> as PopParsedFrom>::Parsed;
+	type Remnant = <ToEnd<Separated<T, S>> as PopParsedFrom>::Remnant;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant> {
 		<ToEnd<Separated<T, S>> as PopParsedFrom>::pop_parsed_from(input, errors)
 	}
 }
@@ -359,8 +380,12 @@ where
 /// Implicit [`ToEnd`].
 impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for Delimited<T, D> {
 	type Parsed = <ToEnd<Delimited<T, D>> as PopParsedFrom>::Parsed;
+	type Remnant = <ToEnd<Delimited<T, D>> as PopParsedFrom>::Remnant;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant> {
 		<ToEnd<Delimited<T, D>> as PopParsedFrom>::pop_parsed_from(input, errors)
 	}
 }
@@ -392,8 +417,12 @@ impl<C: Repeats, const MIN: usize, const MAX: usize> Repeats for RepeatCount<C, 
 /// Implicit [`ToEnd`].
 impl<C: Repeats, const MIN: usize, const MAX: usize> PopParsedFrom for RepeatCount<C, MIN, MAX> {
 	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
+	type Remnant = <ToEnd<Self> as PopParsedFrom>::Remnant;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Self::Remnant> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
