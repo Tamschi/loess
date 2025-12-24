@@ -56,8 +56,6 @@ use proc_macro2::{Ident, Literal, Punct, Span, TokenStream, TokenTree};
 
 mod proc_macro2_impls;
 
-pub mod remnants;
-
 //TODO: EagerPlusOne -> Eager<Repeat>
 //TODO: Repeat -> Lower and upper bound on repetition.
 //TODO: Repeat<Separated>
@@ -69,7 +67,7 @@ pub mod stateful;
 mod macros;
 pub use macros::__;
 
-use crate::{remnants::Remnant, scaffold::EndOfInput};
+use crate::scaffold::EndOfInput;
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  
 /// Usually submitted through [`Errors::push`].
@@ -533,19 +531,39 @@ impl Input {
 	}
 }
 
-/// Consumes from [`Input`] to create <code>[`Result`]&lt;Self::[Parsed](`PopParsedFrom::Parsed`), ()></code> and emit to [`Errors`].
+/// Consumes from [`Input`] to create <code>[`Result`]&lt;[Self::Parsed](`PopParsedFrom::Parsed`), [`Option`]&lt;[Self::Parsed](`PopParsedFrom::Parsed`)>></code> and emit to [`Errors`].
 pub trait PopParsedFrom {
+	/// The projected type of values returned after a successful parse or as placeholder.
 	type Parsed;
-	type Remnant: Remnant<Self::Parsed>;
 
+	/// Attempts to parse [`Self::Parsed`](`PopParsedFrom::Parsed`) by popping tokens off `input`.
+	///
+	/// # Returns
+	///
+	/// ## [`Ok`]
+	///
+	/// Iff the [`Self::Parsed`](`PopParsedFrom::Parsed`) was parsed successfully or the parser has recovered.
+	///
+	/// ## [`Err`]
+	///
+	/// Iff parsing is *currently* failing and needs recovery before continuing.
+	///
+	/// ### [`Some`]
+	///
+	/// Iff a placeholder and/or incomplete [`Self::Parsed`](`PopParsedFrom::Parsed`) is available despite ongoing failure.
+	///
+	/// ### [`None`]
+	///
+	/// Iff no placeholder is available.
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant>;
+	) -> Result<Self::Parsed, Option<Self::Parsed>>;
+
 	fn peek_pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Parsed>, Self::Remnant>
+	) -> Result<Option<Self::Parsed>, Option<Self::Parsed>>
 	where
 		Self: PeekFrom,
 	{
@@ -575,14 +593,14 @@ pub trait PopFrom: PopParsedFrom<Parsed = Self> {
 	///
 	/// It <em style=font-style:normal;font-variant:small-caps>may</em> still be recovered further up the call chain,
 	/// but there <em style=font-style:normal;font-variant:small-caps>should</em> be new [`Errors`] at this point!
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Self::Remnant>
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
 	where
 		Self: Sized;
 
 	/// Convenience function for <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.
 	///
 	/// This is used by [`grammar!`]-generated enum parsers.
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Self::Remnant>
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Option<Self>>
 	where
 		Self: PeekFrom + Sized,
 	{
@@ -593,11 +611,11 @@ pub trait PopFrom: PopParsedFrom<Parsed = Self> {
 }
 
 impl<T: PopParsedFrom<Parsed = Self>> PopFrom for T {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Self::Remnant> {
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		Self::pop_parsed_from(input, errors)
 	}
 
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Self::Remnant>
+	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Option<Self>>
 	where
 		Self: PeekFrom,
 	{
@@ -607,15 +625,17 @@ impl<T: PopParsedFrom<Parsed = Self>> PopFrom for T {
 
 impl<T: PopParsedFrom> PopParsedFrom for Box<T> {
 	type Parsed = Box<T::Parsed>;
-	type Remnant = Box<T::Remnant>;
+
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant>
+	) -> Result<Self::Parsed, Option<Self::Parsed>>
 	where
 		Self: Sized,
 	{
-		Ok(Box::new(T::pop_parsed_from(input, errors)?))
+		T::pop_parsed_from(input, errors)
+			.map(Box::new)
+			.map_err(|placeholder| placeholder.map(Box::new))
 	}
 }
 
@@ -625,20 +645,18 @@ impl<T: IntoTokens> IntoTokens for Box<T> {
 	}
 }
 
+/// Fails only with placeholder (by wrapping any nested failure in [`Some`]).
 impl<T: PeekFrom + PopParsedFrom> PopParsedFrom for Option<T> {
 	type Parsed = Option<T::Parsed>;
-	type Remnant = (Self::Parsed,);
+
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, (Self::Parsed,)>
+	) -> Result<Self::Parsed, Option<Self::Parsed>>
 	where
 		Self: Sized,
 	{
-		T::peek_from(input)
-			.then(|| T::pop_parsed_from(input, errors))
-			.transpose()
-			.map_err(|remnant| (remnant.retrieve(),))
+		T::peek_pop_parsed_from(input, errors).map_err(Some)
 	}
 }
 
@@ -764,20 +782,20 @@ pub(crate) fn parse_once_with_infallible_impl<'a, T>(
 pub fn parse_once_with<'a, T>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-	f: impl 'a + UnwindSafe + FnOnce(&mut Input, &mut Errors) -> Result<T, ()>,
-) -> Result<T, ()> {
+	f: impl 'a + UnwindSafe + FnOnce(&mut Input, &mut Errors) -> Result<T, Option<T>>,
+) -> Result<T, Option<T>> {
 	parse_once_with_impl(input, errors, f)
 }
 
 /// Because [`AssertUnwind`] apparently doesn't forward higher-order [`FnOnce`] implementations.
-pub(crate) fn parse_once_with_impl<'a, T, E: Remnant<T>>(
+pub(crate) fn parse_once_with_impl<'a, T>(
 	input: &mut Input,
 	errors: &mut Errors,
-	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> Result<T, E>,
-) -> Result<T, E::Option> {
+	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> Result<T, Option<T>>,
+) -> Result<T, Option<T>> {
 	match parse_once_with_infallible_impl(input, errors, f) {
-		Ok(ok) => ok.map_err(Remnant::into_some),
-		Err(()) => Err(E::none()),
+		Ok(ok) => ok,
+		Err(()) => Err(None),
 	}
 }
 
@@ -788,7 +806,7 @@ pub(crate) fn parse_once_with_impl<'a, T, E: Remnant<T>>(
 pub fn parse_once<'a, T: PopFrom>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-) -> Result<T, <T::Remnant as Remnant<T>>::Option> {
+) -> Result<T, Option<T>> {
 	parse_once_with_impl(input, errors, T::pop_from)
 }
 
@@ -983,10 +1001,10 @@ pub(crate) fn parse_all_with_infallible_impl<'a, T>(
 /// 	output
 /// }
 /// ```
-pub fn parse_all_with<'a, T: 'a, E: 'a + Remnant<T>>(
+pub fn parse_all_with<'a, T: 'a>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> Result<T, E>,
+	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> Result<T, Option<T>>,
 ) -> impl 'a + Iterator<Item = T> {
 	let mut stop = false;
 	parse_all_with_infallible_impl(input, errors, f).map_while(move |item| {
@@ -997,7 +1015,7 @@ pub fn parse_all_with<'a, T: 'a, E: 'a + Remnant<T>>(
 				Ok(ok) => Some(ok),
 				Err(r) => {
 					stop = true;
-					r.retrieve()
+					r
 				}
 			}
 		}

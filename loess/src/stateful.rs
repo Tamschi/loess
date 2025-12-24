@@ -1,22 +1,21 @@
 use std::{any::type_name, collections::VecDeque, marker::PhantomData};
 
-use crate::{Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom, remnants::Remnant};
+use crate::{Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom};
 
 pub trait Stepper: Default {
 	type Item;
-	type Remnant: Remnant<Self::Item>;
 
 	fn pop_next_from(
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Self::Remnant>;
+	) -> Result<Option<Self::Item>, Option<Self::Item>>;
 
 	fn peek_pop_next_from(
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Self::Remnant>
+	) -> Result<Option<Self::Item>, Option<Self::Item>>
 	where
 		Self: PeekNextFrom,
 	{
@@ -54,13 +53,12 @@ impl<T> Default for SimpleStepper<T> {
 
 impl<T: PopParsedFrom> Stepper for SimpleStepper<T> {
 	type Item = T::Parsed;
-	type Remnant = T::Remnant;
 
 	fn pop_next_from(
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Self::Remnant> {
+	) -> Result<Option<Self::Item>, Option<Self::Item>> {
 		T::pop_parsed_from(input, errors).map(Some)
 	}
 }
@@ -89,13 +87,12 @@ impl<S: Stepper, const MIN: usize, const MAX: usize> Default for RepeatCountStep
 
 impl<S: Stepper, const MIN: usize, const MAX: usize> Stepper for RepeatCountStepper<S, MIN, MAX> {
 	type Item = S::Item;
-	type Remnant = S::Remnant;
 
 	fn pop_next_from(
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Self::Remnant> {
+	) -> Result<Option<Self::Item>, Option<Self::Item>> {
 		const {
 			assert!(MIN <= MAX);
 		};
@@ -108,7 +105,7 @@ impl<S: Stepper, const MIN: usize, const MAX: usize> Stepper for RepeatCountStep
 			errors: &mut Errors,
 			min: usize,
 			max: usize,
-		) -> Result<Option<S::Item>, S::Remnant> {
+		) -> Result<Option<S::Item>, Option<S::Item>> {
 			if *counter == 0 {
 				buffer.reserve_exact(min);
 
@@ -178,21 +175,20 @@ impl<T, S> Default for SeparatedStepper<T, S> {
 
 impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> Stepper for SeparatedStepper<T, S> {
 	type Item = (T::Parsed, Option<S::Parsed>);
-	type Remnant = <T::Remnant as Remnant<T::Parsed>>::Mapped<Self::Item>;
 
 	fn pop_next_from(
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Self::Remnant> {
+	) -> Result<Option<Self::Item>, Option<Self::Item>> {
 		let len_before = input.len();
 		let item = match T::pop_parsed_from(input, errors) {
 			//TODO: Slide separator!
 			Ok(trailing) => match S::peek_pop_parsed_from(input, errors) {
 				Ok(delimiter) => (trailing, delimiter),
-				Err(()) => todo!("Recovery."),
+				Err(delimiter) => todo!("Recovery."),
 			},
-			Err(()) => todo!("Recovery."),
+			Err(trailing) => todo!("Recovery."),
 		};
 		if input.len() == len_before {
 			errors.push(Error::new(
@@ -231,21 +227,20 @@ impl<T, D> Default for DelimitedStepper<T, D> {
 
 impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> Stepper for DelimitedStepper<T, D> {
 	type Item = (T::Parsed, Option<D::Parsed>);
-	type Remnant = <T::Remnant as Remnant<T::Parsed>>::Mapped<Self::Item>;
 
 	fn pop_next_from(
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Self::Remnant> {
+	) -> Result<Option<Self::Item>, Option<Self::Item>> {
 		let len_before = input.len();
 		let item = match T::pop_parsed_from(input, errors) {
 			//TODO: Slide separator!
 			Ok(trailing) => match D::peek_pop_parsed_from(input, errors) {
 				Ok(delimiter) => (trailing, delimiter),
-				Err(()) => todo!("Recovery."),
+				Err(delimiter) => todo!("Recovery."),
 			},
-			Err(()) => todo!("Recovery."),
+			Err(trailing) => todo!("Recovery."),
 		};
 		if input.len() == len_before {
 			errors.push(Error::new(

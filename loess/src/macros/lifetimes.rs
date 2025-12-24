@@ -245,7 +245,7 @@ macro_rules! __impl_lifetime {
 			fn pop_parsed_from(
 				input: &mut $crate::Input,
 				errors: &mut $crate::Errors,
-			) -> Result<Self::Parsed, ()> {
+			) -> Result<Self, Option<Self>> {
 				input
 					.pop_or_replace(|tts, _| match tts {
 						[$crate::__::TokenTree::Ident($ident)] if $condition && <$crate::__::Ident as $crate::__::ToString>::to_string(&$ident).as_str().starts_with('\'') => Ok(Self($ident)),
@@ -256,7 +256,8 @@ macro_rules! __impl_lifetime {
 							$crate::ErrorPriority::TOKEN,
 							$message,
 							spans,
-						))
+						));
+						$crate::__::None
 					})
 			}
 		}

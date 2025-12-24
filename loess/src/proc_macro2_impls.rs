@@ -42,9 +42,8 @@ impl PeekFrom for TokenStream {
 
 impl PopParsedFrom for Group {
 	type Parsed = Self;
-	type Remnant = ();
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -54,16 +53,16 @@ impl PopParsedFrom for Group {
 				t => Err(t),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Group.", spans))
+				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Group.", spans));
+				None
 			})
 	}
 }
 
 impl PopParsedFrom for Ident {
 	type Parsed = Self;
-	type Remnant = ();
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -73,16 +72,16 @@ impl PopParsedFrom for Ident {
 				t => Err(t),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Ident.", spans))
+				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Ident.", spans));
+				None
 			})
 	}
 }
 
 impl PopParsedFrom for Punct {
 	type Parsed = Self;
-	type Remnant = ();
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -92,16 +91,16 @@ impl PopParsedFrom for Punct {
 				t => Err(t),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Punct.", spans))
+				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Punct.", spans));
+				None
 			})
 	}
 }
 
 impl PopParsedFrom for Literal {
 	type Parsed = Self;
-	type Remnant = ();
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -111,21 +110,22 @@ impl PopParsedFrom for Literal {
 				t => Err(t),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Literal.", spans))
+				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Literal.", spans));
+				None
 			})
 	}
 }
 
 impl PopParsedFrom for TokenTree {
 	type Parsed = Self;
-	type Remnant = ();
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()>
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
 	where
 		Self: Sized,
 	{
 		input.pop_or_replace(|[t], _| Ok(t)).map_err(|spans| {
-			errors.push(Error::new(ErrorPriority::TOKEN, "Expected token.", spans))
+			errors.push(Error::new(ErrorPriority::TOKEN, "Expected token.", spans));
+			None
 		})
 	}
 }
@@ -133,9 +133,8 @@ impl PopParsedFrom for TokenTree {
 /// Exhaustive, infallible.
 impl PopParsedFrom for TokenStream {
 	type Parsed = Self;
-	type Remnant = ();
 
-	fn pop_parsed_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, Option<Self>> {
 		Ok(input.tokens.drain(..).collect())
 	}
 }

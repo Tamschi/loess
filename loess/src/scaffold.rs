@@ -27,16 +27,15 @@ pub(crate) enum Exhaustive<T, P: ConstErrorPriority> {
 
 impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P> {
 	type Parsed = T::Parsed;
-	type Remnant = T::Remnant;
 
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant> {
-		let value = T::pop_parsed_from(input, errors);
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+		let value = T::pop_parsed_from(input, errors)?;
 		match EndOfInput::<P>::pop_parsed_from(input, errors) {
-			Ok(_) => Ok(value?),
-			Err(()) => todo!(),
+			Ok(_) => Ok(value),
+			Err(_) => Err(Some(value)),
 		}
 	}
 }
@@ -49,9 +48,8 @@ pub(crate) struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
 /// Fails iff the [`Input`] isn't empty.
 impl<P: ConstErrorPriority> PopParsedFrom for EndOfInput<P> {
 	type Parsed = Self;
-	type Remnant = ();
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.is_empty()
 			.then_some(Self(PhantomData))
@@ -62,18 +60,19 @@ impl<P: ConstErrorPriority> PopParsedFrom for EndOfInput<P> {
 					format!("Unconsumed tokens: `{rest}`"),
 					rest.into_iter().map(|t| t.span()),
 				));
+				Some(Self(PhantomData))
 			})
 	}
 }
 
-/// Exhaustive parsing of <code>C: [`Repeats`]</code>.
+/// Exhaustive parsing of <code>C: [`Repetition`]</code>.
 /// Often implicit via <code>impl [`PopParsedFrom`]</code>.
 pub enum ToEnd<C: ?Sized> {
 	#[expect(missing_docs)]
 	_Vacant(PhantomData<C>, Infallible),
 }
 
-/// Greedy parsing of <code>C: [`Repeats`]</code>.
+/// Greedy parsing of <code>C: [`Repetition`]</code>.
 pub enum Greedy<C: ?Sized> {
 	#[expect(missing_docs)]
 	_Vacant(PhantomData<C>, Infallible),
@@ -91,12 +90,27 @@ pub enum Greedy<C: ?Sized> {
 /// 	f: &mut dyn FnMut(
 /// 		&mut Input,
 /// 		&mut Errors,
-/// 	) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-/// ) -> Result<Self::Projected, ()> {
-/// 	iter::from_fn(move || f(input, errors).transpose()).collect()
+/// 	) -> Result<
+/// 		Option<<Self::Stepper as Stepper>::Item>,
+/// 		Option<<Self::Stepper as Stepper>::Item>,
+/// 	>,
+/// ) -> Result<Self::Projected, Option<Self::Projected>> {
+/// 	let mut failed = false;
+/// 	let collection = iter::from_fn(|| {
+/// 		(!failed)
+/// 			.then(|| {
+/// 				f(input, errors).unwrap_or_else(|item| {
+/// 					failed = true;
+/// 					item
+/// 				})
+/// 			})
+/// 			.flatten()
+/// 	})
+/// 	.collect();
+/// 	if failed { Err(Some(collection)) } else { Ok(collection) }
 /// }
 /// ```
-pub trait Repeats {
+pub trait Repetition {
 	type Projected;
 	type Stepper: Stepper;
 
@@ -106,15 +120,20 @@ pub trait Repeats {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-	) -> Result<Self::Projected, ()>;
+		) -> Result<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> Result<Self::Projected, Option<Self::Projected>>;
 }
 
-impl<C: Repeats> PopParsedFrom for ToEnd<C> {
+impl<C: Repetition> PopParsedFrom for ToEnd<C> {
 	type Parsed = C::Projected;
-	type Remnant = (C::Projected,);
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, Self::Remnant> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
 		let mut stepper = C::Stepper::default();
 		let mut stop = false;
 
@@ -147,17 +166,16 @@ impl<C: Repeats> PopParsedFrom for ToEnd<C> {
 	}
 }
 
-impl<C: Repeats> PopParsedFrom for Greedy<C>
+impl<C: Repetition> PopParsedFrom for Greedy<C>
 where
 	C::Stepper: PeekNextFrom,
 {
 	type Parsed = C::Projected;
-	type Remnant = (C::Projected,);
 
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant> {
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
 		let mut stepper = C::Stepper::default();
 		let mut stop = false;
 
@@ -201,7 +219,7 @@ impl<C: PeekFrom> PeekFrom for ToEnd<C> {
 	}
 }
 
-impl<C: PopParsedFrom> Repeats for Vec<C> {
+impl<C: PopParsedFrom> Repetition for Vec<C> {
 	type Projected = Vec<C::Parsed>;
 	type Stepper = SimpleStepper<C>;
 
@@ -211,23 +229,44 @@ impl<C: PopParsedFrom> Repeats for Vec<C> {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-	) -> Result<Self::Projected, ()> {
-		iter::from_fn(move || f(input, errors).transpose()).collect()
+		) -> Result<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> Result<Self::Projected, Option<Self::Projected>> {
+		let mut failed = false;
+		let collection = iter::from_fn(|| {
+			(!failed)
+				.then(|| {
+					f(input, errors).unwrap_or_else(|item| {
+						failed = true;
+						item
+					})
+				})
+				.flatten()
+		})
+		.collect();
+		if failed {
+			Err(Some(collection))
+		} else {
+			Ok(collection)
+		}
 	}
 }
 
 /// Implicit [`ToEnd`].
 impl<C: PopParsedFrom> PopParsedFrom for Vec<C> {
 	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
-	type Remnant = <ToEnd<Self> as PopParsedFrom>::Remnant;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, Self::Remnant> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
 
-impl<C: PopParsedFrom> Repeats for VecDeque<C> {
+impl<C: PopParsedFrom> Repetition for VecDeque<C> {
 	type Projected = VecDeque<C::Parsed>;
 	type Stepper = SimpleStepper<C>;
 
@@ -237,26 +276,44 @@ impl<C: PopParsedFrom> Repeats for VecDeque<C> {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-	) -> Result<Self::Projected, ()> {
-		iter::from_fn(move || f(input, errors).transpose()).collect()
+		) -> Result<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> Result<Self::Projected, Option<Self::Projected>> {
+		let mut failed = false;
+		let collection = iter::from_fn(|| {
+			(!failed)
+				.then(|| {
+					f(input, errors).unwrap_or_else(|item| {
+						failed = true;
+						item
+					})
+				})
+				.flatten()
+		})
+		.collect();
+		if failed {
+			Err(Some(collection))
+		} else {
+			Ok(collection)
+		}
 	}
 }
 
 /// Implicit [`ToEnd`].
 impl<C: PopParsedFrom> PopParsedFrom for VecDeque<C> {
 	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
-	type Remnant = <ToEnd<Self> as PopParsedFrom>::Remnant;
 
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant> {
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
 
-impl Repeats for TokenStream {
+impl Repetition for TokenStream {
 	type Projected = TokenStream;
 	type Stepper = SimpleStepper<TokenTree>;
 
@@ -266,13 +323,32 @@ impl Repeats for TokenStream {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-	) -> Result<Self::Projected, ()> {
-		iter::from_fn(move || f(input, errors).transpose()).collect()
+		) -> Result<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> Result<Self::Projected, Option<Self::Projected>> {
+		let mut failed = false;
+		let collection = iter::from_fn(|| {
+			(!failed)
+				.then(|| {
+					f(input, errors).unwrap_or_else(|item| {
+						failed = true;
+						item
+					})
+				})
+				.flatten()
+		})
+		.collect();
+		if failed {
+			Err(Some(collection))
+		} else {
+			Ok(collection)
+		}
 	}
 }
 
-/// A series of alternating `T` and `S` where either can be last.
+/// [`Repetition`] of alternating `T` and `S` where either can be last.
 ///
 /// # Recovery
 ///
@@ -297,7 +373,7 @@ pub struct Separated<T, S> {
 	pub trailing: Option<T>,
 }
 
-impl<T, S> Repeats for Separated<T, S>
+impl<T, S> Repetition for Separated<T, S>
 where
 	T: PopParsedFrom,
 	S: PopParsedFrom + PeekFrom,
@@ -312,8 +388,11 @@ where
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-	) -> Result<Self::Projected, ()> {
+		) -> Result<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> Result<Self::Projected, Option<Self::Projected>> {
 		todo!()
 	}
 }
@@ -321,17 +400,16 @@ where
 /// Implicit [`ToEnd`].
 impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> PopParsedFrom for Separated<T, S> {
 	type Parsed = <ToEnd<Separated<T, S>> as PopParsedFrom>::Parsed;
-	type Remnant = <ToEnd<Separated<T, S>> as PopParsedFrom>::Remnant;
 
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant> {
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
 		<ToEnd<Separated<T, S>> as PopParsedFrom>::pop_parsed_from(input, errors)
 	}
 }
 
-/// A series of alternating `T` and **precedent** `D` where either can be last.
+/// [`Repetition`] of alternating `T` and **precedent** `D` where either can be last.
 ///
 /// # Recovery
 ///
@@ -356,7 +434,7 @@ pub struct Delimited<T, D> {
 	pub trailing: Option<T>,
 }
 
-impl<T, D> Repeats for Delimited<T, D>
+impl<T, D> Repetition for Delimited<T, D>
 where
 	T: PopParsedFrom,
 	D: PopParsedFrom + PeekFrom,
@@ -371,8 +449,11 @@ where
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-	) -> Result<Self::Projected, ()> {
+		) -> Result<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> Result<Self::Projected, Option<Self::Projected>> {
 		todo!()
 	}
 }
@@ -380,23 +461,22 @@ where
 /// Implicit [`ToEnd`].
 impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for Delimited<T, D> {
 	type Parsed = <ToEnd<Delimited<T, D>> as PopParsedFrom>::Parsed;
-	type Remnant = <ToEnd<Delimited<T, D>> as PopParsedFrom>::Remnant;
 
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant> {
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
 		<ToEnd<Delimited<T, D>> as PopParsedFrom>::pop_parsed_from(input, errors)
 	}
 }
 
-/// Wraps around other <code>C: [`Repeats`]</code> to constrain item count.
+/// Wraps around other <code>C: [`Repetition`]</code> to constrain item count.
 pub enum RepeatCount<C, const MIN: usize, const MAX: usize> {
 	#[expect(missing_docs)]
 	_Vacant(PhantomData<C>, Infallible),
 }
 
-impl<C: Repeats, const MIN: usize, const MAX: usize> Repeats for RepeatCount<C, MIN, MAX> {
+impl<C: Repetition, const MIN: usize, const MAX: usize> Repetition for RepeatCount<C, MIN, MAX> {
 	type Projected = C::Projected;
 
 	type Stepper = RepeatCountStepper<C::Stepper, MIN, MAX>;
@@ -407,28 +487,30 @@ impl<C: Repeats, const MIN: usize, const MAX: usize> Repeats for RepeatCount<C, 
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<Option<<Self::Stepper as Stepper>::Item>, ()>,
-	) -> Result<Self::Projected, ()> {
+		) -> Result<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> Result<Self::Projected, Option<Self::Projected>> {
 		//TODO: Constrain here too/only?
 		C::collect_repeats(input, errors, f)
 	}
 }
 
 /// Implicit [`ToEnd`].
-impl<C: Repeats, const MIN: usize, const MAX: usize> PopParsedFrom for RepeatCount<C, MIN, MAX> {
+impl<C: Repetition, const MIN: usize, const MAX: usize> PopParsedFrom for RepeatCount<C, MIN, MAX> {
 	type Parsed = <ToEnd<Self> as PopParsedFrom>::Parsed;
-	type Remnant = <ToEnd<Self> as PopParsedFrom>::Remnant;
 
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Self::Remnant> {
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
 
 /// Waiting on feature [`generic_const_exprs`](https://github.com/rust-lang/rust/issues/76560) for expansion.
-impl<C: Repeats, const MAX: usize> PeekFrom for RepeatCount<C, 1, MAX>
+impl<C: Repetition, const MAX: usize> PeekFrom for RepeatCount<C, 1, MAX>
 where
 	C::Stepper: PeekNextFrom,
 {
@@ -460,3 +542,96 @@ where
 // 		}
 // 	}
 // }
+
+/// Recovers in place, preferably by placeholder.
+pub enum OnErrContinueOrDefault<T: ?Sized> {
+	#[expect(missing_docs)]
+	_Vacant(PhantomData<T>, Infallible),
+}
+
+impl<T: ?Sized + PeekFrom> PeekFrom for OnErrContinueOrDefault<T> {
+	fn peek_from(input: &Input) -> bool {
+		T::peek_from(input)
+	}
+}
+
+impl<T: PopParsedFrom> PopParsedFrom for OnErrContinueOrDefault<T>
+where
+	T::Parsed: Default,
+{
+	type Parsed = T::Parsed;
+
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+		T::pop_parsed_from(input, errors).or_else(|placeholder| Ok(placeholder.unwrap_or_default()))
+	}
+}
+
+/// Recovers in place iff a placeholder is available.
+pub enum OnErrContinueOrErr<T: ?Sized> {
+	#[expect(missing_docs)]
+	_Vacant(PhantomData<T>, Infallible),
+}
+
+impl<T: ?Sized + PeekFrom> PeekFrom for OnErrContinueOrErr<T> {
+	fn peek_from(input: &Input) -> bool {
+		T::peek_from(input)
+	}
+}
+
+impl<T: PopParsedFrom> PopParsedFrom for OnErrContinueOrErr<T> {
+	type Parsed = T::Parsed;
+
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+		T::pop_parsed_from(input, errors).or_else(|placeholder| placeholder.ok_or(None))
+	}
+}
+
+/// On [`Err`], scans for and then discards `D` without recovering.
+///
+/// Stops early if `D` fails. (`D`'s errors are surfaced.)
+pub enum OnErrSkipPast<T: ?Sized, D: ?Sized> {
+	#[expect(missing_docs)]
+	_Vacant(PhantomData<T>, PhantomData<D>, Infallible),
+}
+
+impl<T: ?Sized + PeekFrom, D: ?Sized> PeekFrom for OnErrSkipPast<T, D> {
+	fn peek_from(input: &Input) -> bool {
+		T::peek_from(input)
+	}
+}
+
+impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for OnErrSkipPast<T, D> {
+	type Parsed = T::Parsed;
+
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+		T::pop_parsed_from(input, errors).map_err(|placeholder| {
+			while !input.is_empty() {
+				match D::peek_pop_parsed_from(input, errors) {
+					Ok(None) => drop(input.tokens.pop_front()),
+					Ok(Some(_)) => {}
+					Err(_) => return placeholder,
+				}
+			}
+			placeholder
+		})
+	}
+}
+
+/// On [`Err`], scans for and then discards `D`, then recovers, preferably by placeholder.
+///
+/// Stops early if `D` fails. (`D`'s errors are surfaced.)
+pub type OnErrSkipPastOrDefault<T, D> = OnErrContinueOrDefault<OnErrSkipPast<T, D>>;
+
+/// On [`Err`], scans for and then discards `D`, then recovers iff a placeholder is available.
+///
+/// Stops early if `D` fails. (`D`'s errors are surfaced.)
+pub type OnErrSkipPastOrErr<T, D> = OnErrContinueOrErr<OnErrSkipPast<T, D>>;

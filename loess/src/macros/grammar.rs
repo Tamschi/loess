@@ -62,6 +62,7 @@
 #[macro_export]
 macro_rules! grammar {
 	//TODO: Change impl separator to `+`?
+	//TODO: Return placeholder if the last field did.
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis enum $name:ident$(: $(
@@ -125,9 +126,9 @@ macro_rules! grammar {
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
 				$crate::__::Result::Ok(Self {
-					$($field: <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,)*
+					$($field: <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors).map_err(|_| $crate::__::None)?,)*
 				})
 			}
 		}
@@ -168,9 +169,9 @@ macro_rules! grammar {
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
 				$crate::__::Result::Ok(Self (
-					$(<$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,)*
+					$(<$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors).map_err(|_| $crate::__::None)?,)*
 				))
 			}
 		}
@@ -204,15 +205,16 @@ macro_rules! grammar {
 	(@PopFrom for enum $name:ident, [$($variant:ident[$($type:ty),*$(,)?]),*$(,)?], $error:expr$(,)?) => {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
-				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopParsedFrom>::peek_pop_parsed_from(input, errors)?),*) {
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
+				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopParsedFrom>::peek_pop_parsed_from(input, errors).map_err(|_| $crate::__::None)?),*) {
 					Self::$variant(values)
 				} else)* {
-					return $crate::__::Result::Err(errors.push($crate::Error::new(
+					errors.push($crate::Error::new(
 						$crate::ErrorPriority::GRAMMAR,
 						$error,
 						[input.front_span()],
-					)));
+					));
+					return $crate::__::Result::Err($crate::__::None);
 				})
 			}
 		}
@@ -228,7 +230,7 @@ macro_rules! grammar {
 	(@PopFrom for $_either:tt $name:ident via $PopFromViaType:ident, $($_ignored:tt)*) => {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, ()> {
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
 				$crate::__::Result::Ok(
 					<Self as $crate::__::From<<$PopFromViaType as $crate::PopParsedFrom>::Parsed>>::from(
 						<$PopFromViaType as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,

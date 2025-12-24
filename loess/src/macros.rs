@@ -10,7 +10,7 @@ pub mod __ {
 
 	pub use core::{
 		clone::Clone, compile_error, concat, convert::From, debug_assert, iter::Extend,
-		primitive::bool, result::Result, stringify,
+		option::Option, option::Option::None, primitive::bool, result::Result, stringify,
 	};
 
 	pub use std::string::ToString;
