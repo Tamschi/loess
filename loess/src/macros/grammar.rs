@@ -69,7 +69,7 @@ macro_rules! grammar {
 			$(doc $(@ $doc:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)? $(via $PeekFromViaType:ident)?)?
 			$(PopFrom $(@ $PopFrom:tt)? $(via $PopFromViaType:ident)?)?
-			$(IntoTokens $(@ $IntoTokens:tt)?)?
+			$(IntoTokens $(@ $IntoTokens:tt)? $(via $IntoTokensViaType:ident)?)?
 		),*)? {$(
 			$(#[$($variant_attr:tt)*])*
 			$variant:ident($($type:ty),*$(,)?)
@@ -88,16 +88,10 @@ macro_rules! grammar {
 		$crate::grammar!(@PeekFrom for enum $name $($($($(via $PeekFromViaType)?)?)*)?, [$([$($type),*]),*]);
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		$crate::grammar!(@PopFrom for enum $name $($($($(via $PeekFromViaType)?)?)*)?, [$($variant[$($type),*]),*], $error);
+		$crate::grammar!(@PopFrom for enum $name $($($($(via $PopFromViaType)?)?)*)?, [$($variant[$($type),*]),*], $error);
 
 		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
-		impl $crate::IntoTokens for $name {
-			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				match self {
-					$(Self::$variant(value) => $crate::IntoTokens::into_tokens(value, root, tokens),)*
-				}
-			}
-		}
+		$crate::grammar!(@IntoTokens for enum $name $($($($(via $IntoTokensViaType)?)?)*)?, [$($variant[$($type),*]),*], $error);
 
 		$crate::grammar!($($tt)*);
 	};
@@ -234,6 +228,27 @@ macro_rules! grammar {
 				$crate::__::Result::Ok(
 					<Self as $crate::__::From<<$PopFromViaType as $crate::PopParsedFrom>::Parsed>>::from(
 						<$PopFromViaType as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,
+					),
+				)
+			}
+		}
+	};
+
+	(@IntoTokens for enum $name:ident, [$($variant:ident[$($type:ty),*$(,)?]),*$(,)?], $error:expr$(,)?) => {
+		impl $crate::IntoTokens for $name {
+			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
+				todo!()
+			}
+		}
+	};
+	(@IntoTokens for $_either:tt $name:ident via $IntoTokensViaType:ident, $($_ignored:tt)*) => {
+		impl $crate::IntoTokens for $name {
+			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
+				$crate::__::Result::Ok(
+					<$IntoTokensViaType as $crate::PopParsedFrom>::into_tokens(
+						<$IntoTokensViaType as $crate::__::From<Self>>::from(self),
+						root,
+						tokens,
 					),
 				)
 			}

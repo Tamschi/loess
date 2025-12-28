@@ -20,6 +20,7 @@ grammar! {
 		path_sep_simple_path_segments: Greedy<Vec<(PathSep, SimplePathSegment)>>,
 	}
 
+	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [SimplePathSegment](https://doc.rust-lang.org/reference/paths.html#grammar-SimplePathSegment)
 	pub enum SimplePathSegment: PeekFrom, PopFrom, IntoTokens {
