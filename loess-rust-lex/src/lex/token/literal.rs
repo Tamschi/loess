@@ -21,7 +21,6 @@ grammar! {
 	pub struct RawStringLiteral(pub Literal);
 
 	#[derive(Clone)]
-	#[non_exhaustive]
 	pub enum AnyStringLiteral: doc, PeekFrom, PopFrom, IntoTokens {
 		/// `"…"`
 		Plain(StringLiteral),
@@ -30,7 +29,6 @@ grammar! {
 	} else "Expected &str literal.";
 
 	#[derive(Clone)]
-	#[non_exhaustive]
 	pub enum AnyBoolLiteral: doc, PeekFrom, PopFrom, IntoTokens {
 		/// `true`
 		True(True),

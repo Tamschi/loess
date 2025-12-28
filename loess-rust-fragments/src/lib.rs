@@ -57,30 +57,6 @@ impl PopParsedFrom for Ty {
 	type Parsed = Self;
 
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
-		let mut depth = 0_usize;
-		let mut consumed = TokenStream::new();
-		while match depth {
-			0 => if let Some(lt) = Lt::peek_pop_from(input, errors) {},
-			1.. => input
-				.pop_or_replace(|[tt], _rest| match tt {
-					TokenTree::Punct(punct) if punct.as_char() == '<' => {
-						depth += 1;
-						Ok(punct.into())
-					}
-					TokenTree::Punct(punct) if punct.as_char() == '>' => {
-						depth -= 1;
-						Ok(punct.into())
-					}
-					tt => Ok(tt),
-				})
-				.ok(),
-		}
-		.map_or(false, |tt| {
-			consumed.extend([tt]);
-			true
-		}) {}
-		let mut group = Group::new(Delimiter::None, consumed);
-		group.set_span(group.span().resolved_at(Span::mixed_site()));
-		Ok(Self { inner: group })
+		todo!()
 	}
 }

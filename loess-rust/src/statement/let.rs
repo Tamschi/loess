@@ -18,8 +18,8 @@ grammar! {
 	pub struct LetStatement: PeekFrom, PopFrom, IntoTokens {
 		outer_attributes: Greedy<Vec<OuterAttribute>>,
 		r#let: Let,
-		pattern_no_top_alt: PatternNoTopAlt,
-		colon_type: Option<(Colon, Type)>,
+		// pattern_no_top_alt: PatternNoTopAlt,
+		// colon_type: Option<(Colon, Type)>,
 		variant: LetStatementVariant,
 		semi: Semi,
 	}

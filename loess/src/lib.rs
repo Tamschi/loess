@@ -67,6 +67,8 @@ pub mod stateful;
 mod macros;
 pub use macros::__;
 
+mod tuple_impls;
+
 use crate::scaffold::EndOfInput;
 
 /// A [`Span`]-located proc macro error with [`ErrorPriority`].  

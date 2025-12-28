@@ -1,6 +1,6 @@
 //! [items](https://doc.rust-lang.org/reference/items.html#r-items): Items
 
-use loess::{grammar, scaffold::Greedy};
+use loess::{PeekFrom, grammar, scaffold::Greedy};
 
 use crate::{
 	attributes::OuterAttribute, items::extern_crate::ExternCrate,
@@ -32,7 +32,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [VisItem](https://doc.rust-lang.org/reference/items.html#grammar-VisItem)
-	pub struct VisItem: PeekFrom, PopFrom, IntoTokens {
+	pub struct VisItem: PopFrom, IntoTokens {
 		visibility: Option<Visibility>,
 		variant: VisItemVariant,
 	}
@@ -41,19 +41,19 @@ grammar! {
 	#[non_exhaustive]
 	/// [`VisItem::variant`]
 	pub enum VisItemVariant: PeekFrom, PopFrom, IntoTokens {
-		Module(Module),
+		// Module(Module),
 		ExternCrate(ExternCrate),
-		UseDeclaration(UseDeclaration),
-		Function(Function),
-		TypeAlias(TypeAlias),
-		Struct(Struct),
-		Enumeration(Enumeration),
-		Union(Union),
-		ConstantItem(ConstantItem),
-		StaticItem(StaticItem),
-		Trait(Trait),
-		Implementation(Implementation),
-		ExternBlock(ExternBlock),
+		// UseDeclaration(UseDeclaration),
+		// Function(Function),
+		// TypeAlias(TypeAlias),
+		// Struct(Struct),
+		// Enumeration(Enumeration),
+		// Union(Union),
+		// ConstantItem(ConstantItem),
+		// StaticItem(StaticItem),
+		// Trait(Trait),
+		// Implementation(Implementation),
+		// ExternBlock(ExternBlock),
 	} else "Expected VisItem or MacroItem.";
 
 	#[derive(Clone)]
@@ -61,6 +61,12 @@ grammar! {
 	/// [MacroItem](https://doc.rust-lang.org/reference/items.html#grammar-MacroItem)
 	pub enum MacroItem: PeekFrom, PopFrom, IntoTokens {
 		MacroInvocationSemi(MacroInvocationSemi),
-		MacroRulesDefinition(MacroRulesDefinition),
+		// MacroRulesDefinition(MacroRulesDefinition),
 	} else "Expected VisItem or MacroItem.";
+}
+
+impl PeekFrom for VisItem {
+	fn peek_from(input: &loess::Input) -> bool {
+		Visibility::peek_from(input) || VisItemVariant::peek_from(input)
+	}
 }

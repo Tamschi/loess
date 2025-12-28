@@ -1,6 +1,6 @@
 //! [paths.simple](https://doc.rust-lang.org/reference/paths.html#r-paths.simple): Simple Paths
 
-use loess::{grammar, scaffold::Greedy};
+use loess::{PeekFrom, grammar, scaffold::Greedy};
 
 use crate::{
 	ident::Identifier,
@@ -11,6 +11,7 @@ use crate::{
 };
 
 grammar! {
+	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [SimplePath](https://doc.rust-lang.org/reference/paths.html#grammar-SimplePath)
 	pub struct SimplePath: PopFrom, IntoTokens {
@@ -28,4 +29,10 @@ grammar! {
 		Crate(Crate),
 		DollarCrate(Dollar, Crate),
 	} else "Expected SimplePathSegment.";
+}
+
+impl PeekFrom for SimplePath {
+	fn peek_from(input: &loess::Input) -> bool {
+		todo!()
+	}
 }

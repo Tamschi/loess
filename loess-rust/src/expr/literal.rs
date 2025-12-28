@@ -30,7 +30,6 @@ grammar! {
 	///
 	/// Simplified [`LiteralExpression`].
 	#[derive(Clone)]
-	#[non_exhaustive]
 	pub enum LiteralExpressionByType: doc, PeekFrom, PopFrom, IntoTokens {
 		// AnyChar
 		AnyString(AnyStringLiteral),
