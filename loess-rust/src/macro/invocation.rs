@@ -4,11 +4,15 @@ use loess::{
 	grammar,
 	scaffold::{CurlyBraces, Parentheses, SquareBrackets},
 };
+use loess_rust_lex::lex::token::ExceptDelimiters;
 
-use crate::{lex::token::{
-	Token,
-	punct::{Not, Semi},
-}, paths::simple::SimplePath};
+use crate::{
+	lex::token::{
+		Token,
+		punct::{Not, Semi},
+	},
+	paths::simple::SimplePath,
+};
 
 grammar! {
 	#[derive(Clone)]
@@ -36,8 +40,8 @@ grammar! {
 	#[non_exhaustive]
 	/// [TokenTree](https://doc.rust-lang.org/reference/macros.html#grammar-TokenTree)
 	pub enum TokenTree: PeekFrom, PopFrom, IntoTokens {
+		TokenExceptDelimiters(ExceptDelimiters<Token>),
 		DelimTokenTree(DelimTokenTree),
-		TokenExceptDelimiters(Token),
 	} else "Expected delimited token tree.";
 
 	#[derive(Clone)]

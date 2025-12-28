@@ -4,9 +4,15 @@
 //! Where collisions would happen, they have a 0-based suffix.
 
 use loess::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PopParsedFrom, SimpleSpanned, punctuation,
+	Error, ErrorPriority, Errors, Input, IntoTokens, PopParsedFrom, SimpleSpanned, grammar,
+	punctuation, scaffold::In,
 };
 use proc_macro2::{Punct, Spacing, Span, TokenStream, TokenTree};
+
+use crate::lex::token::{
+	IncludingDelimiters,
+	delim::{CurlyBraces, Parentheses, SquareBrackets},
+};
 
 // See <https://doc.rust-lang.org/stable/reference/tokens.html#punctuation> as of 2025-12-03.
 punctuation! {
@@ -29,7 +35,6 @@ punctuation! {
 	#[derive(Clone)] (/=) as pub SlashEq: doc, Default, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt { pub slash, pub eq }
 	#[derive(Clone)] (%=) as pub PercentEq: doc, Default, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt { pub percent, pub eq }
 	#[derive(Clone)] (^=) as pub CaretEq: doc, Default, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt { pub caret, pub eq }
-	#[derive(Clone)] (!=) as pub NotEq: doc, Default, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt { pub not, pub eq }
 	#[derive(Clone)] (&=) as pub AndEq: doc, Default, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt { pub and, pub eq }
 	#[derive(Clone)] (|=) as pub OrEq: doc, Default, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt { pub or, pub eq }
 	#[derive(Clone)] (<<=) as pub ShlEq: doc, Default, PeekFrom, PopFrom, IntoTokens, LocatedAt, ResolvedAt { pub lt0, pub lt1, pub eq }
@@ -64,6 +69,64 @@ punctuation! {
 	#[derive(Clone)] (~) as pub Tilde: doc, Default, PeekFrom, PopFrom, IntoTokens, SimpleSpanned, LocatedAt, ResolvedAt { pub tilde }
 }
 
+grammar! {
+	#[derive(Clone)]
+	#[non_exhaustive]
+	/// [Token](https://doc.rust-lang.org/reference/tokens.html#grammar-PUNCTUATION)
+	pub enum Punctuation: PeekFrom, PopFrom, IntoTokens {
+		Eq(Eq),
+		Lt(Lt),
+		Le(Le),
+		EqEq(EqEq),
+		Ne(Ne),
+		Ge(Ge),
+		Gt(Gt),
+		AndAnd(AndAnd),
+		OrOr(OrOr),
+		Not(Not),
+		Tilde(Tilde),
+		Plus(Plus),
+		Minus(Minus),
+		Star(Star),
+		Slash(Slash),
+		Percent(Percent),
+		Caret(Caret),
+		And(And),
+		Or(Or),
+		Shl(Shl),
+		Shr(Shr),
+		PlusEq(PlusEq),
+		MinusEq(MinusEq),
+		StarEq(StarEq),
+		SlashEq(SlashEq),
+		PercentEq(PercentEq),
+		CaretEq(CaretEq),
+		AndEq(AndEq),
+		OrEq(OrEq),
+		ShlEq(ShlEq),
+		ShrEq(ShrEq),
+		At(At),
+		Dot(Dot),
+		DotDot(DotDot),
+		DotDotDot(DotDotDot),
+		DotDotEq(DotDotEq),
+		Comma(Comma),
+		Semi(Semi),
+		Colon(Colon),
+		PathSep(PathSep),
+		RArrow(RArrow),
+		LArrow(LArrow),
+		FatArrow(FatArrow),
+		Pound(Pound),
+		Dollar(Dollar),
+		Question(Question),
+		Underscore(Underscore),
+		CurlyBraces(In<IncludingDelimiters<CurlyBraces>>),
+		SquareBrackets(In<IncludingDelimiters<SquareBrackets>>),
+		Parentheses(In<IncludingDelimiters<Parentheses>>),
+	} else "Expected PUNCTUATION.";
+}
+
 // `!`
 impl Default for Not {
 	fn default() -> Self {
@@ -75,7 +138,7 @@ impl Default for Not {
 
 impl PopParsedFrom for Not {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(not)]
@@ -86,7 +149,8 @@ impl PopParsedFrom for Not {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `!`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `!`.", spans));
+				None
 			})
 	}
 }
@@ -108,7 +172,7 @@ impl Default for Or {
 
 impl PopParsedFrom for Or {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(or)] if or.as_char() == '|' && or.spacing() == Spacing::Alone => {
@@ -117,7 +181,8 @@ impl PopParsedFrom for Or {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `|`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `|`.", spans));
+				None
 			})
 	}
 }
@@ -139,7 +204,7 @@ impl Default for Underscore {
 
 impl PopParsedFrom for Underscore {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(underscore)] if underscore.as_char() == '_' => {
@@ -148,7 +213,8 @@ impl PopParsedFrom for Underscore {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `_`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `_`.", spans));
+				None
 			})
 	}
 }
@@ -170,7 +236,7 @@ impl Default for Dot {
 
 impl PopParsedFrom for Dot {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(dot)]
@@ -181,7 +247,8 @@ impl PopParsedFrom for Dot {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `.`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `.`.", spans));
+				None
 			})
 	}
 }
@@ -204,7 +271,7 @@ impl Default for DotDot {
 
 impl PopParsedFrom for DotDot {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, rest| match tts {
 				[TokenTree::Punct(dot0), TokenTree::Punct(dot1)]
@@ -216,7 +283,7 @@ impl PopParsedFrom for DotDot {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `..`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `..`.", spans));None
 			})
 	}
 }
@@ -239,14 +306,15 @@ impl Default for Comma {
 
 impl PopParsedFrom for Comma {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(comma)] if comma.as_char() == ',' => Ok(Self { comma }),
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `,`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `,`.", spans));
+				None
 			})
 	}
 }
@@ -268,14 +336,15 @@ impl Default for Semi {
 
 impl PopParsedFrom for Semi {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(semi)] if semi.as_char() == ';' => Ok(Self { semi }),
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `;`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `;`.", spans));
+				None
 			})
 	}
 }
@@ -297,7 +366,7 @@ impl Default for Colon {
 
 impl PopParsedFrom for Colon {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(colon)]
@@ -308,7 +377,8 @@ impl PopParsedFrom for Colon {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `:`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `:`.", spans));
+				None
 			})
 	}
 }
@@ -331,7 +401,7 @@ impl Default for PathSep {
 
 impl PopParsedFrom for PathSep {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(colon0), TokenTree::Punct(colon1)]
@@ -345,7 +415,8 @@ impl PopParsedFrom for PathSep {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `::`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `::`.", spans));
+				None
 			})
 	}
 }
@@ -369,7 +440,7 @@ impl Default for RArrow {
 
 impl PopParsedFrom for RArrow {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(minus), TokenTree::Punct(gt)]
@@ -382,7 +453,8 @@ impl PopParsedFrom for RArrow {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `->`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `->`.", spans));
+				None
 			})
 	}
 }
@@ -405,14 +477,15 @@ impl Default for Pound {
 
 impl PopParsedFrom for Pound {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(pound)] if pound.as_char() == '#' => Ok(Self { pound }),
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `#`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `#`.", spans));
+				None
 			})
 	}
 }
@@ -434,7 +507,7 @@ impl Default for Dollar {
 
 impl PopParsedFrom for Dollar {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|tts, _| match tts {
 				[TokenTree::Punct(dollar)]
@@ -445,7 +518,8 @@ impl PopParsedFrom for Dollar {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `$`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `$`.", spans));
+				None
 			})
 	}
 }

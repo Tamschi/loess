@@ -20,6 +20,9 @@ use crate::{
 mod groups;
 pub use groups::{CurlyBraces, MetaGroup, Parentheses, SquareBrackets};
 
+mod scopes;
+pub use scopes::{In, InUnpeeked, Scope};
+
 /// Doesn't fail to parse but emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`] after `T`.
 pub(crate) enum Exhaustive<T, P: ConstErrorPriority> {
 	_Vacant(PhantomData<(T, P)>, Infallible),

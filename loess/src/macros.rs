@@ -2,6 +2,7 @@ mod grammar;
 mod lifetimes;
 mod punctuation;
 mod quotes;
+mod scopes;
 mod words;
 
 #[doc(hidden)]
@@ -9,11 +10,16 @@ pub mod __ {
 	#![allow(missing_docs)] // Internal.
 
 	pub use core::{
-		clone::Clone, compile_error, concat, convert::From, debug_assert, iter::Extend,
-		option::Option, option::Option::None, primitive::bool, result::Result, stringify,
+		cell::Cell, clone::Clone, compile_error, concat, convert::From, convert::Infallible,
+		debug_assert, iter::Extend, marker::PhantomData, marker::Sized, option::Option,
+		option::Option::None, panic::AssertUnwindSafe, primitive::bool, result::Result, stringify,
 	};
 
-	pub use std::string::ToString;
+	pub use std::{
+		panic::{catch_unwind, resume_unwind},
+		string::ToString,
+		thread_local,
+	};
 
 	pub use proc_macro2::{
 		Delimiter::{Brace, Bracket, Parenthesis},

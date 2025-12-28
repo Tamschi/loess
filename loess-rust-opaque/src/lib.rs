@@ -17,13 +17,14 @@ use syn::{
 	parse::{Parse, ParseStream, Parser},
 };
 
-fn error_reporter(errors: &mut Errors) -> impl '_ + FnOnce(syn::Error) {
+fn error_reporter<T>(errors: &mut Errors) -> impl '_ + FnOnce(syn::Error) -> Option<T> {
 	move |error| {
 		errors.push(Error::new(
 			ErrorPriority::GRAMMAR,
 			error.to_string(),
 			[error.span()],
-		))
+		));
+		None
 	}
 }
 
@@ -61,7 +62,7 @@ macro_rules! wrappers {
 				$(@ $PopFrom)?
 				impl PopParsedFrom for $name {
 					type Parsed = Self;
-					fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+					fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 						fn parse(input: ParseStream) -> syn::Result<($wrapped, TokenStream)> {
 							Ok((<$wrapped>::parse(input)?, TokenStream::parse(input)?))
 						}
@@ -106,7 +107,7 @@ wrappers! {
 
 impl PopParsedFrom for ExpressionExceptStructExpression {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		fn parse(
 			input: ParseStream,
 		) -> syn::Result<(ExpressionExceptStructExpression, TokenStream)> {
@@ -126,7 +127,7 @@ impl PopParsedFrom for ExpressionExceptStructExpression {
 
 impl PopParsedFrom for Pattern {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		fn parse(input: ParseStream) -> syn::Result<(Pattern, TokenStream)> {
 			Ok((
 				Pattern(Pat::parse_multi_with_leading_vert(input)?),
@@ -144,7 +145,7 @@ impl PopParsedFrom for Pattern {
 
 impl PopParsedFrom for SimplePath {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		fn parse(input: ParseStream) -> syn::Result<(SimplePath, TokenStream)> {
 			Ok((
 				SimplePath(Path::parse_mod_style(input)?),

@@ -17,33 +17,36 @@ impl PeekFrom for Identifier {
 /// See <https://doc.rust-lang.org/reference/identifiers.html#grammar-IDENTIFIER> as of 2025-04-13.
 impl PopParsedFrom for Identifier {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
-		let ident = Ident::peek_pop_from(input, errors)?;
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
+		let ident = Ident::peek_pop_from(input, errors).map_err(|_| None)?;
 
 		match ident {
 			Some(ident) if is_identifier(&ident) => Ok(Self(ident)),
-			ident => Err(if let Some(ident) = ident {
-				errors.push(Error::new(
-					ErrorPriority::GRAMMAR,
-					if ident.to_string().starts_with("r#") {
-						format!(
-							"Expected Identifier. (`{}` cannot be a raw identifier.)",
-							&ident.to_string()[2..]
-						)
-					} else {
-						format!("Expected Identifier. (`{ident}` is a keyword.)")
-					},
-					[ident.span()],
-				));
+			ident => {
+				if let Some(ident) = ident {
+					errors.push(Error::new(
+						ErrorPriority::GRAMMAR,
+						if ident.to_string().starts_with("r#") {
+							format!(
+								"Expected Identifier. (`{}` cannot be a raw identifier.)",
+								&ident.to_string()[2..]
+							)
+						} else {
+							format!("Expected Identifier. (`{ident}` is a keyword.)")
+						},
+						[ident.span()],
+					));
 
-				input.push_front(TokenTree::Ident(ident));
-			} else {
-				errors.push(Error::new(
-					ErrorPriority::GRAMMAR,
-					"Expected Identifier.",
-					[input.front_span()],
-				));
-			}),
+					input.push_front(TokenTree::Ident(ident));
+				} else {
+					errors.push(Error::new(
+						ErrorPriority::GRAMMAR,
+						"Expected Identifier.",
+						[input.front_span()],
+					));
+				}
+				Err(None)
+			}
 		}
 	}
 }

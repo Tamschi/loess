@@ -47,7 +47,7 @@ impl PeekFrom for StringLiteral {
 
 impl PopParsedFrom for StringLiteral {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|t, _| match t {
 				[TokenTree::Literal(literal)] if literal.to_string().starts_with('"') => {
@@ -56,7 +56,8 @@ impl PopParsedFrom for StringLiteral {
 				other => Err(other),
 			})
 			.map_err(|spans| {
-				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `\"`.", spans))
+				errors.push(Error::new(ErrorPriority::GRAMMAR, "Expected `\"`.", spans));
+				None
 			})
 	}
 }
@@ -80,7 +81,7 @@ impl PeekFrom for RawStringLiteral {
 
 impl PopParsedFrom for RawStringLiteral {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		input
 			.pop_or_replace(|t, _| match t {
 				[TokenTree::Literal(literal)] if literal.to_string().starts_with('r') => {
@@ -93,7 +94,8 @@ impl PopParsedFrom for RawStringLiteral {
 					ErrorPriority::GRAMMAR,
 					"Expected raw string literal.",
 					spans,
-				))
+				));
+				None
 			})
 	}
 }

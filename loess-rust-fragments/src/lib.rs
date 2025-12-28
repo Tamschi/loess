@@ -56,7 +56,7 @@ grammar! {
 impl PopParsedFrom for Ty {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
+	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
 		let mut depth = 0_usize;
 		let mut consumed = TokenStream::new();
 		while match depth {

@@ -27,7 +27,8 @@
 		"Punct",
 		"RUSTSEC",
 		"Schichler",
-		"Tamme"
+		"Tamme",
+		"Unpeeked"
 	],
 	"cSpell.language": "en,en-GB"
 }
