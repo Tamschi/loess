@@ -116,6 +116,7 @@ impl Error {
 /// Emits [`compile_error!`].  
 /// **Expects `root` to re-export [`core`] if not empty.**
 impl IntoTokens for Error {
+	// Can/should this `dyn`?
 	fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 		let message = Literal::string(&self.message);
 		let span = self
