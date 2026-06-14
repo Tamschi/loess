@@ -283,6 +283,54 @@ macro_rules! __impl_punctuation {
 		}
 	};
 
+	(Default for $name:ident { $punct_name_0:ident, $punct_name_1:ident, $punct_name_2:ident$(,)? }, $OP:expr) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				let mut chars = $OP.chars();
+				let this = Self {
+					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_2: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+				};
+				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
+				this
+			}
+		}
+	};
+
+	(Default for $name:ident { $punct_name_0:ident, $punct_name_1:ident, $punct_name_2:ident, $punct_name_3:ident$(,)? }, $OP:expr) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				let mut chars = $OP.chars();
+				let this = Self {
+					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_2: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_3: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+				};
+				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
+				this
+			}
+		}
+	};
+
+	(Default for $name:ident { $punct_name_0:ident, $punct_name_1:ident, $punct_name_2:ident, $punct_name_3:ident$(,)? }, $OP:expr) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				let mut chars = $OP.chars();
+				let this = Self {
+					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_2: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_3: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_4: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+				};
+				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
+				this
+			}
+		}
+	};
+
 	(Default for $name:ident { $($punct_name:ident),*$(,)? }, $OP:expr) => {
 		impl $crate::__::Default for $name {
 			fn default() -> Self {
