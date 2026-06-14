@@ -3,11 +3,7 @@
 //! Punctuation is implemented as structs with named [`Punct`] fields.  
 //! Where collisions would happen, they have a 0-based suffix.
 
-use loess::{
-	Error, ErrorPriority, Errors, Input, IntoTokens, PopParsedFrom, SimpleSpanned, grammar,
-	punctuation, scaffold::In,
-};
-use proc_macro2::{Punct, Spacing, Span, TokenStream, TokenTree};
+use loess::{Error, SimpleSpanned, grammar, punctuation, scaffold::In};
 
 use crate::lex::token::{
 	IncludingDelimiters,
@@ -125,115 +121,4 @@ grammar! {
 		SquareBrackets(In<IncludingDelimiters<SquareBrackets>>),
 		Parentheses(In<IncludingDelimiters<Parentheses>>),
 	} else "Expected PUNCTUATION.";
-}
-
-// `!`
-impl Default for Not {
-	fn default() -> Self {
-		Self {
-			not: Punct::new('!', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `|`
-impl Default for Or {
-	fn default() -> Self {
-		Self {
-			or: Punct::new('|', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `_`
-impl Default for Underscore {
-	fn default() -> Self {
-		Self {
-			underscore: Punct::new('_', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `.`
-impl Default for Dot {
-	fn default() -> Self {
-		Self {
-			dot: Punct::new('.', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `..`
-impl Default for DotDot {
-	fn default() -> Self {
-		Self {
-			dot0: Punct::new('.', Spacing::Joint).with_span(Span::mixed_site()),
-			dot1: Punct::new('.', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `,`
-impl Default for Comma {
-	fn default() -> Self {
-		Self {
-			comma: Punct::new(',', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `;`
-impl Default for Semi {
-	fn default() -> Self {
-		Self {
-			semi: Punct::new(';', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `:`
-impl Default for Colon {
-	fn default() -> Self {
-		Self {
-			colon: Punct::new(':', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `::`
-impl Default for PathSep {
-	fn default() -> Self {
-		Self {
-			colon0: Punct::new(':', Spacing::Joint).with_span(Span::mixed_site()),
-			colon1: Punct::new(':', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `->`
-impl Default for RArrow {
-	fn default() -> Self {
-		Self {
-			minus: Punct::new('-', Spacing::Joint).with_span(Span::mixed_site()),
-			gt: Punct::new('>', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `#`
-impl Default for Pound {
-	fn default() -> Self {
-		Self {
-			pound: Punct::new('#', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
-}
-
-// `$`
-impl Default for Dollar {
-	fn default() -> Self {
-		Self {
-			dollar: Punct::new('$', Spacing::Alone).with_span(Span::mixed_site()),
-		}
-	}
 }

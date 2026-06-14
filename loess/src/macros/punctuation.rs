@@ -42,6 +42,10 @@ macro_rules! punctuation {
 		const _: () = {
 			const OP: &str = $crate::__::stringify!($($punct)+);
 			const NOT: &str = $crate::__::concat!($($crate::__::stringify!($($not)+))?);
+
+			#[cfg(any($($($(all() $(@ $Default)?)?)*)?))]
+			$crate::__impl_punctuation!(Default for $name { $($punct_name),* }, OP);
+
 			$($(
 				$(
 					$(@ $PeekFrom)?
@@ -49,10 +53,10 @@ macro_rules! punctuation {
 				)?
 				//TODO
 			)*)?
-			
+
 			#[cfg(any($($($(all() $(@ $PopFrom)?)?)*)?))]
 			$crate::__impl_punctuation!(PopFrom for $name { $($punct_name),* }, OP, NOT);
-			
+
 			#[cfg(any($($($(all() $(@ $IntoTokens)?)?)*)?))]
 			$crate::__impl_punctuation!(IntoTokens for $name { $($punct_name),* }, OP, NOT);
 		};
@@ -143,6 +147,10 @@ macro_rules! punctuation {
 			const NOT: &str = $crate::__::concat!($($crate::__::stringify!($($not)+))?);
 			$($(
 				$(
+					$(@ $Default)?
+					$crate::__impl_punctuation!(Default for $name, OP);
+				)?
+				$(
 					$(@ $PeekFrom)?
 					$crate::__impl_punctuation!(PeekFrom for $name, OP, NOT);
 				)?
@@ -207,7 +215,7 @@ macro_rules! __impl_punctuation {
 			fn peek_from(input: &$crate::Input) -> bool {
 				const LEN: usize = $OP.len();
 
-				//FIXME: Should be a constant asset once possible.
+				//FIXME: Should be a constant assert once possible.
 				$crate::__::debug_assert!(
 					!$OP.contains(' '),
 					"Unexpected space in punctuation definition `{}`.",
@@ -240,12 +248,66 @@ macro_rules! __impl_punctuation {
 		}
 	};
 
+	(Default for $name:ident, $OP:expr) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				todo!("punctuation!: `Default` for unit punctuation");
+			}
+		}
+	};
+
+	(Default for $name:ident { $punct_name_0:ident$(,)? }, $OP:expr) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				let mut chars = $OP.chars();
+				let this = Self {
+					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+				};
+				$crate::__::debug_assert_eq!(chars.next(), $crate::__::None);
+				this
+			}
+		}
+	};
+
+	(Default for $name:ident { $punct_name_0:ident, $punct_name_1:ident$(,)? }, $OP:expr) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				let mut chars = $OP.chars();
+				let this = Self {
+					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+				};
+				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
+				this
+			}
+		}
+	};
+
+	(Default for $name:ident { $($punct_name:ident),*$(,)? }, $OP:expr) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				todo!("punctuation!: `Default` for struct punctuation with this many `Punct`s");
+			}
+		}
+	};
+
 	(PopFrom for $name:ident { $($punct_name:ident),*$(,)? }, $OP:expr, $NOT:expr) => {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
 
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, Option<Self>> {
-				todo!("__impl_punctuation!(PopFrom for $name:ident …)")
+				if <Self as $crate::PeekFrom>::peek_from(input) {
+					$crate::__::Result::Ok(Self {
+						$($punct_name: $crate::PopFrom::pop_from(input, errors).expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves.")),)*
+					})
+				} else {
+					errors.push(Error::new(
+						$crate::ErrorPriority::TOKEN,
+						$crate::__::format!("Expected `{}`.", $OP),
+						[input.front_span()],
+					));
+					$crate::__::Result::Err(Some(<Self as $crate::__::Default>::default()))
+				}
 			}
 		}
 	};

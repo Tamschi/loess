@@ -11,11 +11,13 @@ pub mod __ {
 
 	pub use core::{
 		cell::Cell, clone::Clone, compile_error, concat, convert::From, convert::Infallible,
-		debug_assert, iter::Extend, marker::PhantomData, marker::Sized, option::Option,
-		option::Option::None, panic::AssertUnwindSafe, primitive::bool, result::Result, stringify,
+		debug_assert, debug_assert_eq, debug_assert_matches, default::Default, iter::Extend,
+		marker::PhantomData, marker::Sized, option::Option, option::Option::None,
+		panic::AssertUnwindSafe, primitive::bool, result::Result, stringify,
 	};
 
 	pub use std::{
+		format,
 		panic::{catch_unwind, resume_unwind},
 		string::ToString,
 		thread_local,
