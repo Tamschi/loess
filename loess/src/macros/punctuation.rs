@@ -363,7 +363,8 @@ macro_rules! __impl_punctuation {
 	(IntoTokens for $name:ident { $($punct_name:ident),*$(,)? }, $OP:expr, $NOT:expr) => {
 		impl $crate::IntoTokens for $name {
 			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				todo!("__impl_punctuation!(IntoTokens for $name:ident …)")
+				let Self { $($punct_name),* } = self;
+				$( $crate::IntoTokens::into_tokens($punct_name, root, tokens); )*
 			}
 		}
 	};
