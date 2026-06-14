@@ -245,7 +245,7 @@ macro_rules! __impl_punctuation {
 			type Parsed = Self;
 
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, Option<Self>> {
-				todo!()
+				todo!("__impl_punctuation!(PopFrom for $name:ident …)")
 			}
 		}
 	};
@@ -253,7 +253,7 @@ macro_rules! __impl_punctuation {
 	(IntoTokens for $name:ident { $($punct_name:ident),*$(,)? }, $OP:expr, $NOT:expr) => {
 		impl $crate::IntoTokens for $name {
 			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				todo!()
+				todo!("__impl_punctuation!(IntoTokens for $name:ident …)")
 			}
 		}
 	};

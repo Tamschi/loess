@@ -57,6 +57,6 @@ impl PopParsedFrom for Ty {
 	type Parsed = Self;
 
 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
-		todo!()
+		todo!("Ty::pop_parsed_from")
 	}
 }

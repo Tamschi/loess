@@ -243,7 +243,7 @@ macro_rules! grammar {
 	(@IntoTokens for enum $name:ident, [$($variant:ident[$($type:ty),*$(,)?]),*$(,)?], $error:expr$(,)?) => {
 		impl $crate::IntoTokens for $name {
 			fn into_tokens(self, root: &$crate::__::TokenStream, tokens: &mut impl $crate::__::Extend<$crate::__::TokenTree>) {
-				todo!()
+				todo!("grammar!(@IntoTokens for enum $name:ident, …)")
 			}
 		}
 	};

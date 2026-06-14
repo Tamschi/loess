@@ -34,6 +34,6 @@ grammar! {
 
 impl PeekFrom for SimplePath {
 	fn peek_from(input: &loess::Input) -> bool {
-		todo!()
+		todo!("SimplePath::peek_from")
 	}
 }

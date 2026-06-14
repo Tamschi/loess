@@ -396,7 +396,7 @@ where
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
 	) -> Result<Self::Projected, Option<Self::Projected>> {
-		todo!()
+		todo!("Separated::collect_repeats")
 	}
 }
 
@@ -457,7 +457,7 @@ where
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
 	) -> Result<Self::Projected, Option<Self::Projected>> {
-		todo!()
+		todo!("Delimited::collect_repeats")
 	}
 }
 
