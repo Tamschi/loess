@@ -1,6 +1,6 @@
 //! [expr](https://doc.rust-lang.org/stable/reference/expressions.html#r-expr): Expressions
 
-use loess::{grammar, scaffold::Greedy};
+use loess::{PeekFrom, grammar, scaffold::Greedy};
 
 use crate::{
 	attributes::OuterAttribute,
@@ -22,7 +22,7 @@ grammar! {
 	/// [ExpressionWithoutBlock](https://doc.rust-lang.org/reference/expressions.html#grammar-ExpressionWithoutBlock)
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub struct ExpressionWithoutBlock: PeekFrom, PopFrom, IntoTokens {
+	pub struct ExpressionWithoutBlock: PopFrom, IntoTokens {
 		pub outer_attributes: Greedy<Vec<OuterAttribute>>,
 		pub variant: ExpressionWithoutBlockVariant,
 	}
@@ -37,7 +37,7 @@ grammar! {
 	/// [ExpressionWithBlock](https://doc.rust-lang.org/reference/expressions.html#grammar-ExpressionWithBlock)
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub struct ExpressionWithBlock: PeekFrom, PopFrom, IntoTokens {
+	pub struct ExpressionWithBlock: PopFrom, IntoTokens {
 		pub outer_attributes: Greedy<Vec<OuterAttribute>>,
 		pub variant: ExpressionWithBlockVariant,
 	}
@@ -52,7 +52,7 @@ grammar! {
 	/// Flattened [`Expression`].
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub struct AnyExpression: PeekFrom, PopFrom, IntoTokens {
+	pub struct AnyExpression: PopFrom, IntoTokens {
 		pub outer_attributes: Greedy<Vec<OuterAttribute>>,
 		pub variant: AnyExpressionVariant,
 	}
@@ -64,6 +64,18 @@ grammar! {
 		//
 		BlockExpression(BlockExpression),
 	} else "Expected expression without block variant.";
+}
+
+impl PeekFrom for ExpressionWithoutBlock {
+	fn peek_from(input: &loess::Input) -> bool {
+		todo!("ExpressionWithoutBlock::peek_from")
+	}
+}
+
+impl PeekFrom for ExpressionWithBlock {
+	fn peek_from(input: &loess::Input) -> bool {
+		todo!("ExpressionWithBlock::peek_from")
+	}
 }
 
 impl From<Expression> for AnyExpression {

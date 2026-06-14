@@ -48,7 +48,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// Inside [`Module::UnsafeModIdentifierCurlyBraces`] or [`ModuleFlattenedVariant::CurlyBraces`].
-	pub struct ModuleContent: PeekFrom, PopFrom, IntoTokens {
+	pub struct ModuleContent: PopFrom, IntoTokens {
 		inner_attributes: Greedy<Vec<InnerAttribute>>,
 		items: Vec<Item>,
 	}

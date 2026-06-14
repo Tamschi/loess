@@ -16,7 +16,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [Item](https://doc.rust-lang.org/reference/items.html#grammar-Item)
-	pub struct Item: PeekFrom, PopFrom, IntoTokens {
+	pub struct Item: PopFrom, IntoTokens {
 		outer_attributes: Greedy<Vec<OuterAttribute>>,
 		variant: ItemVariant,
 	}
@@ -63,6 +63,12 @@ grammar! {
 		MacroInvocationSemi(MacroInvocationSemi),
 		// MacroRulesDefinition(MacroRulesDefinition),
 	} else "Expected VisItem or MacroItem.";
+}
+
+impl PeekFrom for Item {
+	fn peek_from(input: &loess::Input) -> bool {
+		todo!("Item::peek_from")
+	}
 }
 
 impl PeekFrom for VisItem {

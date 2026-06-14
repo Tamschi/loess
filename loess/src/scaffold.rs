@@ -210,12 +210,6 @@ where
 	}
 }
 
-impl<C: PeekFrom> PeekFrom for Greedy<C> {
-	fn peek_from(input: &Input) -> bool {
-		C::peek_from(input)
-	}
-}
-
 impl<C: PeekFrom> PeekFrom for ToEnd<C> {
 	fn peek_from(input: &Input) -> bool {
 		C::peek_from(input)
