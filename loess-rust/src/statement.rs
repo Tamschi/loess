@@ -2,7 +2,10 @@
 
 use loess::{grammar, scaffold::Greedy};
 
-use crate::{attributes::OuterAttribute, items::Item, lex::token::punct::Semi, r#macro::invocation::MacroInvocationSemi, statement::r#let::LetStatement};
+use crate::{
+	attributes::OuterAttribute, items::Item, lex::token::punct::Semi,
+	r#macro::invocation::MacroInvocationSemi, statement::r#let::LetStatement,
+};
 
 pub mod r#let;
 

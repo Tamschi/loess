@@ -10,10 +10,19 @@ pub mod __ {
 	#![allow(missing_docs)] // Internal.
 
 	pub use core::{
-		cell::Cell, clone::Clone, compile_error, concat, convert::From, convert::Infallible,
-		debug_assert, debug_assert_eq, debug_assert_matches, default::Default, iter::Extend,
-		marker::PhantomData, marker::Sized, option::Option, option::Option::None,
-		panic::AssertUnwindSafe, primitive::bool, result::Result, stringify,
+		cell::Cell,
+		clone::Clone,
+		compile_error, concat,
+		convert::{From, Infallible},
+		debug_assert, debug_assert_eq, debug_assert_matches,
+		default::Default,
+		iter::Extend,
+		marker::{PhantomData, Sized},
+		option::{Option, Option::None},
+		panic::AssertUnwindSafe,
+		primitive::bool,
+		result::Result,
+		stringify,
 	};
 
 	pub use std::{
