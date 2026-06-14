@@ -261,7 +261,7 @@ macro_rules! __impl_punctuation {
 			fn default() -> Self {
 				let mut chars = $OP.chars();
 				let this = Self {
-					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+					$punct_name_0: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone), $crate::__::Span::mixed_site()),
 				};
 				$crate::__::debug_assert_eq!(chars.next(), $crate::__::None);
 				this
@@ -274,8 +274,8 @@ macro_rules! __impl_punctuation {
 			fn default() -> Self {
 				let mut chars = $OP.chars();
 				let this = Self {
-					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+					$punct_name_0: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone), $crate::__::Span::mixed_site()),
 				};
 				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
 				this
@@ -288,9 +288,9 @@ macro_rules! __impl_punctuation {
 			fn default() -> Self {
 				let mut chars = $OP.chars();
 				let this = Self {
-					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_2: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+					$punct_name_0: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_2: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone), $crate::__::Span::mixed_site()),
 				};
 				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
 				this
@@ -303,10 +303,10 @@ macro_rules! __impl_punctuation {
 			fn default() -> Self {
 				let mut chars = $OP.chars();
 				let this = Self {
-					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_2: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_3: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+					$punct_name_0: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_2: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_3: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone), $crate::__::Span::mixed_site()),
 				};
 				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
 				this
@@ -319,11 +319,11 @@ macro_rules! __impl_punctuation {
 			fn default() -> Self {
 				let mut chars = $OP.chars();
 				let this = Self {
-					$punct_name_0: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_1: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_2: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_3: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint).with_span($crate::__::Span::mixed_site()),
-					$punct_name_4: $crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone).with_span($crate::__::Span::mixed_site()),
+					$punct_name_0: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_1: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_2: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_3: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Joint), $crate::__::Span::mixed_site()),
+					$punct_name_4: $crate::SimpleSpanned::with_span($crate::__::Punct::new(chars.next().expect(""), $crate::__::Spacing::Alone), $crate::__::Span::mixed_site()),
 				};
 				$crate::__::debug_assert_matches!(chars.next(), $crate::__::None);
 				this
@@ -349,7 +349,7 @@ macro_rules! __impl_punctuation {
 						$($punct_name: $crate::PopFrom::pop_from(input, errors).expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves.")),)*
 					})
 				} else {
-					errors.push(Error::new(
+					errors.push($crate::Error::new(
 						$crate::ErrorPriority::TOKEN,
 						$crate::__::format!("Expected `{}`.", $OP),
 						[input.front_span()],

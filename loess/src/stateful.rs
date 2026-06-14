@@ -9,7 +9,7 @@ pub trait Stepper: Default {
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Option<Self::Item>>;
+	) -> Result<Self::Item, Option<Self::Item>>;
 
 	fn peek_pop_next_from(
 		&mut self,
@@ -22,7 +22,6 @@ pub trait Stepper: Default {
 		self.peek_next_from(input)
 			.then_some(self.pop_next_from(input, errors))
 			.transpose()
-			.map(Option::flatten)
 	}
 }
 
@@ -58,8 +57,8 @@ impl<T: PopParsedFrom> Stepper for SimpleStepper<T> {
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Option<Self::Item>> {
-		T::pop_parsed_from(input, errors).map(Some)
+	) -> Result<Self::Item, Option<Self::Item>> {
+		T::pop_parsed_from(input, errors)
 	}
 }
 
@@ -92,7 +91,7 @@ impl<S: Stepper, const MIN: usize, const MAX: usize> Stepper for RepeatCountStep
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Option<Self::Item>> {
+	) -> Result<Self::Item, Option<Self::Item>> {
 		const {
 			assert!(MIN <= MAX);
 		};
@@ -105,29 +104,25 @@ impl<S: Stepper, const MIN: usize, const MAX: usize> Stepper for RepeatCountStep
 			errors: &mut Errors,
 			min: usize,
 			max: usize,
-		) -> Result<Option<S::Item>, Option<S::Item>> {
+		) -> Result<S::Item, Option<S::Item>> {
 			if *counter == 0 {
 				buffer.reserve_exact(min);
 
 				while *counter < min {
-					if let Some(item) = inner.pop_next_from(input, errors)? {
-						*counter += 1;
-						buffer.push_back(item)
-					} else {
-						todo!("Report error and return.")
-					}
+					let item = inner.pop_next_from(input, errors)?;
+					*counter += 1;
+					buffer.push_back(item)
 				}
 			}
 
 			if let Some(item) = buffer.pop_front() {
-				Ok(Some(item))
-			} else if *counter < max
-				&& let Some(item) = inner.pop_next_from(input, errors)?
-			{
+				Ok(item)
+			} else if *counter < max {
+				let item = inner.pop_next_from(input, errors)?;
 				*counter += 1;
-				Ok(Some(item))
+				Ok(item)
 			} else {
-				Ok(None)
+				todo!("Report error.")
 			}
 		}
 
@@ -180,7 +175,7 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> Stepper for SeparatedStepper
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Option<Self::Item>> {
+	) -> Result<Self::Item, Option<Self::Item>> {
 		let len_before = input.len();
 		let item = match T::pop_parsed_from(input, errors) {
 			//TODO: Slide separator!
@@ -201,7 +196,7 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> Stepper for SeparatedStepper
 			));
 			self.stop = true;
 		}
-		Ok(Some(item))
+		Ok(item)
 	}
 }
 
@@ -232,7 +227,7 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> Stepper for DelimitedStepper
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Option<Self::Item>> {
+	) -> Result<Self::Item, Option<Self::Item>> {
 		let len_before = input.len();
 		let item = match T::pop_parsed_from(input, errors) {
 			//TODO: Slide separator!
@@ -253,7 +248,7 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> Stepper for DelimitedStepper
 			));
 			self.stop = true;
 		}
-		Ok(Some(item))
+		Ok(item)
 	}
 }
 

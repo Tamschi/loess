@@ -146,11 +146,7 @@ impl<C: Repetition> PopParsedFrom for ToEnd<C> {
 				return Ok(None);
 			}
 			let len_before = input.len();
-			let Some(item) = stepper.pop_next_from(input, errors)? else {
-				EndOfInput::<UNCONSUMED_AFTER_REPEATS>::pop_parsed_from(input, errors).ok();
-				stop = true;
-				return Ok(None);
-			};
+			let item = stepper.pop_next_from(input, errors)?;
 
 			if input.len() == len_before {
 				errors.push(Error::new(
