@@ -10,7 +10,6 @@ use proc_macro2::{TokenStream, TokenTree};
 
 use crate::{
 	ConstErrorPriority, Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom,
-	error_priorities::UNCONSUMED_AFTER_REPEATS,
 	stateful::{
 		DelimitedStepper, PeekNextFrom, RepeatCountStepper, SeparatedStepper, SimpleStepper,
 		Stepper,
@@ -29,18 +28,18 @@ pub(crate) enum Exhaustive<T, P: ConstErrorPriority> {
 }
 
 /// Always succeeds peeks.
-pub enum Unpeeked<T> {
+pub enum Optimistic<T> {
 	#[expect(missing_docs)]
 	_Vacant(PhantomData<T>, Infallible),
 }
 
-impl<T> PeekFrom for Unpeeked<T> {
+impl<T> PeekFrom for Optimistic<T> {
 	fn peek_from(_input: &Input) -> bool {
 		true
 	}
 }
 
-impl<T: PopParsedFrom> PopParsedFrom for Unpeeked<T> {
+impl<T: PopParsedFrom> PopParsedFrom for Optimistic<T> {
 	type Parsed = T::Parsed;
 
 	fn pop_parsed_from(
