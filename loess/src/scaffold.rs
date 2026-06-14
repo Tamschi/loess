@@ -21,11 +21,34 @@ mod groups;
 pub use groups::{CurlyBraces, MetaGroup, Parentheses, SquareBrackets};
 
 mod scopes;
-pub use scopes::{In, InUnpeeked, Scope};
+pub use scopes::{In, Scope};
 
 /// Doesn't fail to parse but emits an [`Error`] with the given [`ConstErrorPriority`] for any unconsumed tokens in [`Input`] after `T`.
 pub(crate) enum Exhaustive<T, P: ConstErrorPriority> {
 	_Vacant(PhantomData<(T, P)>, Infallible),
+}
+
+/// Always succeeds peeks.
+pub enum Unpeeked<T> {
+	#[expect(missing_docs)]
+	_Vacant(PhantomData<T>, Infallible),
+}
+
+impl<T> PeekFrom for Unpeeked<T> {
+	fn peek_from(_input: &Input) -> bool {
+		true
+	}
+}
+
+impl<T: PopParsedFrom> PopParsedFrom for Unpeeked<T> {
+	type Parsed = T::Parsed;
+
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+		T::pop_parsed_from(input, errors)
+	}
 }
 
 impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P> {
