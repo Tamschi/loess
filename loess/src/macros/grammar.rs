@@ -200,19 +200,25 @@ macro_rules! grammar {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
-				$crate::__::Result::Ok($(if let Some(values) = ($(<$type as $crate::PopParsedFrom>::peek_pop_parsed_from(input, errors).map_err(|_| $crate::__::None)?),*) {
-					Self::$variant(values)
-				} else)* {
+				$( $crate::grammar!(@PopFromVariantBranch(input, errors) for $variant[$($type),*]); )*
+				{
 					errors.push($crate::Error::new(
 						$crate::ErrorPriority::GRAMMAR,
 						$error,
 						[input.front_span()],
 					));
 					return $crate::__::Result::Err($crate::__::None);
-				})
+				}
 			}
 		}
 	};
+	(@PopFromVariantBranch($input:ident) for $variant:ident[]) => ( return $crate::__::Result::Ok(Self::$variant()); );
+	(@PopFromVariantBranch($input:ident, $errors:ident) for $variant:ident[$type_0:ty$(, $($types_rest:ty),*$(,)?)?]) => {
+		if let Some(value_0) = <$type_0 as $crate::PopParsedFrom>::peek_pop_parsed_from($input, $errors).map_err(|_| $crate::__::None)? {
+			return $crate::__::Result::Ok(Self::$variant(value_0$(, $(<$types_rest as $crate::PopParsedFrom>::pop_parsed_from($input, $errors).map_err(|_| $crate::__::None)?),*)?));
+		}
+	};
+
 	//TODO
 	(@PopFrom for struct $name:ident, $($type:ty),*$(,)?) => {
 		impl $crate::PeekFrom for $name {
@@ -227,7 +233,7 @@ macro_rules! grammar {
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
 				$crate::__::Result::Ok(
 					<Self as $crate::__::From<<$PopFromViaType as $crate::PopParsedFrom>::Parsed>>::from(
-						<$PopFromViaType as $crate::PopParsedFrom>::pop_parsed_from(input, errors)?,
+						<$PopFromViaType as $crate::PopParsedFrom>::pop_parsed_from(input, errors).map_err(|_| $crate::__::None)?,
 					),
 				)
 			}
