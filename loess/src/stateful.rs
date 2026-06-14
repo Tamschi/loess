@@ -20,7 +20,7 @@ pub trait Stepper: Default {
 		Self: PeekNextFrom,
 	{
 		self.peek_next_from(input)
-			.then_some(self.pop_next_from(input, errors))
+			.then(|| self.pop_next_from(input, errors))
 			.transpose()
 	}
 }
