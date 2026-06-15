@@ -30,5 +30,6 @@
 		"Tamme",
 		"Unpeeked"
 	],
-	"cSpell.language": "en,en-GB"
+	"cSpell.language": "en,en-GB",
+	"git.enabled": false
 }
