@@ -4,7 +4,14 @@
 //!
 //! See also [`PopParsedFrom`#foreign-impls] for additional, mostly lower-level building blocks.
 
-use std::{any::type_name, collections::VecDeque, convert::Infallible, iter, marker::PhantomData};
+use std::{
+	any::type_name,
+	collections::VecDeque,
+	convert::{Infallible, identity},
+	iter,
+	marker::PhantomData,
+	ops::ControlFlow,
+};
 
 use proc_macro2::{TokenStream, TokenTree};
 
@@ -408,7 +415,36 @@ where
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
 	) -> Result<Self::Projected, Option<Self::Projected>> {
-		todo!("Separated::collect_repeats")
+		let mut delimited = vec![];
+		let mut failed = false;
+		while !input.is_empty() {
+			let len_before = input.len();
+			let step = f(input, errors);
+			failed |= step.is_err();
+			match step.unwrap_or_else(identity) {
+				None => {
+					return if failed { |e| Err(Some(e)) } else { Ok }(Self::Projected {
+						delimited,
+						trailing: None,
+					});
+				}
+				Some((t, None)) => {
+					return if failed { |e| Err(Some(e)) } else { Ok }(Self::Projected {
+						delimited,
+						trailing: Some(t),
+					});
+				}
+				Some((t, Some(s))) => delimited.push((t, s)),
+			}
+			assert!(
+				input.len() < len_before,
+				"`Separated` repeat parsed without consuming tokens."
+			);
+		}
+		(if failed { |e| Err(Some(e)) } else { Ok })(Self::Projected {
+			delimited,
+			trailing: None,
+		})
 	}
 }
 
