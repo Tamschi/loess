@@ -1,4 +1,4 @@
-use std::{any::type_name, collections::VecDeque, marker::PhantomData};
+use std::{any::type_name, collections::VecDeque, marker::PhantomData, ops::ControlFlow};
 
 use crate::{Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom};
 
@@ -179,13 +179,31 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> Stepper for SeparatedStepper
 		let len_before = input.len();
 		let item = match T::pop_parsed_from(input, errors) {
 			//TODO: Slide separator!
-			Ok(trailing) => match S::peek_pop_parsed_from(input, errors) {
-				Ok(delimiter) => (trailing, delimiter),
-				Err(delimiter) => todo!("Recovery."),
+			Ok(t) => match S::peek_pop_parsed_from(input, errors) {
+				Ok(d) => (t, d),
+				Err(_) => {
+					return Err(Some(
+						if let ControlFlow::Continue(s) = Self::recover(input, errors) {
+							(t, Some(s))
+						} else {
+							(t, None)
+						},
+					));
+				}
 			},
-			Err(trailing) => todo!("Recovery."),
+			Err(t) => {
+				if let ControlFlow::Continue(s) = Self::recover(input, errors) {
+					if let Some(t) = t {
+						return Err(Some((t, Some(s))));
+					} else {
+						return Err(None);
+					}
+				} else {
+					return Err(t.map(|t| (t, None)));
+				}
+			}
 		};
-		if input.len() == len_before {
+		if input.len() >= len_before {
 			errors.push(Error::new(
 				ErrorPriority::UNCONSUMED_INPUT,
 				format!(
@@ -203,6 +221,44 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> Stepper for SeparatedStepper
 impl<T: PeekFrom, S> PeekNextFrom for SeparatedStepper<T, S> {
 	fn peek_next_from(&self, input: &Input) -> bool {
 		!self.stop && T::peek_from(input)
+	}
+}
+
+impl<T, S> SeparatedStepper<T, S>
+where
+	T: PopParsedFrom,
+	S: PopParsedFrom + PeekFrom,
+{
+	fn recover(input: &mut Input, errors: &mut Errors) -> ControlFlow<(), S::Parsed>
+	where
+		S: PopParsedFrom + PeekFrom,
+	{
+		while !input.is_empty() {
+			let len_before = input.len();
+			match S::peek_pop_parsed_from(input, errors) {
+				Ok(Some(s)) => {
+					return ControlFlow::Continue(s);
+				}
+				Ok(None) => {
+					assert_eq!(
+						input.len(),
+						len_before,
+						"`S::peek_pop_parsed_from` should not consume tokens if it returns `Ok(None)`."
+					);
+					drop(input.tokens.pop_front().expect(""));
+				}
+				Err(_) => {
+					if input.len() == len_before {
+						drop(input.tokens.pop_front().expect("unreachable"));
+					}
+				}
+			}
+			assert!(
+				input.len() < len_before,
+				"Input didn't shrink during `Separated::collect_repeats` recovery."
+			);
+		}
+		ControlFlow::Break(())
 	}
 }
 
