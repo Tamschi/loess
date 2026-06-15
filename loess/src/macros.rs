@@ -18,10 +18,10 @@ pub mod __ {
 		default::Default,
 		iter::Extend,
 		marker::{PhantomData, Sized},
-		option::{Option, Option::None},
+		option::{Option, Option::None, Option::Some},
 		panic::AssertUnwindSafe,
 		primitive::bool,
-		result::Result,
+		result::{Result, Result::Err, Result::Ok},
 		stringify,
 	};
 

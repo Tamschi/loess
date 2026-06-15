@@ -63,6 +63,8 @@
 macro_rules! grammar {
 	//TODO: Change impl separator to `+`?
 	//TODO: Return placeholder if the last field did.
+
+	// enum {}
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis enum $name:ident$(: $(
@@ -95,6 +97,8 @@ macro_rules! grammar {
 
 		$crate::grammar!($($tt)*);
 	};
+
+	// struct {}
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis struct $name:ident$(: $(
@@ -121,9 +125,11 @@ macro_rules! grammar {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
-				$crate::__::Result::Ok(Self {
-					$($field: <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors).map_err(|_| $crate::__::None)?,)*
-				})
+				let mut failed = false;
+				let this = Self {
+					$($field: <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors).or_else(|fallback| fallback.map_or($crate::__::Err($crate::__::None), |e| { failed = true; $crate::__::Ok(e) }))?,)*
+				};
+				(if failed { |e| $crate::__::Result::Err($crate::__::Some(e)) } else { $crate::__::Result::Ok })(this)
 			}
 		}
 
@@ -139,6 +145,8 @@ macro_rules! grammar {
 
 		$crate::grammar!($($tt)*);
 	};
+
+	// struct ()
 	{
 		$(#[$($attr:tt)*])*
 		$vis:vis struct $name:ident$(: $(
