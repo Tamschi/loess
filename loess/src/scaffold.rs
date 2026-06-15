@@ -10,7 +10,7 @@ use std::{
 	convert::{Infallible, identity},
 	iter,
 	marker::PhantomData,
-	ops::ControlFlow,
+	ops::ControlFlow::{self, Break, Continue},
 };
 
 use proc_macro2::{TokenStream, TokenTree};
@@ -52,7 +52,7 @@ impl<T: PopParsedFrom> PopParsedFrom for Optimistic<T> {
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		T::pop_parsed_from(input, errors)
 	}
 }
@@ -63,12 +63,10 @@ impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P>
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		let value = T::pop_parsed_from(input, errors)?;
-		match EndOfInput::<P>::pop_parsed_from(input, errors) {
-			Ok(_) => Ok(value),
-			Err(_) => Err(Some(value)),
-		}
+		EndOfInput::<P>::pop_parsed_from(input, errors);
+		Continue(value)
 	}
 }
 
@@ -77,23 +75,23 @@ impl<T: PopParsedFrom, P: ConstErrorPriority> PopParsedFrom for Exhaustive<T, P>
 #[derive(Clone)]
 pub(crate) struct EndOfInput<P: ConstErrorPriority>(PhantomData<P>);
 
-/// Fails iff the [`Input`] isn't empty.
+/// Recovers towards end of input.
 impl<P: ConstErrorPriority> PopParsedFrom for EndOfInput<P> {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
-		input
-			.is_empty()
-			.then_some(Self(PhantomData))
-			.ok_or_else(|| {
-				let rest = input.tokens.iter().cloned().collect::<TokenStream>();
-				errors.push(Error::new(
-					P::PRIORITY,
-					format!("Unconsumed tokens: `{rest}`"),
-					rest.into_iter().map(|t| t.span()),
-				));
-				Some(Self(PhantomData))
-			})
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
+		if !input.is_empty() {
+			let rest = input.tokens.iter().cloned().collect::<TokenStream>();
+			errors.push(Error::new(
+				P::PRIORITY,
+				format!("Unconsumed tokens: `{rest}`"),
+				rest.into_iter().map(|t| t.span()),
+			));
+		}
+		Continue(Some(Self(PhantomData)))
 	}
 }
 
@@ -126,7 +124,7 @@ pub enum Greedy<C: ?Sized> {
 /// 		Option<<Self::Stepper as Stepper>::Item>,
 /// 		Option<<Self::Stepper as Stepper>::Item>,
 /// 	>,
-/// ) -> Result<Self::Projected, Option<Self::Projected>> {
+/// ) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
 /// 	let mut failed = false;
 /// 	let collection = iter::from_fn(|| {
 /// 		(!failed)
@@ -139,7 +137,7 @@ pub enum Greedy<C: ?Sized> {
 /// 			.flatten()
 /// 	})
 /// 	.collect();
-/// 	if failed { Err(Some(collection)) } else { Ok(collection) }
+/// 	if failed { Break(Some(collection)) } else { Continue(collection) }
 /// }
 /// ```
 pub trait Repetition {
@@ -152,11 +150,11 @@ pub trait Repetition {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<
+		) -> ControlFlow<
 			Option<<Self::Stepper as Stepper>::Item>,
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
-	) -> Result<Self::Projected, Option<Self::Projected>>;
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>>;
 }
 
 impl<C: Repetition> PopParsedFrom for ToEnd<C> {
@@ -165,14 +163,14 @@ impl<C: Repetition> PopParsedFrom for ToEnd<C> {
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		let mut stepper = C::Stepper::default();
 		let mut stop = false;
 
 		//TODO: Revise error emission wrt constraint errors!
 		C::collect_repeats(input, errors, &mut |input, errors| {
 			if stop || input.is_empty() {
-				return Ok(None);
+				return Continue(None);
 			}
 			let len_before = input.len();
 			let item = stepper.pop_next_from(input, errors)?;
@@ -189,7 +187,7 @@ impl<C: Repetition> PopParsedFrom for ToEnd<C> {
 				stop = true;
 			}
 
-			Ok(Some(item))
+			Continue(item)
 		})
 	}
 }
@@ -203,19 +201,19 @@ where
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		let mut stepper = C::Stepper::default();
 		let mut stop = false;
 
 		//TODO: Revise error emission wrt constraint errors!
 		C::collect_repeats(input, errors, &mut |input, errors| {
 			if stop || input.is_empty() {
-				return Ok(None);
+				return Continue(None);
 			}
 			let len_before = input.len();
 			let Some(item) = stepper.peek_pop_next_from(input, errors)? else {
 				stop = true;
-				return Ok(None);
+				return Continue(None);
 			};
 
 			if input.len() == len_before {
@@ -230,7 +228,7 @@ where
 				stop = true;
 			}
 
-			Ok(Some(item))
+			Continue(Some(item))
 		})
 	}
 }
@@ -251,16 +249,16 @@ impl<C: PopParsedFrom> Repetition for Vec<C> {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<
+		) -> ControlFlow<
 			Option<<Self::Stepper as Stepper>::Item>,
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
-	) -> Result<Self::Projected, Option<Self::Projected>> {
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
 		let mut failed = false;
 		let collection = iter::from_fn(|| {
 			(!failed)
 				.then(|| {
-					f(input, errors).unwrap_or_else(|item| {
+					f(input, errors).continue_ok().unwrap_or_else(|item| {
 						failed = true;
 						item
 					})
@@ -269,9 +267,9 @@ impl<C: PopParsedFrom> Repetition for Vec<C> {
 		})
 		.collect();
 		if failed {
-			Err(Some(collection))
+			Break(Some(collection))
 		} else {
-			Ok(collection)
+			Continue(Some(collection))
 		}
 	}
 }
@@ -283,7 +281,7 @@ impl<C: PopParsedFrom> PopParsedFrom for Vec<C> {
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
@@ -298,16 +296,16 @@ impl<C: PopParsedFrom> Repetition for VecDeque<C> {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<
+		) -> ControlFlow<
 			Option<<Self::Stepper as Stepper>::Item>,
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
-	) -> Result<Self::Projected, Option<Self::Projected>> {
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
 		let mut failed = false;
 		let collection = iter::from_fn(|| {
 			(!failed)
 				.then(|| {
-					f(input, errors).unwrap_or_else(|item| {
+					f(input, errors).continue_ok().unwrap_or_else(|item| {
 						failed = true;
 						item
 					})
@@ -316,9 +314,9 @@ impl<C: PopParsedFrom> Repetition for VecDeque<C> {
 		})
 		.collect();
 		if failed {
-			Err(Some(collection))
+			Break(Some(collection))
 		} else {
-			Ok(collection)
+			Continue(Some(collection))
 		}
 	}
 }
@@ -330,7 +328,7 @@ impl<C: PopParsedFrom> PopParsedFrom for VecDeque<C> {
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
@@ -345,16 +343,16 @@ impl Repetition for TokenStream {
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<
+		) -> ControlFlow<
 			Option<<Self::Stepper as Stepper>::Item>,
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
-	) -> Result<Self::Projected, Option<Self::Projected>> {
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
 		let mut failed = false;
 		let collection = iter::from_fn(|| {
 			(!failed)
 				.then(|| {
-					f(input, errors).unwrap_or_else(|item| {
+					f(input, errors).continue_ok().unwrap_or_else(|item| {
 						failed = true;
 						item
 					})
@@ -363,9 +361,9 @@ impl Repetition for TokenStream {
 		})
 		.collect();
 		if failed {
-			Err(Some(collection))
+			Break(Some(collection))
 		} else {
-			Ok(collection)
+			Continue(Some(collection))
 		}
 	}
 }
@@ -384,7 +382,7 @@ impl Repetition for TokenStream {
 ///
 /// # Returns
 ///
-/// [`Ok`] once all input is consumed. (Never [`Err`].)
+/// [`Continue`] once all input is consumed. (Never [`Break`].)
 ///
 /// Can be wrapped in [`Greedy`] to preserve remaining input after [`T::peek_from`](`PeekFrom::peek_from`)
 /// returns [`false`] at the start of an iteration.
@@ -410,29 +408,29 @@ where
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<
+		) -> ControlFlow<
 			Option<<Self::Stepper as Stepper>::Item>,
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
-	) -> Result<Self::Projected, Option<Self::Projected>> {
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
 		let mut delimited = vec![];
 		let mut failed = false;
 		while !input.is_empty() {
 			let len_before = input.len();
 			let step = f(input, errors);
-			failed |= step.is_err();
-			match step.unwrap_or_else(identity) {
+			failed |= step.is_break();
+			match step.continue_ok().unwrap_or_else(identity) {
 				None => {
-					return if failed { |e| Err(Some(e)) } else { Ok }(Self::Projected {
+					return if failed { |e| Break(e) } else { Continue }(Some(Self::Projected {
 						delimited,
 						trailing: None,
-					});
+					}));
 				}
 				Some((t, None)) => {
-					return if failed { |e| Err(Some(e)) } else { Ok }(Self::Projected {
+					return if failed { |e| Break(e) } else { Continue }(Some(Self::Projected {
 						delimited,
 						trailing: Some(t),
-					});
+					}));
 				}
 				Some((t, Some(s))) => delimited.push((t, s)),
 			}
@@ -441,10 +439,10 @@ where
 				"`Separated` repeat parsed without consuming tokens."
 			);
 		}
-		(if failed { |e| Err(Some(e)) } else { Ok })(Self::Projected {
+		(if failed { |e| Break(e) } else { Continue })(Some(Self::Projected {
 			delimited,
 			trailing: None,
-		})
+		}))
 	}
 }
 
@@ -455,7 +453,7 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> PopParsedFrom for Separated<
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		<ToEnd<Separated<T, S>> as PopParsedFrom>::pop_parsed_from(input, errors)
 	}
 }
@@ -474,7 +472,7 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> PopParsedFrom for Separated<
 ///
 /// # Returns
 ///
-/// [`Ok`] once all input is consumed. (Never [`Err`].)
+/// [`Continue`] once all input is consumed. (Never [`Break`].)
 ///
 /// Can be wrapped in [`Greedy`] to preserve remaining input after [`T::peek_from`](`PeekFrom::peek_from`)
 /// returns [`false`] at the start of an iteration.
@@ -500,11 +498,11 @@ where
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<
+		) -> ControlFlow<
 			Option<<Self::Stepper as Stepper>::Item>,
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
-	) -> Result<Self::Projected, Option<Self::Projected>> {
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
 		todo!("Delimited::collect_repeats")
 	}
 }
@@ -516,7 +514,7 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for Delimited<
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		<ToEnd<Delimited<T, D>> as PopParsedFrom>::pop_parsed_from(input, errors)
 	}
 }
@@ -538,11 +536,11 @@ impl<C: Repetition, const MIN: usize, const MAX: usize> Repetition for RepeatCou
 		f: &mut dyn FnMut(
 			&mut Input,
 			&mut Errors,
-		) -> Result<
+		) -> ControlFlow<
 			Option<<Self::Stepper as Stepper>::Item>,
 			Option<<Self::Stepper as Stepper>::Item>,
 		>,
-	) -> Result<Self::Projected, Option<Self::Projected>> {
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
 		//TODO: Constrain here too/only?
 		C::collect_repeats(input, errors, f)
 	}
@@ -555,7 +553,7 @@ impl<C: Repetition, const MIN: usize, const MAX: usize> PopParsedFrom for Repeat
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		ToEnd::<Self>::pop_parsed_from(input, errors)
 	}
 }
@@ -583,8 +581,8 @@ where
 
 // 	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, ()> {
 // 		match T::pop_parsed_from(input, errors) {
-// 			Ok(parsed) => Ok(parsed),
-// 			Err(()) => {
+// 			Continue(parsed) => Continue(parsed),
+// 			Break(()) => {
 // 				while !input.is_empty() && !T::peek_from(input) {
 // 					input.tokens.pop_front();
 // 				}
@@ -595,6 +593,8 @@ where
 // }
 
 /// Recovers in place, preferably by placeholder.
+///
+/// //TODO: Split up somehow!
 pub enum OnErrContinueOrDefault<T: ?Sized> {
 	#[expect(missing_docs)]
 	_Vacant(PhantomData<T>, Infallible),
@@ -615,37 +615,19 @@ where
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
-		T::pop_parsed_from(input, errors).or_else(|placeholder| Ok(placeholder.unwrap_or_default()))
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+		match T::pop_parsed_from(input, errors) {
+			Continue(t) => Continue(Some(t.unwrap_or_default())),
+			Break(t) => Continue(Some(t.unwrap_or_default())),
+		}
 	}
 }
 
-/// Recovers in place iff a placeholder is available.
-pub enum OnErrContinueOrErr<T: ?Sized> {
-	#[expect(missing_docs)]
-	_Vacant(PhantomData<T>, Infallible),
-}
-
-impl<T: ?Sized + PeekFrom> PeekFrom for OnErrContinueOrErr<T> {
-	fn peek_from(input: &Input) -> bool {
-		T::peek_from(input)
-	}
-}
-
-impl<T: PopParsedFrom> PopParsedFrom for OnErrContinueOrErr<T> {
-	type Parsed = T::Parsed;
-
-	fn pop_parsed_from(
-		input: &mut Input,
-		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
-		T::pop_parsed_from(input, errors).or_else(|placeholder| placeholder.ok_or(None))
-	}
-}
-
-/// On [`Err`], scans for and then discards `D` without recovering.
+/// On [`Break`], scans for and then discards `D` without recovering.
 ///
 /// Stops early if `D` fails. (`D`'s errors are surfaced.)
+///
+/// //TODO: ReplaceWith `RealignAfter`
 pub enum OnErrSkipPast<T: ?Sized, D: ?Sized> {
 	#[expect(missing_docs)]
 	_Vacant(PhantomData<T>, PhantomData<D>, Infallible),
@@ -663,13 +645,13 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for OnErrSkipP
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
-		T::pop_parsed_from(input, errors).map_err(|placeholder| {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+		T::pop_parsed_from(input, errors).map_break(|placeholder| {
 			while !input.is_empty() {
 				match D::peek_pop_parsed_from(input, errors) {
-					Ok(None) => drop(input.tokens.pop_front()),
-					Ok(Some(_)) => {}
-					Err(_) => return placeholder,
+					Continue(None) => drop(input.tokens.pop_front()),
+					Continue(Some(_)) => {}
+					Break(_) => return placeholder,
 				}
 			}
 			placeholder
@@ -677,12 +659,7 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for OnErrSkipP
 	}
 }
 
-/// On [`Err`], scans for and then discards `D`, then recovers, preferably by placeholder.
+/// On [`Break`], scans for and then discards `D`, then recovers, preferably by placeholder.
 ///
 /// Stops early if `D` fails. (`D`'s errors are surfaced.)
 pub type OnErrSkipPastOrDefault<T, D> = OnErrContinueOrDefault<OnErrSkipPast<T, D>>;
-
-/// On [`Err`], scans for and then discards `D`, then recovers iff a placeholder is available.
-///
-/// Stops early if `D` fails. (`D`'s errors are surfaced.)
-pub type OnErrSkipPastOrErr<T, D> = OnErrContinueOrErr<OnErrSkipPast<T, D>>;

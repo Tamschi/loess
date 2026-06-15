@@ -2,6 +2,8 @@
 //!
 //! Generally, these will only work properly iff the input respects the follow set limitations explained in [macro.decl.follow-set](https://doc.rust-lang.org/reference/macros-by-example.html#r-macro.decl.follow-set).
 
+use std::ops::ControlFlow;
+
 use loess::{
 	Errors, Input, PopParsedFrom, grammar,
 	scaffold::{CurlyBraces, MetaGroup, Parentheses},
@@ -56,7 +58,10 @@ grammar! {
 impl PopParsedFrom for Ty {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
 		todo!("Ty::pop_parsed_from")
 	}
 }

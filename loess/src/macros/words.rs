@@ -245,13 +245,14 @@ macro_rules! __impl_word {
 			fn pop_parsed_from(
 				input: &mut $crate::Input,
 				errors: &mut $crate::Errors,
-			) -> Result<Self, Option<Self>> {
+			) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
 				input
 					.pop_or_replace(|tts, _| match tts {
 						[$crate::__::TokenTree::Ident($ident)] if $condition && !<$crate::__::Ident as $crate::__::ToString>::to_string(&$ident).as_str().starts_with('\'') => Ok(Self($ident)),
 						tts => Err(tts),
 					})
-					.map_err(|spans| {
+					.map_continue(Some)
+					.map_break(|spans| {
 						errors.push($crate::Error::new(
 							$crate::ErrorPriority::TOKEN,
 							$message,

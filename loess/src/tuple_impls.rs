@@ -1,3 +1,5 @@
+use std::ops::ControlFlow::{self, Break, Continue};
+
 use crate::{IntoTokens, PeekFrom, PopParsedFrom};
 
 impl<T: ?Sized> PeekFrom for (T,)
@@ -18,12 +20,10 @@ where
 	fn pop_parsed_from(
 		input: &mut crate::Input,
 		errors: &mut crate::Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
-		match T::pop_parsed_from(input, errors) {
-			Ok(t) => Ok((t,)),
-			Err(Some(t)) => Err(Some((t,))),
-			Err(None) => Err(None),
-		}
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+		T::pop_parsed_from(input, errors)
+			.map_continue(|o| o.map(|t| (t,)))
+			.map_break(|o| o.map(|t| (t,)))
 	}
 }
 
@@ -59,12 +59,11 @@ where
 	fn pop_parsed_from(
 		input: &mut crate::Input,
 		errors: &mut crate::Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
-		let t1 = T1::pop_parsed_from(input, errors).map_err(|_| None)?;
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+		let t1 = T1::pop_parsed_from(input, errors).map_break(|_| None)?;
 		match T2::pop_parsed_from(input, errors) {
-			Ok(t2) => Ok((t1, t2)),
-			Err(Some(t2)) => Err(Some((t1, t2))),
-			Err(None) => Err(None),
+			Continue(t2) => Continue(t1.zip(t2)),
+			Break(t2) => Break(t1.zip(t2)),
 		}
 	}
 }

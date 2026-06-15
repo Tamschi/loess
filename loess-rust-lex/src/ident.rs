@@ -1,6 +1,8 @@
 //! [ident](https://doc.rust-lang.org/stable/reference/identifiers.html#r-ident):
 //! Identifiers (not [keywords](`crate::lex::keywords`) or [lifetimes](`crate::lex::token::life`)).
 
+use std::ops::ControlFlow::{self, Break, Continue};
+
 use loess::{Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom as _, PopParsedFrom};
 use proc_macro2::{Ident, TokenTree};
 
@@ -17,11 +19,14 @@ impl PeekFrom for Identifier {
 /// See <https://doc.rust-lang.org/reference/identifiers.html#grammar-IDENTIFIER> as of 2025-04-13.
 impl PopParsedFrom for Identifier {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
-		let ident = Ident::peek_pop_from(input, errors).map_err(|_| None)?;
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
+		let ident = Ident::peek_pop_from(input, errors).map_break(|_| None)?;
 
 		match ident {
-			Some(ident) if is_identifier(&ident) => Ok(Self(ident)),
+			Some(ident) if is_identifier(&ident) => Continue(Some(Self(ident))),
 			ident => {
 				if let Some(ident) = ident {
 					errors.push(Error::new(
@@ -45,7 +50,7 @@ impl PopParsedFrom for Identifier {
 						[input.front_span()],
 					));
 				}
-				Err(None)
+				Break(None)
 			}
 		}
 	}

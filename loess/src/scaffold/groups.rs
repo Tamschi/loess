@@ -1,5 +1,5 @@
 use std::{
-	collections::VecDeque,
+	ops::ControlFlow::{self, Break, Continue},
 	panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
 };
 
@@ -73,19 +73,18 @@ macro_rules! delimiter_struct {
 		impl<T: PopParsedFrom> PopParsedFrom for $name<T> {
 			type Parsed = $name<T::Parsed>;
 
-			fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self::Parsed, Option<Self::Parsed>> {
-				let (span, mut contents) = input
+			fn pop_parsed_from(
+				input: &mut Input,
+				errors: &mut Errors,
+			) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+				let (span, contents) = input
 					.pop_or_replace(|tts, _| match tts {
-						[TokenTree::Group(group)] if group.delimiter() == $delimiter => Ok((
-							group.delim_span(),
-							Input {
-								tokens: group.stream().into_iter().collect::<VecDeque<_>>(),
-								end: group.span_close(),
-							},
-						)),
-						other => Err(other),
+						[TokenTree::Group(group)] if group.delimiter() == $delimiter => {
+							Ok((group.delim_span(), group.stream()))
+						}
+						tts => Err(tts),
 					})
-					.map_err(|spans| {
+					.map_break(|spans| {
 						errors.push(Error::new(
 							ErrorPriority::TOKEN,
 							concat!("Expected ", $opening, "."),
@@ -94,19 +93,15 @@ macro_rules! delimiter_struct {
 						None
 					})?;
 
-				match catch_unwind(AssertUnwindSafe(|| {
-					Ok(Self::Parsed {
-						span,
-						contents: Exhaustive::<T, UNCONSUMED_IN_DELIMITER>::pop_parsed_from(
-							&mut contents,
-							errors,
-						).map_err(|contents| contents.map(|contents| Self::Parsed {
-							span,
-							contents,
-						}))?,
-					})
+				let mut contents = Input {
+					tokens: contents.into_iter().collect(),
+					end: span.close(),
+				};
+
+				let parsed_contents = match catch_unwind(AssertUnwindSafe(|| {
+					Exhaustive::<T, UNCONSUMED_IN_DELIMITER>::pop_parsed_from(&mut contents, errors)
 				})) {
-					Ok(result) => result,
+					Ok(ok) => ok,
 					Err(panic) => {
 						errors.push(Error::new(
 							ErrorPriority::PANIC,
@@ -114,12 +109,9 @@ macro_rules! delimiter_struct {
 								"proc macro panicked: {:?}",
 								if panic.as_ref().is::<HandledPanic>() {
 									resume_unwind(panic)
-								} else if let Some(message) =
-									panic.as_ref().downcast_ref::<String>()
-								{
+								} else if let Some(message) = panic.as_ref().downcast_ref::<String>() {
 									message.clone()
-								} else if let Some(message) =
-									panic.as_ref().downcast_ref::<&'static str>()
+								} else if let Some(message) = panic.as_ref().downcast_ref::<&'static str>()
 								{
 									message.to_string()
 								} else {
@@ -136,6 +128,11 @@ macro_rules! delimiter_struct {
 						));
 						resume_unwind(Box::new(HandledPanic));
 					}
+				};
+
+				match parsed_contents {
+					Continue(o) => Continue(o.map(|contents| Self::Parsed { span, contents })),
+					Break(o) => Break(o.map(|contents| Self::Parsed { span, contents })),
 				}
 			}
 		}

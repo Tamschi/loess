@@ -1,4 +1,4 @@
-use std::{any::type_name, convert::Infallible, marker::PhantomData};
+use std::{any::type_name, convert::Infallible, marker::PhantomData, ops::ControlFlow};
 
 use crate::{PeekFrom, PopParsedFrom};
 
@@ -42,7 +42,7 @@ where
 	fn pop_parsed_from(
 		input: &mut crate::Input,
 		errors: &mut crate::Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>> {
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		assert!(
 			S::is_in(),
 			"Expected to be in scope `{}`.",

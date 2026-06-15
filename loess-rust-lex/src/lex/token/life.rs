@@ -1,5 +1,7 @@
 //! [lex.token.life](https://doc.rust-lang.org/stable/reference/tokens.html#r-lex.token.life): Lifetimes and loop labels
 
+use std::ops::ControlFlow::{self, Break, Continue};
+
 use loess::{Error, ErrorPriority, Errors, Input, PeekFrom, PopFrom, PopParsedFrom, lifetimes};
 use proc_macro2::{Ident, TokenTree};
 
@@ -17,11 +19,14 @@ impl PeekFrom for Lifetime {
 /// See <https://doc.rust-lang.org/stable/reference/tokens.html?highlight=LIFETIME_TOKEN#r-lex.token.life.syntax> as of 2025-12-04.
 impl PopParsedFrom for Lifetime {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
-		let ident = Ident::peek_pop_from(input, errors).map_err(|_| None)?;
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
+		let ident = Ident::peek_pop_from(input, errors).map_break(|_| None)?;
 
 		match ident {
-			Some(ident) if is_lifetime(&ident) => Ok(Self(ident)),
+			Some(ident) if is_lifetime(&ident) => Continue(Some(Self(ident))),
 			ident => {
 				if let Some(ident) = ident {
 					errors.push(Error::new(
@@ -45,7 +50,7 @@ impl PopParsedFrom for Lifetime {
 						[input.front_span()],
 					));
 				}
-				Err(None)
+				Break(None)
 			}
 		}
 	}

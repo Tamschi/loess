@@ -51,7 +51,7 @@ macro_rules! scopes {
 				fn pop_parsed_from(
 					input: &mut $crate::Input,
 					errors: &mut $crate::Errors,
-				) -> Result<Self::Parsed, Option<Self::Parsed>> {
+				) -> $crate::__::ControlFlow<$crate::__::Option<Self::Parsed>, $crate::__::Option<Self::Parsed>> {
 					IN_SCOPE.with(|in_scope| {
 						let prior = in_scope.replace(true);
 						let catch_result =
@@ -92,7 +92,7 @@ macro_rules! scopes {
 					fn pop_parsed_from(
 						input: &mut $crate::Input,
 						errors: &mut $crate::Errors,
-					) -> Result<Self::Parsed, Option<Self::Parsed>> {
+					) -> $crate::__::ControlFlow<$crate::__::Option<Self::Parsed>, $crate::__::Option<Self::Parsed>> {
 						IN_SCOPE.with(|in_scope| {
 							let prior = in_scope.replace(false);
 							let catch_result =

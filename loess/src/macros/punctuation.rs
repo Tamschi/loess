@@ -343,18 +343,20 @@ macro_rules! __impl_punctuation {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
 
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, Option<Self>> {
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
 				if <Self as $crate::PeekFrom>::peek_from(input) {
-					$crate::__::Result::Ok(Self {
-						$($punct_name: $crate::PopFrom::pop_from(input, errors).expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves.")),)*
-					})
+					$crate::__::Continue($crate::__::Some(Self {$(
+						$punct_name: $crate::PopFrom::pop_from(input, errors).continue_ok()
+							.expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves."))
+							.expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves.")),
+					)*}))
 				} else {
 					errors.push($crate::Error::new(
 						$crate::ErrorPriority::TOKEN,
 						$crate::__::format!("Expected `{}`.", $OP),
 						[input.front_span()],
 					));
-					$crate::__::Result::Err(Some(<Self as $crate::__::Default>::default()))
+					$crate::__::Break($crate::__::Some(<Self as $crate::__::Default>::default()))
 				}
 			}
 		}

@@ -1,3 +1,5 @@
+use std::ops::ControlFlow;
+
 use crate::{ErrorPriority, Errors, Input, IntoTokens, PeekFrom, PopParsedFrom, SimpleSpanned};
 
 use super::Error;
@@ -43,7 +45,10 @@ impl PeekFrom for TokenStream {
 impl PopParsedFrom for Group {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -52,7 +57,8 @@ impl PopParsedFrom for Group {
 				[TokenTree::Group(group)] => Ok(group),
 				t => Err(t),
 			})
-			.map_err(|spans| {
+			.map_continue(Some)
+			.map_break(|spans| {
 				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Group.", spans));
 				None
 			})
@@ -62,7 +68,10 @@ impl PopParsedFrom for Group {
 impl PopParsedFrom for Ident {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -71,7 +80,8 @@ impl PopParsedFrom for Ident {
 				[TokenTree::Ident(ident)] => Ok(ident),
 				t => Err(t),
 			})
-			.map_err(|spans| {
+			.map_continue(Some)
+			.map_break(|spans| {
 				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Ident.", spans));
 				None
 			})
@@ -81,7 +91,10 @@ impl PopParsedFrom for Ident {
 impl PopParsedFrom for Punct {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -90,7 +103,8 @@ impl PopParsedFrom for Punct {
 				[TokenTree::Punct(punct)] => Ok(punct),
 				t => Err(t),
 			})
-			.map_err(|spans| {
+			.map_continue(Some)
+			.map_break(|spans| {
 				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Punct.", spans));
 				None
 			})
@@ -100,7 +114,10 @@ impl PopParsedFrom for Punct {
 impl PopParsedFrom for Literal {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>>
 	where
 		Self: Sized,
 	{
@@ -109,7 +126,8 @@ impl PopParsedFrom for Literal {
 				[TokenTree::Literal(literal)] => Ok(literal),
 				t => Err(t),
 			})
-			.map_err(|spans| {
+			.map_continue(Some)
+			.map_break(|spans| {
 				errors.push(Error::new(ErrorPriority::TOKEN, "Expected Literal.", spans));
 				None
 			})
@@ -119,14 +137,24 @@ impl PopParsedFrom for Literal {
 impl PopParsedFrom for TokenTree {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>>
 	where
 		Self: Sized,
 	{
-		input.pop_or_replace(|[t], _| Ok(t)).map_err(|spans| {
-			errors.push(Error::new(ErrorPriority::TOKEN, "Expected token.", spans));
-			None
-		})
+		input
+			.pop_or_replace(|[t], _| Ok(t))
+			.map_continue(Some)
+			.map_break(|spans| {
+				errors.push(Error::new(
+					ErrorPriority::TOKEN,
+					"Expected TokenTree.",
+					spans,
+				));
+				None
+			})
 	}
 }
 
@@ -134,8 +162,11 @@ impl PopParsedFrom for TokenTree {
 impl PopParsedFrom for TokenStream {
 	type Parsed = Self;
 
-	fn pop_parsed_from(input: &mut Input, _errors: &mut Errors) -> Result<Self, Option<Self>> {
-		Ok(input.tokens.drain(..).collect())
+	fn pop_parsed_from(
+		input: &mut Input,
+		_errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
+		ControlFlow::Continue(Some(input.tokens.drain(..).collect()))
 	}
 }
 

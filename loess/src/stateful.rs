@@ -1,4 +1,9 @@
-use std::{any::type_name, collections::VecDeque, marker::PhantomData, ops::ControlFlow};
+use std::{
+	any::type_name,
+	collections::VecDeque,
+	marker::PhantomData,
+	ops::ControlFlow::{self, Break, Continue},
+};
 
 use crate::{Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom};
 
@@ -9,19 +14,21 @@ pub trait Stepper: Default {
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Item, Option<Self::Item>>;
+	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>>;
 
 	fn peek_pop_next_from(
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Item>, Option<Self::Item>>
+	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>>
 	where
 		Self: PeekNextFrom,
 	{
-		self.peek_next_from(input)
-			.then(|| self.pop_next_from(input, errors))
-			.transpose()
+		if self.peek_next_from(input) {
+			self.pop_next_from(input, errors)
+		} else {
+			Continue(None)
+		}
 	}
 }
 
@@ -57,7 +64,7 @@ impl<T: PopParsedFrom> Stepper for SimpleStepper<T> {
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Item, Option<Self::Item>> {
+	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>> {
 		T::pop_parsed_from(input, errors)
 	}
 }
@@ -91,7 +98,7 @@ impl<S: Stepper, const MIN: usize, const MAX: usize> Stepper for RepeatCountStep
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Item, Option<Self::Item>> {
+	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>> {
 		const {
 			assert!(MIN <= MAX);
 		};
@@ -104,25 +111,26 @@ impl<S: Stepper, const MIN: usize, const MAX: usize> Stepper for RepeatCountStep
 			errors: &mut Errors,
 			min: usize,
 			max: usize,
-		) -> Result<S::Item, Option<S::Item>> {
+		) -> ControlFlow<Option<S::Item>, Option<S::Item>> {
 			if *counter == 0 {
 				buffer.reserve_exact(min);
 
-				while *counter < min {
-					let item = inner.pop_next_from(input, errors)?;
+				while *counter < min
+					&& let Some(item) = inner.pop_next_from(input, errors)?
+				{
 					*counter += 1;
 					buffer.push_back(item)
 				}
 			}
 
 			if let Some(item) = buffer.pop_front() {
-				Ok(item)
+				Continue(Some(item))
 			} else if *counter < max {
 				let item = inner.pop_next_from(input, errors)?;
 				*counter += 1;
-				Ok(item)
+				Continue(item)
 			} else {
-				todo!("Report error.")
+				todo!("RepeatCountStepper::pop_next_from: Report error.")
 			}
 		}
 
@@ -175,46 +183,45 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> Stepper for SeparatedStepper
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Item, Option<Self::Item>> {
-		let len_before = input.len();
-		let item = match T::pop_parsed_from(input, errors) {
-			//TODO: Slide separator!
-			Ok(t) => match S::peek_pop_parsed_from(input, errors) {
-				Ok(d) => (t, d),
-				Err(_) => {
-					return Err(Some(
-						if let ControlFlow::Continue(s) = Self::recover(input, errors) {
-							(t, Some(s))
-						} else {
-							(t, None)
-						},
-					));
-				}
-			},
-			Err(t) => {
-				if let ControlFlow::Continue(s) = Self::recover(input, errors) {
-					if let Some(t) = t {
-						return Err(Some((t, Some(s))));
-					} else {
-						return Err(None);
-					}
-				} else {
-					return Err(t.map(|t| (t, None)));
-				}
-			}
-		};
-		if input.len() >= len_before {
-			errors.push(Error::new(
-				ErrorPriority::UNCONSUMED_INPUT,
-				format!(
-					"{} looped without consuming input. (This likely implies a faulty grammar.)",
-					type_name::<(T, Option<S>)>()
-				),
-				input.drain_spans(..),
-			));
-			self.stop = true;
-		}
-		Ok(item)
+	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>> {
+		todo!("SeparatedStepper::pop_next_from")
+		// let len_before = input.len();
+		// let item = match T::pop_parsed_from(input, errors) {
+		// 	//TODO: Slide separator!
+		// 	Continue(t) => match S::peek_pop_parsed_from(input, errors) {
+		// 		Continue(d) => (t, d),
+		// 		Break(_) => {
+		// 			return Break(Some(if let Continue(s) = Self::recover(input, errors) {
+		// 				(t, Some(s))
+		// 			} else {
+		// 				(t, None)
+		// 			}));
+		// 		}
+		// 	},
+		// 	Break(t) => {
+		// 		if let Continue(s) = Self::recover(input, errors) {
+		// 			if let Some(t) = t {
+		// 				return Break(Some((t, Some(s))));
+		// 			} else {
+		// 				return Break(None);
+		// 			}
+		// 		} else {
+		// 			return Break(t.map(|t| (t, None)));
+		// 		}
+		// 	}
+		// };
+		// if input.len() >= len_before {
+		// 	errors.push(Error::new(
+		// 		ErrorPriority::UNCONSUMED_INPUT,
+		// 		format!(
+		// 			"{} looped without consuming input. (This likely implies a faulty grammar.)",
+		// 			type_name::<(T, Option<S>)>()
+		// 		),
+		// 		input.drain_spans(..),
+		// 	));
+		// 	self.stop = true;
+		// }
+		// Continue(item)
 	}
 }
 
@@ -233,32 +240,33 @@ where
 	where
 		S: PopParsedFrom + PeekFrom,
 	{
-		while !input.is_empty() {
-			let len_before = input.len();
-			match S::peek_pop_parsed_from(input, errors) {
-				Ok(Some(s)) => {
-					return ControlFlow::Continue(s);
-				}
-				Ok(None) => {
-					assert_eq!(
-						input.len(),
-						len_before,
-						"`S::peek_pop_parsed_from` should not consume tokens if it returns `Ok(None)`."
-					);
-					drop(input.tokens.pop_front().expect(""));
-				}
-				Err(_) => {
-					if input.len() == len_before {
-						drop(input.tokens.pop_front().expect("unreachable"));
-					}
-				}
-			}
-			assert!(
-				input.len() < len_before,
-				"Input didn't shrink during `Separated::collect_repeats` recovery."
-			);
-		}
-		ControlFlow::Break(())
+		todo!("SeparatedStepper::recover")
+		// while !input.is_empty() {
+		// 	let len_before = input.len();
+		// 	match S::peek_pop_parsed_from(input, errors) {
+		// 		Ok(Some(s)) => {
+		// 			return Continue(s);
+		// 		}
+		// 		Ok(None) => {
+		// 			assert_eq!(
+		// 				input.len(),
+		// 				len_before,
+		// 				"`S::peek_pop_parsed_from` should not consume tokens if it returns `Ok(None)`."
+		// 			);
+		// 			drop(input.tokens.pop_front().expect(""));
+		// 		}
+		// 		Err(_) => {
+		// 			if input.len() == len_before {
+		// 				drop(input.tokens.pop_front().expect("unreachable"));
+		// 			}
+		// 		}
+		// 	}
+		// 	assert!(
+		// 		input.len() < len_before,
+		// 		"Input didn't shrink during `Separated::collect_repeats` recovery."
+		// 	);
+		// }
+		// Break(())
 	}
 }
 
@@ -283,28 +291,29 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> Stepper for DelimitedStepper
 		&mut self,
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Item, Option<Self::Item>> {
-		let len_before = input.len();
-		let item = match T::pop_parsed_from(input, errors) {
-			//TODO: Slide separator!
-			Ok(trailing) => match D::peek_pop_parsed_from(input, errors) {
-				Ok(delimiter) => (trailing, delimiter),
-				Err(delimiter) => todo!("Recovery."),
-			},
-			Err(trailing) => todo!("Recovery."),
-		};
-		if input.len() == len_before {
-			errors.push(Error::new(
-				ErrorPriority::UNCONSUMED_INPUT,
-				format!(
-					"{} looped without consuming input. (This likely implies a faulty grammar.)",
-					type_name::<(T, Option<D>)>()
-				),
-				input.drain_spans(..),
-			));
-			self.stop = true;
-		}
-		Ok(item)
+	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>> {
+		todo!("DelimitedStepper::pop_next_from")
+		// let len_before = input.len();
+		// let item = match T::pop_parsed_from(input, errors) {
+		// 	//TODO: Slide separator!
+		// 	Ok(trailing) => match D::peek_pop_parsed_from(input, errors) {
+		// 		Ok(delimiter) => (trailing, delimiter),
+		// 		Err(delimiter) => todo!("Recovery."),
+		// 	},
+		// 	Err(trailing) => todo!("Recovery."),
+		// };
+		// if input.len() == len_before {
+		// 	errors.push(Error::new(
+		// 		ErrorPriority::UNCONSUMED_INPUT,
+		// 		format!(
+		// 			"{} looped without consuming input. (This likely implies a faulty grammar.)",
+		// 			type_name::<(T, Option<D>)>()
+		// 		),
+		// 		input.drain_spans(..),
+		// 	));
+		// 	self.stop = true;
+		// }
+		// Ok(item)
 	}
 }
 

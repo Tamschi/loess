@@ -46,7 +46,10 @@ use std::{
 	fmt::Debug,
 	iter::{self},
 	mem,
-	ops::RangeBounds,
+	ops::{
+		ControlFlow::{self, Break, Continue},
+		RangeBounds,
+	},
 	panic::{AssertUnwindSafe, UnwindSafe, catch_unwind},
 	vec,
 };
@@ -468,25 +471,26 @@ impl Input {
 		&'a mut self,
 		//TODO (breaking): Also pass `&mut self` into the closure to check/consume further tokens.
 		f: impl FnOnce([TokenTree; N], &mut Self) -> Result<T, [TokenTree; N]>,
-	) -> Result<T, impl 'a + IntoIterator<Item = Span>> {
+	) -> ControlFlow<impl 'a + IntoIterator<Item = Span>, T> {
 		//TODO: Handle none-delimiter groups.
 		if self.tokens.len() < N {
-			Err(self
-				.tokens
-				.iter()
-				.map(|t| t.span())
-				.chain(iter::once(self.end))
-				.collect::<Vec<_>>())
+			Break(
+				self.tokens
+					.iter()
+					.map(|t| t.span())
+					.chain(iter::once(self.end))
+					.collect::<Vec<_>>(),
+			)
 		} else {
 			match f(
 				[(); N].map(|()| self.tokens.pop_front().expect("unreachable")),
 				self,
 			) {
-				Ok(value) => Ok(value),
+				Ok(value) => Continue(value),
 				Err(tts) => {
 					let spans = tts.iter().map(|t| t.span()).collect();
 					self.prepend(tts);
-					Err(spans)
+					Break(spans)
 				}
 			}
 		}
@@ -542,36 +546,44 @@ pub trait PopParsedFrom {
 	///
 	/// # Returns
 	///
-	/// ## [`Ok`]
+	/// **Note that the return value does not indicate success or failure!**\
+	/// That information is surfaced through `errors`.
 	///
-	/// Iff the [`Self::Parsed`](`PopParsedFrom::Parsed`) was parsed successfully or the parser has recovered.
+	/// ## [`Continue`]
 	///
-	/// ## [`Err`]
+	/// Iff `input` has been advanced past `Self`.
 	///
-	/// Iff parsing is *currently* failing and needs recovery before continuing.
+	/// ## [`Break`]
+	///
+	/// Iff `input` has not been advanced past `Self` and should be recovered.
+	///
+	/// ## Within either of the above:
 	///
 	/// ### [`Some`]
 	///
-	/// Iff a placeholder and/or incomplete [`Self::Parsed`](`PopParsedFrom::Parsed`) is available despite ongoing failure.
+	/// Iff a [`Self::Parsed`](`PopParsedFrom::Parsed`) is available.\
+	/// This value may be complete, incomplete or a synthetic placeholder.
 	///
 	/// ### [`None`]
 	///
-	/// Iff no placeholder is available.
+	/// Iff no [`Self::Parsed`](`PopParsedFrom::Parsed`) is available.
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>>;
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>>;
 
 	fn peek_pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Option<Self::Parsed>, Option<Self::Parsed>>
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>>
 	where
 		Self: PeekFrom,
 	{
-		Self::peek_from(input)
-			.then(|| Self::pop_parsed_from(input, errors))
-			.transpose()
+		if Self::peek_from(input) {
+			Self::pop_parsed_from(input, errors)
+		} else {
+			Continue(None)
+		}
 	}
 }
 
@@ -583,47 +595,49 @@ pub trait PopFrom: PopParsedFrom<Parsed = Self> {
 	///
 	/// # Returns
 	///
-	/// ## <code>[`Ok`]::&lt;Self, _></code>
+	/// **Note that the return value does not indicate success or failure!**\
+	/// That information is surfaced through `errors`.
 	///
-	/// Parsing either succeeded or its failure was recoverable.
+	/// ## [`Continue`]
 	///
-	/// There <em style=font-style:normal;font-variant:small-caps>may</em> be new [`Errors`]!
+	/// Iff `input` has been advanced past `Self`.
 	///
-	/// ## <code>[`Err`]::&lt;_, ()></code>
+	/// ## [`Break`]
 	///
-	/// Parsing failed unrecoverably.
+	/// Iff `input` has not been advanced past `Self` and should be recovered.
 	///
-	/// It <em style=font-style:normal;font-variant:small-caps>may</em> still be recovered further up the call chain,
-	/// but there <em style=font-style:normal;font-variant:small-caps>should</em> be new [`Errors`] at this point!
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>>
+	/// ## Within either of the above:
+	///
+	/// ### [`Some`]
+	///
+	/// Iff a [`Self::Parsed`](`PopParsedFrom::Parsed`) is available.\
+	/// This value may be complete, incomplete or a synthetic placeholder.
+	///
+	/// ### [`None`]
+	///
+	/// Iff no [`Self::Parsed`](`PopParsedFrom::Parsed`) is available.
+	fn pop_from(input: &mut Input, errors: &mut Errors) -> ControlFlow<Option<Self>, Option<Self>>
 	where
-		Self: Sized;
+		Self: Sized,
+	{
+		Self::pop_parsed_from(input, errors)
+	}
 
 	/// Convenience function for <code>&lt;[`Option`]&lt;Self> as [`PopFrom`]>::[pop_from](`PopFrom::pop_from`)</code>.
 	///
 	/// This is used by [`grammar!`]-generated enum parsers.
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Option<Self>>
+	fn peek_pop_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>>
 	where
 		Self: PeekFrom + Sized,
-	{
-		Self::peek_from(input)
-			.then(move || Self::pop_from(input, errors))
-			.transpose()
-	}
-}
-
-impl<T: PopParsedFrom<Parsed = Self>> PopFrom for T {
-	fn pop_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
-		Self::pop_parsed_from(input, errors)
-	}
-
-	fn peek_pop_from(input: &mut Input, errors: &mut Errors) -> Result<Option<Self>, Option<Self>>
-	where
-		Self: PeekFrom,
 	{
 		Self::peek_pop_parsed_from(input, errors)
 	}
 }
+
+impl<T: PopParsedFrom<Parsed = Self>> PopFrom for T {}
 
 impl<T: PopParsedFrom> PopParsedFrom for Box<T> {
 	type Parsed = Box<T::Parsed>;
@@ -631,13 +645,13 @@ impl<T: PopParsedFrom> PopParsedFrom for Box<T> {
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>>
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>>
 	where
 		Self: Sized,
 	{
 		T::pop_parsed_from(input, errors)
-			.map(Box::new)
-			.map_err(|placeholder| placeholder.map(Box::new))
+			.map_continue(|o| o.map(Box::new))
+			.map_break(|o| o.map(Box::new))
 	}
 }
 
@@ -647,18 +661,20 @@ impl<T: IntoTokens> IntoTokens for Box<T> {
 	}
 }
 
-/// Fails only with placeholder (by wrapping any nested failure in [`Some`]).
+/// Always returns a value.
 impl<T: PeekFrom + PopParsedFrom> PopParsedFrom for Option<T> {
 	type Parsed = Option<T::Parsed>;
 
 	fn pop_parsed_from(
 		input: &mut Input,
 		errors: &mut Errors,
-	) -> Result<Self::Parsed, Option<Self::Parsed>>
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>>
 	where
 		Self: Sized,
 	{
-		T::peek_pop_parsed_from(input, errors).map_err(Some)
+		T::peek_pop_parsed_from(input, errors)
+			.map_continue(Some)
+			.map_break(Some)
 	}
 }
 
@@ -729,7 +745,7 @@ pub trait SimpleSpanned {
 /// one of [`parse_all`], [`parse_all_with`] and [`parse_all_with_infallible`] or
 /// [`parse_once`], [`parse_once_with`] and [`parse_once_with_infallible`],
 /// either in order of decreasing convenience.
-pub struct HandledPanic;
+pub struct HandledPanic; //TODO: Remove this in favour of `None`!
 
 /// Low-level [`FnOnce`]-unwind-catcher that reports panics to the given [`Errors`] without also catching [`Err(())`](`Err`).
 ///
@@ -784,8 +800,8 @@ pub(crate) fn parse_once_with_infallible_impl<'a, T>(
 pub fn parse_once_with<'a, T>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-	f: impl 'a + UnwindSafe + FnOnce(&mut Input, &mut Errors) -> Result<T, Option<T>>,
-) -> Result<T, Option<T>> {
+	f: impl 'a + UnwindSafe + FnOnce(&mut Input, &mut Errors) -> ControlFlow<Option<T>, Option<T>>,
+) -> ControlFlow<Option<T>, Option<T>> {
 	parse_once_with_impl(input, errors, f)
 }
 
@@ -793,11 +809,11 @@ pub fn parse_once_with<'a, T>(
 pub(crate) fn parse_once_with_impl<'a, T>(
 	input: &mut Input,
 	errors: &mut Errors,
-	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> Result<T, Option<T>>,
-) -> Result<T, Option<T>> {
+	f: impl 'a + FnOnce(&mut Input, &mut Errors) -> ControlFlow<Option<T>, Option<T>>,
+) -> ControlFlow<Option<T>, Option<T>> {
 	match parse_once_with_infallible_impl(input, errors, f) {
 		Ok(ok) => ok,
-		Err(()) => Err(None),
+		Err(()) => Break(None),
 	}
 }
 
@@ -808,7 +824,7 @@ pub(crate) fn parse_once_with_impl<'a, T>(
 pub fn parse_once<'a, T: PopFrom>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-) -> Result<T, Option<T>> {
+) -> ControlFlow<Option<T>, Option<T>> {
 	parse_once_with_impl(input, errors, T::pop_from)
 }
 
@@ -926,7 +942,8 @@ pub(crate) fn parse_all_with_infallible_impl<'a, T>(
 	impl<'a, F> Drop for Iter<'a, F> {
 		/// [`Iter`] borrows the [`Errors`] exclusively, so this will be called before that's turned into output.
 		fn drop(&mut self) {
-			EndOfInput::<UNCONSUMED_INPUT>::pop_from(self.input, self.errors).ok();
+			let parsed = EndOfInput::<UNCONSUMED_INPUT>::pop_from(self.input, self.errors);
+			debug_assert!(matches!(parsed, Continue(Some(_))))
 		}
 	}
 
@@ -1006,7 +1023,7 @@ pub(crate) fn parse_all_with_infallible_impl<'a, T>(
 pub fn parse_all_with<'a, T: 'a>(
 	input: &'a mut Input,
 	errors: &'a mut Errors,
-	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> Result<T, Option<T>>,
+	f: impl 'a + UnwindSafe + FnMut(&mut Input, &mut Errors) -> ControlFlow<Option<T>, Option<T>>,
 ) -> impl 'a + Iterator<Item = T> {
 	let mut stop = false;
 	parse_all_with_infallible_impl(input, errors, f).map_while(move |item| {
@@ -1014,10 +1031,10 @@ pub fn parse_all_with<'a, T: 'a>(
 			None
 		} else {
 			match item {
-				Ok(ok) => Some(ok),
-				Err(r) => {
+				Continue(Some(o)) => Some(o),
+				Continue(o @ None) | Break(o) => {
 					stop = true;
-					r
+					o
 				}
 			}
 		}

@@ -9,6 +9,8 @@
 //! *Note that unstable grammar **is** accidentally accepted in some cases.*  
 //! ***Ceasing to accept unstable grammar is not by itself considered a breaking change for Loess.***
 
+use std::ops::ControlFlow::{self, Break, Continue};
+
 use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PopParsedFrom};
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
@@ -17,14 +19,13 @@ use syn::{
 	parse::{Parse, ParseStream, Parser},
 };
 
-fn error_reporter<T>(errors: &mut Errors) -> impl '_ + FnOnce(syn::Error) -> Option<T> {
+fn error_reporter(errors: &mut Errors) -> impl '_ + FnOnce(syn::Error) {
 	move |error| {
 		errors.push(Error::new(
 			ErrorPriority::GRAMMAR,
 			error.to_string(),
 			[error.span()],
 		));
-		None
 	}
 }
 
@@ -62,15 +63,17 @@ macro_rules! wrappers {
 				$(@ $PopFrom)?
 				impl PopParsedFrom for $name {
 					type Parsed = Self;
-					fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
+					fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> ControlFlow<Option<Self>, Option<Self>> {
 						fn parse(input: ParseStream) -> syn::Result<($wrapped, TokenStream)> {
 							Ok((<$wrapped>::parse(input)?, TokenStream::parse(input)?))
 						}
 
 						let tokens: TokenStream = input.tokens.drain(..).collect();
-						let (parsed, rest) = parse.parse2(tokens).map_err(error_reporter(errors))?;
+						let Ok((parsed, rest)) = parse.parse2(tokens).map_err(error_reporter(errors)) else {
+							return Break(None);
+						};
 						input.prepend(rest.into_iter().collect::<Vec<_>>());
-						Ok(Self(parsed))
+						Continue(Some(Self(parsed)))
 					}
 				}
 			)?
@@ -107,7 +110,10 @@ wrappers! {
 
 impl PopParsedFrom for ExpressionExceptStructExpression {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
 		fn parse(
 			input: ParseStream,
 		) -> syn::Result<(ExpressionExceptStructExpression, TokenStream)> {
@@ -118,16 +124,21 @@ impl PopParsedFrom for ExpressionExceptStructExpression {
 		}
 
 		let tokens = input.tokens.drain(..).collect::<TokenStream>().into();
-		let (this, rest) = parse.parse2(tokens).map_err(error_reporter(errors))?;
+		let Ok((this, rest)) = parse.parse2(tokens).map_err(error_reporter(errors)) else {
+			return Break(None);
+		};
 
 		input.prepend(rest.into_iter().collect::<Vec<_>>());
-		Ok(this)
+		Continue(Some(this))
 	}
 }
 
 impl PopParsedFrom for Pattern {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
 		fn parse(input: ParseStream) -> syn::Result<(Pattern, TokenStream)> {
 			Ok((
 				Pattern(Pat::parse_multi_with_leading_vert(input)?),
@@ -136,16 +147,21 @@ impl PopParsedFrom for Pattern {
 		}
 
 		let tokens = input.tokens.drain(..).collect::<TokenStream>().into();
-		let (this, rest) = parse.parse2(tokens).map_err(error_reporter(errors))?;
+		let Ok((this, rest)) = parse.parse2(tokens).map_err(error_reporter(errors)) else {
+			return Break(None);
+		};
 
 		input.prepend(rest.into_iter().collect::<Vec<_>>());
-		Ok(this)
+		Continue(Some(this))
 	}
 }
 
 impl PopParsedFrom for SimplePath {
 	type Parsed = Self;
-	fn pop_parsed_from(input: &mut Input, errors: &mut Errors) -> Result<Self, Option<Self>> {
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self>, Option<Self>> {
 		fn parse(input: ParseStream) -> syn::Result<(SimplePath, TokenStream)> {
 			Ok((
 				SimplePath(Path::parse_mod_style(input)?),
@@ -154,9 +170,11 @@ impl PopParsedFrom for SimplePath {
 		}
 
 		let tokens = input.tokens.drain(..).collect::<TokenStream>().into();
-		let (this, rest) = parse.parse2(tokens).map_err(error_reporter(errors))?;
+		let Ok((this, rest)) = parse.parse2(tokens).map_err(error_reporter(errors)) else {
+			return Break(None);
+		};
 
 		input.prepend(rest.into_iter().collect::<Vec<_>>());
-		Ok(this)
+		Continue(Some(this))
 	}
 }

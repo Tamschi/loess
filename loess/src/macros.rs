@@ -18,10 +18,17 @@ pub mod __ {
 		default::Default,
 		iter::Extend,
 		marker::{PhantomData, Sized},
-		option::{Option, Option::None, Option::Some},
+		ops::ControlFlow::{self, Break, Continue},
+		option::{
+			Option,
+			Option::{None, Some},
+		},
 		panic::AssertUnwindSafe,
 		primitive::bool,
-		result::{Result, Result::Err, Result::Ok},
+		result::{
+			Result,
+			Result::{Err, Ok},
+		},
 		stringify,
 	};
 
@@ -37,7 +44,11 @@ pub mod __ {
 		Ident, Punct, Spacing, Span, TokenStream, TokenTree,
 	};
 
-	pub use super::quotes::{
-		Paste, block_directive, grouped, quote_one2, raw, rust_statement_directive, strip_dot, tt,
+	pub use super::{
+		grammar::PopFromAccumulator,
+		quotes::{
+			Paste, block_directive, grouped, quote_one2, raw, rust_statement_directive, strip_dot,
+			tt,
+		},
 	};
 }

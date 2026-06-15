@@ -1,3 +1,8 @@
+use std::{
+	convert::identity,
+	ops::ControlFlow::{self, Break, Continue},
+};
+
 /// Parser- and serialiser-generator macro.
 ///
 /// # Example
@@ -124,12 +129,10 @@ macro_rules! grammar {
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
-				let mut failed = false;
-				let this = Self {
-					$($field: <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors).or_else(|fallback| fallback.map_or($crate::__::Err($crate::__::None), |e| { failed = true; $crate::__::Ok(e) }))?,)*
-				};
-				(if failed { |e| $crate::__::Result::Err($crate::__::Some(e)) } else { $crate::__::Result::Ok })(this)
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
+				$crate::__::PopFromAccumulator::new()
+					$( .step(|| <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors))? )*
+					.map(|$($field),*| Self { $($field),* })
 			}
 		}
 
@@ -171,7 +174,7 @@ macro_rules! grammar {
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
 				let mut failed = false;
 				let this = Self (
 					$(<$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors).or_else(|fallback| fallback.map_or($crate::__::Err($crate::__::None), |e| { failed = true; $crate::__::Ok(e) }))?,)*
@@ -209,7 +212,7 @@ macro_rules! grammar {
 	(@PopFrom for enum $name:ident, [$($variant:ident[$($type:ty),*$(,)?]),*$(,)?], $error:expr$(,)?) => {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
 				$( $crate::grammar!(@PopFromVariantBranch(input, errors) for $variant[$($type),*]); )*
 				{
 					errors.push($crate::Error::new(
@@ -217,15 +220,18 @@ macro_rules! grammar {
 						$error,
 						[input.front_span()],
 					));
-					return $crate::__::Result::Err($crate::__::None);
+					return $crate::__::Break($crate::__::None);
 				}
 			}
 		}
 	};
 	(@PopFromVariantBranch($input:ident) for $variant:ident[]) => ( return $crate::__::Result::Ok(Self::$variant()); );
 	(@PopFromVariantBranch($input:ident, $errors:ident) for $variant:ident[$type_0:ty$(, $($types_rest:ty),*$(,)?)?]) => {
-		if let Some(value_0) = <$type_0 as $crate::PopParsedFrom>::peek_pop_parsed_from($input, $errors).map_err(|_| $crate::__::None)? {
-			return $crate::__::Result::Ok(Self::$variant(value_0$(, $(<$types_rest as $crate::PopParsedFrom>::pop_parsed_from($input, $errors).map_err(|_| $crate::__::None)?),*)?));
+		if <$type_0 as $crate::PeekFrom>::peek_from($input) {
+			return $crate::__::PopFromAccumulator::new()
+				.step(|| <$type_0 as $crate::PopParsedFrom>::pop_parsed_from($input, $errors))?
+				$($( .step(||<$types_rest as $crate::PopParsedFrom>::pop_parsed_from($input, $errors))? )*)?
+				.map(Self::$variant)
 		}
 	};
 
@@ -240,11 +246,10 @@ macro_rules! grammar {
 	(@PopFrom for $_either:tt $name:ident via $PopFromViaType:ident, $($_ignored:tt)*) => {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
-			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::Result<Self, $crate::__::Option<Self>> {
-				$crate::__::Result::Ok(
-					<Self as $crate::__::From<<$PopFromViaType as $crate::PopParsedFrom>::Parsed>>::from(
-						<$PopFromViaType as $crate::PopParsedFrom>::pop_parsed_from(input, errors).map_err(|_| $crate::__::None)?,
-					),
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
+				$crate::__::Continue(
+					<$PopFromViaType as $crate::PopParsedFrom>::pop_parsed_from(input, errors).map_break(|_| $crate::__::None)?
+						.map(<Self as $crate::__::From<<$PopFromViaType as $crate::PopParsedFrom>::Parsed>>::from),
 				)
 			}
 		}
@@ -299,3 +304,75 @@ macro_rules! grammar {
 	};
 	{} => {}; // Stop.
 }
+
+pub struct PopFromAccumulator<Acc> {
+	aligned: bool,
+	output: Option<Acc>,
+}
+
+impl PopFromAccumulator<()> {
+	pub fn new() -> Self {
+		Self {
+			aligned: true,
+			output: Some(()),
+		}
+	}
+}
+
+impl<Acc> PopFromAccumulator<Acc> {
+	pub fn step<T, Parsed>(
+		self,
+		step: impl FnOnce() -> ControlFlow<Option<T>, Option<T>>,
+	) -> ControlFlow<Option<Parsed>, PopFromAccumulator<(Acc, T)>> {
+		if self.aligned {
+			let step = step();
+			Continue(PopFromAccumulator {
+				aligned: step.is_continue(),
+				output: self.output.zip(step.continue_ok().unwrap_or_else(identity)),
+			})
+		} else {
+			Break(None)
+		}
+	}
+}
+
+macro_rules! TupleChain {
+	([$acc:tt]) => ($acc);
+	([$acc:tt] $next:tt $($rest:tt)*) => (TupleChain!([($acc, $next)] $($rest)*));
+	($($rest:tt)*) => (TupleChain!([()] $($rest)*));
+}
+
+macro_rules! closure_chain {
+	($f:tt [$acc:tt] [$($tt:tt)*]) => (|$acc| $f($($tt),*));
+	($f:tt [$acc:tt] [$($tt:tt)*] $next:tt $($rest:tt)*) => (closure_chain!($f [($acc, $next)] [$($tt)* $next] $($rest)*));
+	($f:tt $($rest:tt)*) => (closure_chain!($f [()] [] $($rest)*));
+}
+
+macro_rules! impl_map {
+	([$($tt:tt)*]) => {
+		impl<$($tt),*> PopFromAccumulator<TupleChain!($($tt)*)> {
+			pub fn map<Parsed>(
+				self,
+				f: impl FnOnce($($tt),*) -> Parsed,
+			) -> ControlFlow<Option<Parsed>, Option<Parsed>> {
+				(if self.aligned {
+					Continue
+				} else {
+					Break
+				})(self.output.map({
+					#[allow(non_snake_case)]
+					{ closure_chain!(f $($tt)*) }
+				}))
+			}
+		}
+	};
+	([$($tt:tt)*] $next:tt $($rest:tt)*) => {
+		impl_map!([$($tt)*]);
+		impl_map!([$($tt)* $next] $($rest)*);
+	};
+	($($rest:tt)*) => {
+		impl_map!([] $($rest)*);
+	};
+}
+
+impl_map!(T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 T15 T16 T17 T18 T19 T20 T21 T22 T23);
