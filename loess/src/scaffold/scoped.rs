@@ -51,3 +51,43 @@ where
 		S::Wrapped::pop_parsed_from(input, errors)
 	}
 }
+
+/// Checks whether in scope `S`. Panics if parsed when not!
+pub enum InElse<S: ?Sized + Scope, Else: ?Sized> {
+	#[expect(missing_docs)]
+	_Vacant(PhantomData<S>, PhantomData<Else>, Infallible),
+}
+
+impl<S: ?Sized + Scope, Else: ?Sized> PeekFrom for InElse<S, Else>
+where
+	S::Wrapped: PeekFrom,
+	Else: PeekFrom,
+{
+	fn peek_from(input: &crate::Input) -> bool {
+		if S::is_in() {
+			S::Wrapped::peek_from(input)
+		} else {
+			Else::peek_from(input)
+		}
+	}
+}
+
+/// Does *not* (re-)enter the wrapped scope!
+impl<S: ?Sized + Scope, Else: ?Sized> PopParsedFrom for InElse<S, Else>
+where
+	S::Wrapped: PopParsedFrom,
+	Else: PopParsedFrom<Parsed = <S::Wrapped as PopParsedFrom>::Parsed>,
+{
+	type Parsed = <S::Wrapped as PopParsedFrom>::Parsed;
+
+	fn pop_parsed_from(
+		input: &mut crate::Input,
+		errors: &mut crate::Errors,
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+		if S::is_in() {
+			S::Wrapped::pop_parsed_from(input, errors)
+		} else {
+			Else::pop_parsed_from(input, errors)
+		}
+	}
+}

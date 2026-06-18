@@ -25,7 +25,7 @@ macro_rules! scopes {
 				static IN_SCOPE: $crate::__::Cell<$crate::__::bool> = $crate::__::Cell::new(false);
 			}
 
-			impl<T: ?$crate::__::Sized> $crate::scaffold::Scope for $name<T> {
+			impl<T: ?$crate::__::Sized> $crate::scaffold::scoped::Scope for $name<T> {
 				type Wrapped = T;
 
 				fn is_in() -> $crate::__::bool {
@@ -66,7 +66,7 @@ macro_rules! scopes {
 			}
 
 			$(
-				impl<T: ?$crate::__::Sized> $crate::scaffold::Scope for $not_name<T> {
+				impl<T: ?$crate::__::Sized> $crate::scaffold::scoped::Scope for $not_name<T> {
 					type Wrapped = T;
 
 					fn is_in() -> $crate::__::bool {

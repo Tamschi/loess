@@ -3,7 +3,7 @@
 //! Punctuation is implemented as structs with named [`Punct`] fields.  
 //! Where collisions would happen, they have a 0-based suffix.
 
-use loess::{Error, SimpleSpanned, grammar, punctuation, scaffold::In};
+use loess::{Error, SimpleSpanned, grammar, punctuation, scaffold::scoped::In};
 
 use crate::lex::token::{
 	IncludingDelimiters,
