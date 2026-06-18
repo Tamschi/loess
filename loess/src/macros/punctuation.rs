@@ -346,6 +346,8 @@ macro_rules! __impl_punctuation {
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
 				if <Self as $crate::PeekFrom>::peek_from(input) {
 					$crate::__::Continue($crate::__::Some(Self {$(
+						//TODO: For automatic `PopFrom`, require automatic `PeekFrom`.
+						//      Otherwise, `compile_error!` with `PopFrom` span (via `stringify!`, `concat!`)!
 						$punct_name: $crate::PopFrom::pop_from(input, errors).continue_ok()
 							.expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves."))
 							.expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves.")),
@@ -356,7 +358,7 @@ macro_rules! __impl_punctuation {
 						$crate::__::format!("Expected `{}`.", $OP),
 						[input.front_span()],
 					));
-					$crate::__::Break($crate::__::Some(<Self as $crate::__::Default>::default()))
+					$crate::__::Break($crate::__::None)
 				}
 			}
 		}
