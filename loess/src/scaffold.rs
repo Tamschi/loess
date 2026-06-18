@@ -617,6 +617,37 @@ impl<T: ?Sized + PopParsedFrom> PopParsedFrom for Try<T> {
 	}
 }
 
+/// <code>[None] => [Some]\([Default]::default())</code>
+pub enum OrDefault<T: ?Sized> {
+	#[expect(missing_docs)]
+	_Vacant(PhantomData<T>, Infallible),
+}
+
+impl<T: ?Sized + PeekFrom> PeekFrom for OrDefault<T> {
+	fn peek_from(input: &Input) -> bool {
+		T::peek_from(input)
+	}
+}
+
+impl<T: ?Sized + PopParsedFrom> PopParsedFrom for OrDefault<T>
+where
+	T::Parsed: Default,
+{
+	type Parsed = T::Parsed;
+
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+		match T::pop_parsed_from(input, errors) {
+			Continue(Some(t)) => Continue(Some(t)),
+			Break(Some(t)) => Break(Some(t)),
+			Continue(None) => Continue(Some(Default::default())),
+			Break(None) => Continue(Some(Default::default())),
+		}
+	}
+}
+
 /// On [`Break`], scans for and then discards `D` without recovering.
 ///
 /// Stops early if `D` fails. (`D`'s errors are surfaced.)
