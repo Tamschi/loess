@@ -175,11 +175,9 @@ macro_rules! grammar {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
-				let mut failed = false;
-				let this = Self (
-					$(<$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors).or_else(|fallback| fallback.map_or($crate::__::Err($crate::__::None), |e| { failed = true; $crate::__::Ok(e) }))?,)*
-				);
-				(if failed { |e| $crate::__::Result::Err($crate::__::Some(e)) } else { $crate::__::Result::Ok })(this)
+				$crate::__::PopFromAccumulator::new()
+					$( .step(||<$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors))? )*
+					.map(Self)
 			}
 		}
 
