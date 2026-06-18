@@ -592,24 +592,19 @@ where
 // 	}
 // }
 
-/// Recovers in place, preferably by placeholder.
-///
-/// //TODO: Split up somehow!
-pub enum OnErrContinueOrDefault<T: ?Sized> {
+/// <code>[Break] => [Continue]</code>
+pub enum Try<T: ?Sized> {
 	#[expect(missing_docs)]
 	_Vacant(PhantomData<T>, Infallible),
 }
 
-impl<T: ?Sized + PeekFrom> PeekFrom for OnErrContinueOrDefault<T> {
+impl<T: ?Sized + PeekFrom> PeekFrom for Try<T> {
 	fn peek_from(input: &Input) -> bool {
 		T::peek_from(input)
 	}
 }
 
-impl<T: PopParsedFrom> PopParsedFrom for OnErrContinueOrDefault<T>
-where
-	T::Parsed: Default,
-{
+impl<T: ?Sized + PopParsedFrom> PopParsedFrom for Try<T> {
 	type Parsed = T::Parsed;
 
 	fn pop_parsed_from(
@@ -617,8 +612,7 @@ where
 		errors: &mut Errors,
 	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		match T::pop_parsed_from(input, errors) {
-			Continue(t) => Continue(Some(t.unwrap_or_default())),
-			Break(t) => Continue(Some(t.unwrap_or_default())),
+			Continue(o) | Break(o) => Continue(o),
 		}
 	}
 }
@@ -658,8 +652,3 @@ impl<T: PopParsedFrom, D: PopParsedFrom + PeekFrom> PopParsedFrom for OnErrSkipP
 		})
 	}
 }
-
-/// On [`Break`], scans for and then discards `D`, then recovers, preferably by placeholder.
-///
-/// Stops early if `D` fails. (`D`'s errors are surfaced.)
-pub type OnErrSkipPastOrDefault<T, D> = OnErrContinueOrDefault<OnErrSkipPast<T, D>>;
