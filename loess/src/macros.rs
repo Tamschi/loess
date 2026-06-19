@@ -33,7 +33,7 @@ pub mod __ {
 	};
 
 	pub use std::{
-		format,
+		assert_matches, format,
 		panic::{catch_unwind, resume_unwind},
 		string::ToString,
 		thread_local,

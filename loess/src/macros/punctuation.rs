@@ -108,6 +108,9 @@ macro_rules! punctuation {
 				)?
 				//TODO
 			)*)?
+
+			#[cfg(any($($($(all() $(@ $PopFrom)?)?)*)?))]
+			$crate::__impl_punctuation!(PopFrom for $name( $($punct_vis),* ), OP, NOT);
 		};
 
 		$crate::punctuation!($($rest)*);
@@ -352,6 +355,39 @@ macro_rules! __impl_punctuation {
 							.expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves."))
 							.expect($crate::__::concat!("Infallible unless `<", $crate::__::stringify!($name), " as PeekFrom>::peek_from` misbehaves.")),
 					)*}))
+				} else {
+					errors.push($crate::Error::new(
+						$crate::ErrorPriority::TOKEN,
+						$crate::__::format!("Expected `{}`.", $OP),
+						[input.front_span()],
+					));
+					$crate::__::Break($crate::__::None)
+				}
+			}
+		}
+	};
+
+	(PopFrom for $name:ident( $($punct_vis:vis $($vis_token:ty)?),*$(,)? ), $OP:expr, $NOT:expr) => {
+		impl $crate::PopParsedFrom for $name {
+			type Parsed = Self;
+
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
+				//TODO: Require that `PeekFrom` is auto-implemented too to ensure it's well-behaved.
+				//TODO: (Or better yet, implement this fully independently with "not before" check.)
+				if <Self as $crate::PeekFrom>::peek_from(input) {
+					let mut i = 0;
+					$crate::__::PopFromAccumulator::new()
+						$($(@ $vis_token)?
+							.step::<_, ()>(|| {
+									let punct = $crate::PopFrom::pop_from(input, errors);
+									$crate::__::assert_matches!(&punct, $crate::__::Continue($crate::__::Some(punct @ $crate::__::Punct { .. })) if punct.as_char() == $OP.chars().nth((i, i += 1).0).expect("punctuation!: tuple pop_parsed_from: OP indexed out of range."));
+									punct
+								})
+								.continue_value()
+								.expect("unreachable (with well-behaved PeekFrom)")
+
+						)*
+						.map($name)
 				} else {
 					errors.push($crate::Error::new(
 						$crate::ErrorPriority::TOKEN,
