@@ -74,6 +74,7 @@ macro_rules! __words_muncher {
 		$ident_vis:vis $kw:ident as $vis:vis $name:ident
 		$(: $(
 			$(doc $(@ $doc:tt)?)?
+			$(Default $(@ $Default:tt)?)?
 			$(PeekFrom $(@ $PeekFrom:tt)?)?
 			$(PopFrom $(@ $PopFrom:tt)?)?
 			$(IntoTokens $(@ $IntoTokens:tt)?)?
@@ -93,6 +94,10 @@ macro_rules! __words_muncher {
 		$vis struct $name($ident_vis $crate::__::Ident);
 
 		$($(
+			$(
+				$(@ $Default)?
+				$crate::__impl_word!(Default for $name, stringify!($kw));
+			)?
 			$(
 				$(@ $PeekFrom)?
 				$crate::__impl_word!(PeekFrom for $name, ident => ident == stringify!($kw));
@@ -230,6 +235,14 @@ macro_rules! __words_muncher {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __impl_word {
+	(Default for $name:ty, $str:expr$(,)?) => {
+		impl $crate::__::Default for $name {
+			fn default() -> Self {
+				Self($crate::__::Ident::new($str, $crate::__::Span::mixed_site()))
+			}
+		}
+	};
+
 	(PeekFrom for $name:ty, $ident:ident => $condition:expr$(,)?) => {
 		impl $crate::PeekFrom for $name {
 			fn peek_from(input: &$crate::Input) -> bool {
