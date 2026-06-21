@@ -700,6 +700,12 @@ pub trait PeekFrom {
 	fn peek_from(input: &Input) -> bool;
 }
 
+impl<T: PeekFrom> PeekFrom for Box<T> {
+	fn peek_from(input: &Input) -> bool {
+		T::peek_from(input)
+	}
+}
+
 /// Succeeds if input is empty, otherwise peeks `T`.
 impl<T: PeekFrom> PeekFrom for Vec<T> {
 	fn peek_from(input: &Input) -> bool {
