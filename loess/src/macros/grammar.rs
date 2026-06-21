@@ -79,26 +79,26 @@ macro_rules! grammar {
 			$(IntoTokens $(@ $IntoTokens:tt)? $(via $IntoTokensViaType:ident)?)?
 		),*)? {$(
 			$(#[$($variant_attr:tt)*])*
-			$variant:ident($($type:ty),*$(,)?)
+			$variant:ident$(($($type:ty),*$(,)?))?
 		),*$(,)?} else $error:expr;
 
 		$($tt:tt)*
 	} => {
-		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::grammar!(@enum_doc [$([$($type,)*])*]))]
+		#[cfg_attr(any($($($(all(), $(@ $doc)?)?)?)*), doc = $crate::grammar!(@enum_doc [$($([$($type,)*])?)*]))]
 		$(#[$($attr)*])*
 		$vis enum $name {$(
 			$(#[$($variant_attr)*])*
-			$variant($(<$type as $crate::PopParsedFrom>::Parsed),*),
+			$variant$(($(<$type as $crate::PopParsedFrom>::Parsed),*))?,
 		)*}
 
 		#[cfg(any($($($(all(), $(@ $PeekFrom)?)?)?)*))]
-		$crate::grammar!(@PeekFrom for enum $name $($($($(via $PeekFromViaType)?)?)*)?, [$([$($type),*]),*]);
+		$crate::grammar!(@PeekFrom for enum $name $($($($(via $PeekFromViaType)?)?)*)?, [$($([$($type),*])?),*]);
 
 		#[cfg(any($($($(all(), $(@ $PopFrom)?)?)?)*))]
-		$crate::grammar!(@PopFrom for enum $name $($($($(via $PopFromViaType)?)?)*)?, [$($variant[$($type),*]),*], $error);
+		$crate::grammar!(@PopFrom for enum $name $($($($(via $PopFromViaType)?)?)*)?, [$($variant$([$($type),*])?),*], $error);
 
 		#[cfg(any($($($(all(), $(@ $IntoTokens)?)?)?)*))]
-		$crate::grammar!(@IntoTokens for enum $name $($($($(via $IntoTokensViaType)?)?)*)?, [$($variant[$($type),*]),*], $error);
+		$crate::grammar!(@IntoTokens for enum $name $($($($(via $IntoTokensViaType)?)?)*)?, [$($variant$([$($type),*])?),*], $error);
 
 		$crate::grammar!($($tt)*);
 	};
@@ -207,11 +207,12 @@ macro_rules! grammar {
 		}
 	};
 
-	(@PopFrom for enum $name:ident, [$($variant:ident[$($type:ty),*$(,)?]),*$(,)?], $error:expr$(,)?) => {
+	(@PopFrom for enum $name:ident, [$($variant:ident$([$($type:ty),*$(,)?])?),*$(,)?], $error:expr$(,)?) => {
 		impl $crate::PopParsedFrom for $name {
 			type Parsed = Self;
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
-				$( $crate::grammar!(@PopFromVariantBranch(input, errors) for $variant[$($type),*]); )*
+				$( $crate::grammar!(@PopFromVariantBranch(input, errors) for $variant$([$($type),*])?); )*
+				#[allow(unreachable_code)]
 				{
 					errors.push($crate::Error::new(
 						$crate::ErrorPriority::GRAMMAR,
@@ -224,6 +225,12 @@ macro_rules! grammar {
 		}
 	};
 	(@PopFromVariantBranch($input:ident) for $variant:ident[]) => ( return $crate::__::Result::Ok(Self::$variant()); );
+	(@PopFromVariantBranch($input:ident, $errors:ident) for $variant:ident) => {
+		return $crate::__::Continue($crate::__::Some(Self::$variant));
+	};
+	(@PopFromVariantBranch($input:ident, $errors:ident) for $variant:ident[]) => {
+		return $crate::__::Continue($crate::__::Some(Self::$variant()));
+	};
 	(@PopFromVariantBranch($input:ident, $errors:ident) for $variant:ident[$type_0:ty$(, $($types_rest:ty),*$(,)?)?]) => {
 		if <$type_0 as $crate::PeekFrom>::peek_from($input) {
 			return $crate::__::PopFromAccumulator::new()
@@ -278,7 +285,7 @@ macro_rules! grammar {
 		<$type as $crate::PeekFrom>::peek_from($input)
 	);
 	(@peek_first $name:ident $input:ident) => (
-		::core::compile_error!($crate::__::concat!("To implement `PeekFrom` for `", $crate::__::stringify!($name), "`, at least one field is necessary."))
+		true
 	);
 	(@enum_doc []) => (
 		// Empty.
