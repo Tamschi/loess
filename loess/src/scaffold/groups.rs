@@ -35,6 +35,12 @@ macro_rules! delimiter_struct {
 			}
 		}
 
+		impl PeekFrom for $name<()> {
+			fn peek_from(input: &Input) -> bool {
+				matches!(input.front(), Some(TokenTree::Group(group)) if group.delimiter() == $delimiter && group.stream().is_empty())
+			}
+		}
+
 		impl<T> $name<T> {
 			#[doc = concat!("Maps <code>self.[contents](`", stringify!($name), "::contents`)</code> using `f`.")]
 			pub fn map<U>(self, f: impl FnOnce(T) -> U) -> $name<U> {
@@ -87,7 +93,7 @@ macro_rules! delimiter_struct {
 					.map_break(|spans| {
 						errors.push(Error::new(
 							ErrorPriority::TOKEN,
-							concat!("Expected ", $opening, "."),
+							concat!("Expected `", $opening, "`."),
 							spans,
 						));
 						None
@@ -137,9 +143,44 @@ macro_rules! delimiter_struct {
 			}
 		}
 
+		impl PopParsedFrom for $name<()> {
+			type Parsed = Self;
+
+			fn pop_parsed_from(
+				input: &mut Input,
+				errors: &mut Errors,
+			) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+				let span = input
+					.pop_or_replace(|tts, _| match tts {
+						[TokenTree::Group(group)] if group.delimiter() == $delimiter && group.stream().is_empty() => {
+							Ok(group.delim_span())
+						}
+						tts => Err(tts),
+					})
+					.map_break(|spans| {
+						errors.push(Error::new(
+							ErrorPriority::TOKEN,
+							concat!("Expected `", $opening, $closing, "`."),
+							spans,
+						));
+						None
+					})?;
+
+				Continue(Some(Self { span, contents: () }))
+			}
+		}
+
 		impl<T: IntoTokens> IntoTokens for $name<T> {
 			fn into_tokens(self, root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
 				let mut group = Group::new($delimiter, self.contents.collect_tokens(root));
+				group.set_span(self.span.join());
+				tokens.extend([TokenTree::Group(group)]);
+			}
+		}
+
+		impl IntoTokens for $name<()> {
+			fn into_tokens(self, _root: &TokenStream, tokens: &mut impl Extend<TokenTree>) {
+				let mut group = Group::new($delimiter, TokenStream::new());
 				group.set_span(self.span.join());
 				tokens.extend([TokenTree::Group(group)]);
 			}
