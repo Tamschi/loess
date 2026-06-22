@@ -353,6 +353,33 @@ macro_rules! closure_chain {
 	($f:tt $($rest:tt)*) => (closure_chain!($f [()] [] $($rest)*));
 }
 
+macro_rules! impl_tuple {
+	() => {};
+	($t0:tt $($tt:tt)*) => {
+		impl<$t0: $crate::PeekFrom, $($tt,)*> $crate::PeekFrom for ($t0, $($tt,)*) {
+			fn peek_from(input: &$crate::Input) -> bool {
+				$t0::peek_from(input)
+			}
+		}
+
+		impl<$t0: $crate::PopParsedFrom, $($tt: $crate::PopParsedFrom,)*> $crate::PopParsedFrom for ($t0, $($tt,)*) {
+			type Parsed = (
+				$t0::Parsed,
+				$($tt::Parsed,)*
+			);
+			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self::Parsed>, $crate::__::Option<Self::Parsed>> {
+				$crate::__::PopFromAccumulator::new()
+					.step(|| $t0::pop_parsed_from(input, errors))?
+					$( .step(|| $tt::pop_parsed_from(input, errors))? )*
+					.map({
+						#[expect(non_snake_case)]
+						|$t0, $($tt),*| ($t0, $($tt,)*)
+					})
+			}
+		}
+	};
+}
+
 macro_rules! impl_map {
 	([$($tt:tt)*]) => {
 		impl<$($tt),*> PopFromAccumulator<TupleChain!($($tt)*)> {
@@ -370,6 +397,8 @@ macro_rules! impl_map {
 				}))
 			}
 		}
+
+		impl_tuple!($($tt)*);
 	};
 	([$($tt:tt)*] $next:tt $($rest:tt)*) => {
 		impl_map!([$($tt)*]);
