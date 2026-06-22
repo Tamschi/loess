@@ -184,44 +184,18 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> Stepper for SeparatedStepper
 		input: &mut Input,
 		errors: &mut Errors,
 	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>> {
-		todo!("SeparatedStepper::pop_next_from")
-		// let len_before = input.len();
-		// let item = match T::pop_parsed_from(input, errors) {
-		// 	//TODO: Slide separator!
-		// 	Continue(t) => match S::peek_pop_parsed_from(input, errors) {
-		// 		Continue(d) => (t, d),
-		// 		Break(_) => {
-		// 			return Break(Some(if let Continue(s) = Self::recover(input, errors) {
-		// 				(t, Some(s))
-		// 			} else {
-		// 				(t, None)
-		// 			}));
-		// 		}
-		// 	},
-		// 	Break(t) => {
-		// 		if let Continue(s) = Self::recover(input, errors) {
-		// 			if let Some(t) = t {
-		// 				return Break(Some((t, Some(s))));
-		// 			} else {
-		// 				return Break(None);
-		// 			}
-		// 		} else {
-		// 			return Break(t.map(|t| (t, None)));
-		// 		}
-		// 	}
-		// };
-		// if input.len() >= len_before {
-		// 	errors.push(Error::new(
-		// 		ErrorPriority::UNCONSUMED_INPUT,
-		// 		format!(
-		// 			"{} looped without consuming input. (This likely implies a faulty grammar.)",
-		// 			type_name::<(T, Option<S>)>()
-		// 		),
-		// 		input.drain_spans(..),
-		// 	));
-		// 	self.stop = true;
-		// }
-		// Continue(item)
+		if self.stop {
+			Continue(None)
+		} else {
+			//TODO: Recovery.
+			match T::pop_parsed_from(input, errors).map_break(|_| None)? {
+				Some(t) => Continue(Some((
+					t,
+					S::peek_pop_parsed_from(input, errors).map_break(|_| None)?,
+				))),
+				None => Continue(None),
+			}
+		}
 	}
 }
 
