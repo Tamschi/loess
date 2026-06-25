@@ -11,7 +11,7 @@ use proc_macro2::{Delimiter, Group, TokenStream, TokenTree, extra::DelimSpan};
 
 macro_rules! delimiter_struct {
 	($name:ident, $delimiter:expr, $opening:literal $closing:literal) => {
-		#[doc = concat!($opening, " [`T`](`TokenStream`) ", $closing)]
+		#[doc = concat!("`", $opening, "` [`T`](`TokenStream`) `", $closing, "`")]
 		#[derive(Clone, Debug)]
 		pub struct $name<T = TokenStream> {
 			#[allow(missing_docs)]
@@ -93,7 +93,7 @@ macro_rules! delimiter_struct {
 					.map_break(|spans| {
 						errors.push(Error::new(
 							ErrorPriority::TOKEN,
-							concat!("Expected `", $opening, "`."),
+							concat!("Expected `", $opening, $closing, "`."),
 							spans,
 						));
 						None
@@ -188,7 +188,7 @@ macro_rules! delimiter_struct {
 	};
 }
 
-delimiter_struct!(CurlyBraces, Delimiter::Brace, "`{`" "`}`");
-delimiter_struct!(SquareBrackets, Delimiter::Bracket, "`[`" "`]`");
-delimiter_struct!(Parentheses, Delimiter::Parenthesis, "`(`" "`)`");
+delimiter_struct!(CurlyBraces, Delimiter::Brace, "{" "}");
+delimiter_struct!(SquareBrackets, Delimiter::Bracket, "[" "]");
+delimiter_struct!(Parentheses, Delimiter::Parenthesis, "(" ")");
 delimiter_struct!(MetaGroup, Delimiter::None, "*meta-group-start*" "*meta-group-end*");
