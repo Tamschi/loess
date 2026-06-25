@@ -475,7 +475,7 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> PopParsedFrom for Separated<
 /// This is a symptom of faulty grammar definitions.
 pub struct Joined<T, J> {
 	#[expect(missing_docs)]
-	pub first: T,
+	pub first: Box<T>,
 	#[expect(missing_docs)]
 	pub joined: Vec<(J, T)>,
 }
@@ -528,7 +528,10 @@ where
 				n.1,
 			));
 		}
-		(if failed { Break } else { Continue })(Some(Self::Projected { first, joined }))
+		(if failed { Break } else { Continue })(Some(Self::Projected {
+			first: Box::new(first),
+			joined,
+		}))
 	}
 }
 
