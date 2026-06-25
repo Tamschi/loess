@@ -244,6 +244,99 @@ where
 	}
 }
 
+pub struct JoinedStepper<T, J> {
+	first: bool,
+	stop: bool,
+	_phantom: PhantomData<(T, J)>,
+}
+
+impl<T, J> Default for JoinedStepper<T, J> {
+	fn default() -> Self {
+		Self {
+			first: true,
+			stop: false,
+			_phantom: PhantomData,
+		}
+	}
+}
+
+impl<T: PopParsedFrom, J: PeekFrom + PopParsedFrom> Stepper for JoinedStepper<T, J> {
+	type Item = (Option<J::Parsed>, T::Parsed);
+
+	fn pop_next_from(
+		&mut self,
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self::Item>, Option<Self::Item>> {
+		//TODO: Recovery.
+		if self.stop {
+			Continue(None)
+		} else if self.first {
+			T::pop_parsed_from(input, errors)
+				.map_continue(|o| {
+					self.first = o.is_none();
+					o.map(|t| (None, t))
+				})
+				.map_break(|o| {
+					self.first = o.is_none();
+					o.map(|t| (None, t))
+				})
+		} else {
+			let j = J::pop_parsed_from(input, errors).map_break(|_| None)?;
+			let t = match T::pop_parsed_from(input, errors) {
+				Continue(t) => t,
+				Break(t) => return Break(t.map(|t| (j, t))),
+			};
+			Continue(t.map(|t| (j, t)))
+		}
+	}
+}
+
+impl<T, J: PeekFrom> PeekNextFrom for JoinedStepper<T, J> {
+	fn peek_next_from(&self, input: &Input) -> bool {
+		self.first || !self.stop && J::peek_from(input)
+	}
+}
+
+impl<T, J> JoinedStepper<T, J>
+where
+	T: PopParsedFrom,
+	J: PopParsedFrom + PeekFrom,
+{
+	fn recover(input: &mut Input, errors: &mut Errors) -> ControlFlow<(), J::Parsed>
+	where
+		J: PopParsedFrom + PeekFrom,
+	{
+		todo!("SeparatedStepper::recover")
+		// while !input.is_empty() {
+		// 	let len_before = input.len();
+		// 	match S::peek_pop_parsed_from(input, errors) {
+		// 		Ok(Some(s)) => {
+		// 			return Continue(s);
+		// 		}
+		// 		Ok(None) => {
+		// 			assert_eq!(
+		// 				input.len(),
+		// 				len_before,
+		// 				"`S::peek_pop_parsed_from` should not consume tokens if it returns `Ok(None)`."
+		// 			);
+		// 			drop(input.tokens.pop_front().expect(""));
+		// 		}
+		// 		Err(_) => {
+		// 			if input.len() == len_before {
+		// 				drop(input.tokens.pop_front().expect("unreachable"));
+		// 			}
+		// 		}
+		// 	}
+		// 	assert!(
+		// 		input.len() < len_before,
+		// 		"Input didn't shrink during `Separated::collect_repeats` recovery."
+		// 	);
+		// }
+		// Break(())
+	}
+}
+
 pub struct DelimitedStepper<T, D> {
 	stop: bool,
 	_phantom: PhantomData<(T, D)>,

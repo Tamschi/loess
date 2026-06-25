@@ -18,8 +18,8 @@ use proc_macro2::{TokenStream, TokenTree};
 use crate::{
 	ConstErrorPriority, Error, ErrorPriority, Errors, Input, PeekFrom, PopParsedFrom,
 	stateful::{
-		DelimitedStepper, PeekNextFrom, RepeatCountStepper, SeparatedStepper, SimpleStepper,
-		Stepper,
+		DelimitedStepper, JoinedStepper, PeekNextFrom, RepeatCountStepper, SeparatedStepper,
+		SimpleStepper, Stepper,
 	},
 };
 
@@ -371,6 +371,7 @@ impl Repetition for TokenStream {
 ///
 /// # Recovery
 ///
+/// //TODO
 /// Recovers towards `S`, preserving it if a `T` led the current repeat.
 ///
 /// # Errors
@@ -381,7 +382,7 @@ impl Repetition for TokenStream {
 ///
 /// # Returns
 ///
-/// [`Continue`] once all input is consumed. (Never [`Break`].)
+/// [`Some`] once all input is consumed. (Never [`None`].)
 ///
 /// Can be wrapped in [`Greedy`] to preserve remaining input after [`T::peek_from`](`PeekFrom::peek_from`)
 /// returns [`false`] at the start of an iteration.
@@ -454,6 +455,98 @@ impl<T: PopParsedFrom, S: PopParsedFrom + PeekFrom> PopParsedFrom for Separated<
 		errors: &mut Errors,
 	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
 		<ToEnd<Separated<T, S>> as PopParsedFrom>::pop_parsed_from(input, errors)
+	}
+}
+
+/// [`Repetition`] of alternating `T` and `S` where only `T` can be last.
+///
+/// Can be wrapped in [`ToEnd`] to forcibly parse to the end of [`Input`].\
+/// Otherwise implicitly [`Greedy`].
+///
+/// # Recovery
+///
+/// //TODO
+/// Recovers past `S`, preserving the joiner before the error if a `T` is eventually found.
+///
+/// # Errors
+///
+/// Emits an error iff a repetition does not consume any input, consuming all remaining input.
+///
+/// This is a symptom of faulty grammar definitions.
+pub struct Joined<T, J> {
+	#[expect(missing_docs)]
+	pub first: T,
+	#[expect(missing_docs)]
+	pub joined: Vec<(J, T)>,
+}
+
+impl<T, J> Repetition for Joined<T, J>
+where
+	T: PopParsedFrom,
+	J: PeekFrom + PopParsedFrom,
+{
+	type Projected = Joined<T::Parsed, J::Parsed>;
+
+	type Stepper = JoinedStepper<T, J>;
+
+	fn collect_repeats(
+		input: &mut Input,
+		errors: &mut Errors,
+		f: &mut dyn FnMut(
+			&mut Input,
+			&mut Errors,
+		) -> ControlFlow<
+			Option<<Self::Stepper as Stepper>::Item>,
+			Option<<Self::Stepper as Stepper>::Item>,
+		>,
+	) -> ControlFlow<Option<Self::Projected>, Option<Self::Projected>> {
+		//TODO: Recovery.
+		let Some((j, first)) = f(input, errors).map_break(|_| None)? else {
+			return Continue(None);
+		};
+		assert!(
+			j.is_none(),
+			"No joiner must be present on first `Joined` step."
+		);
+		let mut joined = vec![];
+		let mut failed = false;
+		while !failed && !input.is_empty() {
+			let n = match f(input, errors) {
+				Continue(Some(n)) => n,
+				Break(Some(n)) => {
+					failed = true;
+					n
+				}
+				Continue(None) => break,
+				Break(None) => {
+					failed = true;
+					break;
+				}
+			};
+			joined.push((
+				n.0.expect("Joiner must be present non-first `Joined` steps."),
+				n.1,
+			));
+		}
+		(if failed { Break } else { Continue })(Some(Self::Projected { first, joined }))
+	}
+}
+
+/// Implicit [`Greedy`].
+impl<T: PopParsedFrom, J: PopParsedFrom + PeekFrom> PopParsedFrom for Joined<T, J> {
+	type Parsed = <ToEnd<Joined<T, J>> as PopParsedFrom>::Parsed;
+
+	fn pop_parsed_from(
+		input: &mut Input,
+		errors: &mut Errors,
+	) -> ControlFlow<Option<Self::Parsed>, Option<Self::Parsed>> {
+		<Greedy<Joined<T, J>> as PopParsedFrom>::pop_parsed_from(input, errors)
+	}
+}
+
+impl<T: PeekFrom, J> PeekFrom for Joined<T, J> {
+	fn peek_from(input: &Input) -> bool {
+		T::peek_from(input)
 	}
 }
 
