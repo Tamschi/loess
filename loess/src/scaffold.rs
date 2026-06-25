@@ -390,7 +390,7 @@ pub struct Separated<T, S> {
 	#[allow(missing_docs)]
 	pub delimited: Vec<(T, S)>,
 	#[allow(missing_docs)]
-	pub trailing: Option<T>,
+	pub trailing: Option<Box<T>>,
 }
 
 impl<T, S> Repetition for Separated<T, S>
@@ -429,7 +429,7 @@ where
 				Some((t, None)) => {
 					return if failed { |e| Break(e) } else { Continue }(Some(Self::Projected {
 						delimited,
-						trailing: Some(t),
+						trailing: Some(Box::new(t)),
 					}));
 				}
 				Some((t, Some(s))) => delimited.push((t, s)),
