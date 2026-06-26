@@ -8,7 +8,7 @@ use std::{
 	any::type_name,
 	collections::VecDeque,
 	convert::{Infallible, identity},
-	iter,
+	iter::{self, once},
 	marker::PhantomData,
 	ops::ControlFlow::{self, Break, Continue},
 };
@@ -393,6 +393,33 @@ pub struct Separated<T, S> {
 	pub trailing: Option<T>,
 }
 
+impl<T, S> Separated<T, S> {
+	/// Iterates all `T`.
+	pub fn items(&self) -> impl Iterator<Item = &T> {
+		self.delimited
+			.iter()
+			.map(|(item, _)| item)
+			.chain(self.trailing.as_ref())
+	}
+
+	/// Iterates all `T`.
+	pub fn items_mut(&mut self) -> impl Iterator<Item = &mut T> {
+		self.delimited
+			.iter_mut()
+			.map(|(item, _)| item)
+			.chain(self.trailing.as_mut())
+	}
+	/// Iterates all `S`.
+	pub fn separators(&self) -> impl Iterator<Item = &S> {
+		self.delimited.iter().map(|(_, separator)| separator)
+	}
+
+	/// Iterates all `S`.
+	pub fn separators_mut(&mut self) -> impl Iterator<Item = &mut S> {
+		self.delimited.iter_mut().map(|(_, separator)| separator)
+	}
+}
+
 impl<T, S> Repetition for Separated<T, S>
 where
 	T: PopParsedFrom,
@@ -478,6 +505,27 @@ pub struct Joined<T, J> {
 	pub first: T,
 	#[expect(missing_docs)]
 	pub joined: Vec<(J, T)>,
+}
+
+impl<T, J> Joined<T, J> {
+	/// Iterates all `T`.
+	pub fn items(&self) -> impl Iterator<Item = &T> {
+		once(&self.first).chain(self.joined.iter().map(|(_, item)| item))
+	}
+
+	/// Iterates all `T`.
+	pub fn items_mut(&mut self) -> impl Iterator<Item = &mut T> {
+		once(&mut self.first).chain(self.joined.iter_mut().map(|(_, item)| item))
+	}
+	/// Iterates all `J`.
+	pub fn joiners(&self) -> impl Iterator<Item = &J> {
+		self.joined.iter().map(|(joiner, _)| joiner)
+	}
+
+	/// Iterates all `J`.
+	pub fn joiners_mut(&mut self) -> impl Iterator<Item = &mut J> {
+		self.joined.iter_mut().map(|(joiner, _)| joiner)
+	}
 }
 
 impl<T, J> Repetition for Joined<T, J>
@@ -573,6 +621,33 @@ pub struct Delimited<T, D> {
 	pub delimited: Vec<(T, D)>,
 	#[allow(missing_docs)]
 	pub trailing: Option<T>,
+}
+
+impl<T, D> Delimited<T, D> {
+	/// Iterates all `T`.
+	pub fn items(&self) -> impl Iterator<Item = &T> {
+		self.delimited
+			.iter()
+			.map(|(item, _)| item)
+			.chain(self.trailing.as_ref())
+	}
+
+	/// Iterates all `T`.
+	pub fn items_mut(&mut self) -> impl Iterator<Item = &mut T> {
+		self.delimited
+			.iter_mut()
+			.map(|(item, _)| item)
+			.chain(self.trailing.as_mut())
+	}
+	/// Iterates all `D`.
+	pub fn delimiters(&self) -> impl Iterator<Item = &D> {
+		self.delimited.iter().map(|(_, delimiter)| delimiter)
+	}
+
+	/// Iterates all `D`.
+	pub fn delimiters_mut(&mut self) -> impl Iterator<Item = &mut D> {
+		self.delimited.iter_mut().map(|(_, delimiter)| delimiter)
+	}
 }
 
 impl<T, D> Repetition for Delimited<T, D>
