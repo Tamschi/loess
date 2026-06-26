@@ -528,6 +528,15 @@ impl<T, J> Joined<T, J> {
 	}
 }
 
+impl<T: Default, J> Default for Joined<T, J> {
+	fn default() -> Self {
+		Self {
+			first: T::default(),
+			joined: vec![],
+		}
+	}
+}
+
 impl<T, J> Repetition for Joined<T, J>
 where
 	T: PopParsedFrom,
