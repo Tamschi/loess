@@ -625,10 +625,11 @@ fn assign_span(
 ) -> impl IntoIterator<Item = TokenTree> {
 	ts.into_iter().map(move |tt| match tt {
 		TokenTree::Group(group) => {
-			let group = Group::new(
+			let mut group = Group::new(
 				group.delimiter(),
 				assign_span(span, group.stream()).into_iter().collect(),
 			);
+			group.set_span(span);
 			TokenTree::Group(group)
 		}
 		mut tt @ (TokenTree::Ident(_) | TokenTree::Punct(_) | TokenTree::Literal(_)) => {
