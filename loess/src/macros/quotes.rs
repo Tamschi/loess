@@ -627,7 +627,11 @@ fn assign_span(
 		TokenTree::Group(group) => {
 			let mut group = Group::new(
 				group.delimiter(),
-				assign_span(span, group.stream()).into_iter().collect(),
+				//FIXME: This won't need to be dynamic once https://github.com/rust-lang/rust/pull/161414 reaches stable.
+				//       Worked around here due to https://github.com/rust-lang/rust/issues/162150#issuecomment-6057975489.
+				(Box::new(assign_span(span, group.stream()).into_iter())
+					as Box<dyn Iterator<Item = TokenTree>>)
+					.collect(),
 			);
 			group.set_span(span);
 			TokenTree::Group(group)
