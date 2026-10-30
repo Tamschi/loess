@@ -131,7 +131,8 @@ macro_rules! grammar {
 			type Parsed = Self;
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
 				$crate::__::PopFromAccumulator::new()
-					$( .step(|| <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors))? )*
+					// The type annotation on `step` here may currently be needed for rust-analyzer.
+					$( .step::<<$type as $crate::PopParsedFrom>::Parsed, _>(|| <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors))? )*
 					.map(|$($field),*| Self { $($field),* })
 			}
 		}
@@ -176,7 +177,8 @@ macro_rules! grammar {
 			type Parsed = Self;
 			fn pop_parsed_from(input: &mut $crate::Input, errors: &mut $crate::Errors) -> $crate::__::ControlFlow<$crate::__::Option<Self>, $crate::__::Option<Self>> {
 				$crate::__::PopFromAccumulator::new()
-					$( .step(||<$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors))? )*
+					// The type annotation on `step` here may currently be needed for rust-analyzer.
+					$( .step::<<$type as $crate::PopParsedFrom>::Parsed, _>(|| <$type as $crate::PopParsedFrom>::pop_parsed_from(input, errors))? )*
 					.map(Self)
 			}
 		}
@@ -234,8 +236,9 @@ macro_rules! grammar {
 	(@PopFromVariantBranch($input:ident, $errors:ident) for $variant:ident[$type_0:ty$(, $($types_rest:ty),*$(,)?)?]) => {
 		if <$type_0 as $crate::PeekFrom>::peek_from($input) {
 			return $crate::__::PopFromAccumulator::new()
-				.step(|| <$type_0 as $crate::PopParsedFrom>::pop_parsed_from($input, $errors))?
-				$($( .step(||<$types_rest as $crate::PopParsedFrom>::pop_parsed_from($input, $errors))? )*)?
+				// The type annotation on `step` here may currently be needed for rust-analyzer.
+				.step::<<$type_0 as $crate::PopParsedFrom>::Parsed, _>(|| <$type_0 as $crate::PopParsedFrom>::pop_parsed_from($input, $errors))?
+				$($( .step::<<$types_rest as $crate::PopParsedFrom>::Parsed, _>(|| <$types_rest as $crate::PopParsedFrom>::pop_parsed_from($input, $errors))? )*)?
 				.map(Self::$variant)
 		}
 	};
