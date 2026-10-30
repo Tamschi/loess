@@ -17,7 +17,7 @@ publish = false
 loess = { version = "0.2.3", path = "../loess" }
 proc-macro2 = { version = "1.0.95", default-features = false }
 quote = { version = "1.0.40", default-features = false }
-syn = { version = "2.0.101", default-features = false, features = ["clone-impls", "full", "parsing", "printing"] }
+syn = { version = "3.0.9", default-features = false, features = ["clone-impls", "full", "parsing", "printing"] }
 
 [package.metadata.cargo-semver-checks.lints]
 workspace = true
