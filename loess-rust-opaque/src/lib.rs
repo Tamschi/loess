@@ -106,6 +106,9 @@ wrappers! {
 
 	/// [*Statement*](https://doc.rust-lang.org/stable/reference/statements.html#r-statement.syntax)
 	Statement(Stmt): PopFrom, IntoTokens;
+
+	/// [*Type*](https://doc.rust-lang.org/stable/reference/types.html#r-type.name.syntax)(?)
+	Type(syn::Type): PopFrom, IntoTokens;
 }
 
 impl PopParsedFrom for ExpressionExceptStructExpression {
