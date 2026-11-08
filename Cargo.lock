@@ -40,6 +40,7 @@ name = "loess-rust-opaque"
 version = "0.1.0+0.2"
 dependencies = [
  "loess",
+ "loess-rust",
  "proc-macro2",
  "quote",
  "syn",

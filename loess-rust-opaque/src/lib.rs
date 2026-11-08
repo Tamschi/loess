@@ -12,6 +12,7 @@
 use std::ops::ControlFlow::{self, Break, Continue};
 
 use loess::{Error, ErrorPriority, Errors, Input, IntoTokens, PopParsedFrom};
+use loess_rust::ident::Identifier;
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
@@ -179,5 +180,24 @@ impl PopParsedFrom for SimplePath {
 
 		input.prepend(rest.into_iter().collect::<Vec<_>>());
 		Continue(Some(this))
+	}
+}
+
+impl TryFrom<Type> for Identifier {
+	type Error = Type;
+
+	fn try_from(value: Type) -> Result<Self, Self::Error> {
+		match value.0 {
+			syn::Type::Path(syn::TypePath {
+				attrs,
+				qself: None,
+				ref path,
+			}) if attrs.is_empty()
+				&& let Some(ident) = path.get_ident() =>
+			{
+				Ok(Self(ident.to_owned()))
+			}
+			value => Err(Type(value)),
+		}
 	}
 }
