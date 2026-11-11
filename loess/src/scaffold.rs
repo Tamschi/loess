@@ -418,6 +418,22 @@ impl<T, S> Separated<T, S> {
 	pub fn separators_mut(&mut self) -> impl Iterator<Item = &mut S> {
 		self.delimited.iter_mut().map(|(_, separator)| separator)
 	}
+
+	/// Iterates all `(T, S)` pairs with optional `S`.
+	pub fn pairs(&self) -> impl Iterator<Item = (&T, Option<&S>)> {
+		self.delimited
+			.iter()
+			.map(|(t, s)| (t, Some(s)))
+			.chain(self.trailing.iter().map(|t| (t, None)))
+	}
+
+	/// Iterates all `(T, S)` pairs with optional `S`.
+	pub fn pairs_mut(&mut self) -> impl Iterator<Item = (&mut T, Option<&mut S>)> {
+		self.delimited
+			.iter_mut()
+			.map(|(t, s)| (t, Some(s)))
+			.chain(self.trailing.iter_mut().map(|t| (t, None)))
+	}
 }
 
 impl<T, S> Repetition for Separated<T, S>
@@ -656,6 +672,22 @@ impl<T, D> Delimited<T, D> {
 	/// Iterates all `D`.
 	pub fn delimiters_mut(&mut self) -> impl Iterator<Item = &mut D> {
 		self.delimited.iter_mut().map(|(_, delimiter)| delimiter)
+	}
+
+	/// Iterates all `(T, D)` pairs with optional `D`.
+	pub fn pairs(&self) -> impl Iterator<Item = (&T, Option<&D>)> {
+		self.delimited
+			.iter()
+			.map(|(t, s)| (t, Some(s)))
+			.chain(self.trailing.iter().map(|t| (t, None)))
+	}
+
+	/// Iterates all `(T, D)` pairs with optional `D`.
+	pub fn pairs_mut(&mut self) -> impl Iterator<Item = (&mut T, Option<&mut D>)> {
+		self.delimited
+			.iter_mut()
+			.map(|(t, s)| (t, Some(s)))
+			.chain(self.trailing.iter_mut().map(|t| (t, None)))
 	}
 }
 
