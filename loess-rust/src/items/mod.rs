@@ -20,7 +20,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [Module](https://doc.rust-lang.org/reference/items/modules.html#grammar-Module)
-	pub enum Module: PeekFrom via ModuleFlattened, PopFrom via ModuleFlattened, IntoTokens {
+	pub enum Module: PeekFrom via ModuleFlattened, PopFrom via ModuleFlattened {
 		UnsafeModIdentifierSemi(Option<Unsafe>, Mod, Identifier, Semi),
 		/// Continue inside via [`ModuleContent`].
 		UnsafeModIdentifierCurlyBraces(Option<Unsafe>, Mod, Identifier, CurlyBraces),
@@ -29,7 +29,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// Flattened [`Module`].
-	pub struct ModuleFlattened: PopFrom, IntoTokens {
+	pub struct ModuleFlattened: PopFrom {
 		r#unsafe: Option<Unsafe>,
 		r#mod: Mod,
 		identifier: Identifier,
@@ -39,7 +39,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [`ModuleFlattened::variant`]
-	pub enum ModuleFlattenedVariant: PeekFrom, PopFrom, IntoTokens {
+	pub enum ModuleFlattenedVariant: PeekFrom, PopFrom {
 		Semi(Semi),
 		/// Continue inside via [`ModuleContent`].
 		CurlyBraces(CurlyBraces),
@@ -48,7 +48,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// Inside [`Module::UnsafeModIdentifierCurlyBraces`] or [`ModuleFlattenedVariant::CurlyBraces`].
-	pub struct ModuleContent: PopFrom, IntoTokens {
+	pub struct ModuleContent: PopFrom {
 		inner_attributes: Greedy<Vec<InnerAttribute>>,
 		items: Vec<Item>,
 	}

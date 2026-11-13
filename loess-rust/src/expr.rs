@@ -14,7 +14,7 @@ grammar! {
 	/// [Expression](https://doc.rust-lang.org/reference/expressions.html#grammar-Expression)
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub enum Expression: PeekFrom, PopFrom, IntoTokens {
+	pub enum Expression: PeekFrom, PopFrom {
 		ExpressionWithoutBlock(ExpressionWithoutBlock),
 		ExpressionWithBlock(ExpressionWithBlock),
 	} else "Expected expression.";
@@ -22,7 +22,7 @@ grammar! {
 	/// [ExpressionWithoutBlock](https://doc.rust-lang.org/reference/expressions.html#grammar-ExpressionWithoutBlock)
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub struct ExpressionWithoutBlock: PopFrom, IntoTokens {
+	pub struct ExpressionWithoutBlock: PopFrom {
 		pub outer_attributes: Greedy<Vec<OuterAttribute>>,
 		pub variant: ExpressionWithoutBlockVariant,
 	}
@@ -30,14 +30,14 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [`ExpressionWithoutBlock::variant`]
-	pub enum ExpressionWithoutBlockVariant: PeekFrom, PopFrom, IntoTokens {
+	pub enum ExpressionWithoutBlockVariant: PeekFrom, PopFrom {
 		LiteralExpression(LiteralExpression),
 	} else "Expected expression without block variant.";
 
 	/// [ExpressionWithBlock](https://doc.rust-lang.org/reference/expressions.html#grammar-ExpressionWithBlock)
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub struct ExpressionWithBlock: PopFrom, IntoTokens {
+	pub struct ExpressionWithBlock: PopFrom {
 		pub outer_attributes: Greedy<Vec<OuterAttribute>>,
 		pub variant: ExpressionWithBlockVariant,
 	}
@@ -45,21 +45,21 @@ grammar! {
 	/// [`ExpressionWithBlock::variant`]
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub enum ExpressionWithBlockVariant: PeekFrom, PopFrom, IntoTokens {
+	pub enum ExpressionWithBlockVariant: PeekFrom, PopFrom {
 		BlockExpression(BlockExpression),
 	} else "Expected expression with block variant.";
 
 	/// Flattened [`Expression`].
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub struct AnyExpression: PopFrom, IntoTokens {
+	pub struct AnyExpression: PopFrom {
 		pub outer_attributes: Greedy<Vec<OuterAttribute>>,
 		pub variant: AnyExpressionVariant,
 	}
 
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub enum AnyExpressionVariant: doc, PeekFrom, PopFrom, IntoTokens {
+	pub enum AnyExpressionVariant: doc, PeekFrom, PopFrom {
 		LiteralExpression(LiteralExpression),
 		//
 		BlockExpression(BlockExpression),

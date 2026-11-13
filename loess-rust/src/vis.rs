@@ -20,7 +20,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// Inside [`Visibility::parentheses`].
-	pub enum VisibilityContent: PeekFrom, PopFrom, IntoTokens {
+	pub enum VisibilityContent: PeekFrom, PopFrom {
 		Crate(Crate),
 		SelfLowercase(SelfLowercase),
 		Super(Super),

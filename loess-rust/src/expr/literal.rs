@@ -12,7 +12,7 @@ grammar! {
 	/// See <https://doc.rust-lang.org/stable/reference/expressions/literal-expr.html?highlight=LiteralExpression#r-expr.literal.syntax>.
 	#[derive(Clone)]
 	#[non_exhaustive]
-	pub enum LiteralExpression: doc, PeekFrom, PopFrom, IntoTokens {
+	pub enum LiteralExpression: doc, PeekFrom, PopFrom {
 		// Char
 		StringLiteral(StringLiteral),
 		RawStringLiteral(RawStringLiteral),
@@ -30,7 +30,7 @@ grammar! {
 	///
 	/// Simplified [`LiteralExpression`].
 	#[derive(Clone)]
-	pub enum LiteralExpressionByType: doc, PeekFrom, PopFrom, IntoTokens {
+	pub enum LiteralExpressionByType: doc, PeekFrom, PopFrom {
 		// AnyChar
 		AnyString(AnyStringLiteral),
 		// AnyByte

@@ -14,7 +14,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [SimplePath](https://doc.rust-lang.org/reference/paths.html#grammar-SimplePath)
-	pub struct SimplePath: PopFrom, IntoTokens {
+	pub struct SimplePath: PopFrom {
 		path_sep: Option<PathSep>,
 		simple_path_segment: SimplePathSegment,
 		path_sep_simple_path_segments: Greedy<Vec<(PathSep, SimplePathSegment)>>,
@@ -23,7 +23,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [SimplePathSegment](https://doc.rust-lang.org/reference/paths.html#grammar-SimplePathSegment)
-	pub enum SimplePathSegment: PeekFrom, PopFrom, IntoTokens {
+	pub enum SimplePathSegment: PeekFrom, PopFrom {
 		Identifier(Identifier),
 		Super(Super),
 		SelfUppercase(SelfUppercase),

@@ -69,7 +69,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [Token](https://doc.rust-lang.org/reference/tokens.html#grammar-PUNCTUATION)
-	pub enum Punctuation: PeekFrom, PopFrom, IntoTokens {
+	pub enum Punctuation: PeekFrom, PopFrom {
 		Eq(Eq),
 		Lt(Lt),
 		Le(Le),

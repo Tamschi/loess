@@ -26,7 +26,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [Token](https://doc.rust-lang.org/reference/tokens.html#grammar-Token)
-	pub enum Token: doc, PeekFrom, PopFrom, IntoTokens {
+	pub enum Token: doc, PeekFrom, PopFrom {
 		// IdentifierOrKeyword(IdentifierOrKeyword),
 		// RawIdentifier(RawIdentifier),
 		// CharLiteral(CharLiteral),

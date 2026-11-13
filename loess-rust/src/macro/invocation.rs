@@ -18,7 +18,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [MacroInvocation](https://doc.rust-lang.org/reference/macros.html#grammar-MacroInvocation)
-	pub struct MacroInvocation: PeekFrom, PopFrom, IntoTokens {
+	pub struct MacroInvocation: PeekFrom, PopFrom {
 		simple_path: SimplePath,
 		not: Not,
 		delim_token_tree: DelimTokenTree,
@@ -27,7 +27,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [DelimTokenTree](https://doc.rust-lang.org/reference/macros.html#grammar-DelimTokenTree)
-	pub enum DelimTokenTree: PeekFrom, PopFrom, IntoTokens {
+	pub enum DelimTokenTree: PeekFrom, PopFrom {
 		/// Continue inside with <code>[`Vec`]&lt;[`TokenTree`]&gt;</code>.
 		Parentheses(Parentheses),
 		/// Continue inside with <code>[`Vec`]&lt;[`TokenTree`]&gt;</code>.
@@ -39,7 +39,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [TokenTree](https://doc.rust-lang.org/reference/macros.html#grammar-TokenTree)
-	pub enum TokenTree: PeekFrom, PopFrom, IntoTokens {
+	pub enum TokenTree: PeekFrom, PopFrom {
 		TokenExceptDelimiters(ExceptDelimiters<Token>),
 		DelimTokenTree(DelimTokenTree),
 	} else "Expected delimited token tree.";
@@ -47,7 +47,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [MacroInvocationSemi](https://doc.rust-lang.org/reference/macros.html#grammar-MacroInvocationSemi)
-	pub enum MacroInvocationSemi: PeekFrom, PopFrom, IntoTokens {
+	pub enum MacroInvocationSemi: PeekFrom, PopFrom {
 		/// Continue inside with <code>[`Vec`]&lt;[`TokenTree`]&gt;</code>.
 		WithParentheses(SimplePath, Not, Parentheses, Semi),
 		/// Continue inside with <code>[`Vec`]&lt;[`TokenTree`]&gt;</code>.

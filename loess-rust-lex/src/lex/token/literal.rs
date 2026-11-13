@@ -23,7 +23,7 @@ grammar! {
 	pub struct RawStringLiteral(pub Literal);
 
 	#[derive(Clone)]
-	pub enum AnyStringLiteral: doc, PeekFrom, PopFrom, IntoTokens {
+	pub enum AnyStringLiteral: doc, PeekFrom, PopFrom {
 		/// `"…"`
 		Plain(StringLiteral),
 		/// `r#"…"#` and similar.
@@ -31,12 +31,30 @@ grammar! {
 	} else "Expected &str literal.";
 
 	#[derive(Clone)]
-	pub enum AnyBoolLiteral: doc, PeekFrom, PopFrom, IntoTokens {
+	pub enum AnyBoolLiteral: doc, PeekFrom, PopFrom {
 		/// `true`
 		True(True),
 		/// `false`
 		False(False),
 	} else "Expected bool literal.";
+}
+
+impl IntoTokens for AnyStringLiteral {
+	fn into_tokens(self, root: &proc_macro2::TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		match self {
+			AnyStringLiteral::Plain(s) => s.into_tokens(root, tokens),
+			AnyStringLiteral::Raw(s) => s.into_tokens(root, tokens),
+		}
+	}
+}
+
+impl IntoTokens for AnyBoolLiteral {
+	fn into_tokens(self, root: &proc_macro2::TokenStream, tokens: &mut impl Extend<TokenTree>) {
+		match self {
+			AnyBoolLiteral::True(b) => b.into_tokens(root, tokens),
+			AnyBoolLiteral::False(b) => b.into_tokens(root, tokens),
+		}
+	}
 }
 
 impl PeekFrom for StringLiteral {

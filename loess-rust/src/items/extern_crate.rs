@@ -14,7 +14,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [ExternCrate](https://doc.rust-lang.org/reference/items/extern-crates.html#grammar-ExternCrate)
-	pub struct ExternCrate: PeekFrom, PopFrom, IntoTokens {
+	pub struct ExternCrate: PeekFrom, PopFrom {
 		r#extern: Extern,
 		crate_: Crate,
 		crate_ref: CrateRef,
@@ -25,7 +25,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [CrateRef](https://doc.rust-lang.org/reference/items/extern-crates.html#grammar-CrateRef)
-	pub enum CrateRef: PeekFrom, PopFrom, IntoTokens {
+	pub enum CrateRef: PeekFrom, PopFrom {
 		Identifier(Identifier),
 		SelfLowercase(SelfLowercase),
 	} else "Expected CrateRef.";
@@ -33,7 +33,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [AsClause](https://doc.rust-lang.org/reference/items/extern-crates.html#grammar-AsClause)
-	pub struct AsClause: PeekFrom, PopFrom, IntoTokens {
+	pub struct AsClause: PeekFrom, PopFrom {
 		r#as: As,
 		variant: AsClauseVariant,
 	}
@@ -41,7 +41,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [`AsClause::variant`]
-	pub enum AsClauseVariant: PeekFrom, PopFrom, IntoTokens {
+	pub enum AsClauseVariant: PeekFrom, PopFrom {
 		Identifier(Identifier),
 		Underscore(Underscore),
 	} else "Expected AsClauseVariant.";

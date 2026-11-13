@@ -17,7 +17,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// Content of [`BlockExpression::braces`]
-	pub struct BlockExpressionContent: PopFrom, IntoTokens {
+	pub struct BlockExpressionContent: PopFrom {
 		inner_attributes: Greedy<Vec<InnerAttribute>>,
 		statements: Option<Statements>,
 	}
@@ -25,7 +25,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [BlockExpression](https://doc.rust-lang.org/stable/reference/expressions/block-expr.html?highlight=Statements#r-expr.block.syntax)
-	pub enum Statements: PeekFrom, PopFrom, IntoTokens {
+	pub enum Statements: PeekFrom, PopFrom {
 		Statements(RepeatCount<Vec<Statement>, 1, { usize::MAX }>),
 		StatementsExpressionWithoutBlock(RepeatCount<Vec<Statement>, 1, { usize::MAX }>, ExpressionWithoutBlock),
 		ExpressionWithoutBlock(ExpressionWithoutBlock),
@@ -34,7 +34,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [BlockExpression](https://doc.rust-lang.org/stable/reference/expressions/block-expr.html?highlight=Statements#r-expr.block.syntax)
-	pub struct BlockExpressionContentFlattened: PopFrom, IntoTokens {
+	pub struct BlockExpressionContentFlattened: PopFrom {
 		inner_attributes: Greedy<Vec<InnerAttribute>>,
 		statements: Greedy<Vec<Statement>>,
 		expression: Option<ExpressionWithoutBlock>,

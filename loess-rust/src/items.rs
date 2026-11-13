@@ -16,7 +16,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [Item](https://doc.rust-lang.org/reference/items.html#grammar-Item)
-	pub struct Item: PopFrom, IntoTokens {
+	pub struct Item: PopFrom {
 		outer_attributes: Greedy<Vec<OuterAttribute>>,
 		variant: ItemVariant,
 	}
@@ -24,7 +24,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [`Item::variant`]
-	pub enum ItemVariant: PeekFrom, PopFrom, IntoTokens {
+	pub enum ItemVariant: PeekFrom, PopFrom {
 		VisItem(VisItem),
 		MacroItem(MacroItem),
 	} else "Expected VisItem or MacroItem.";
@@ -32,7 +32,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [VisItem](https://doc.rust-lang.org/reference/items.html#grammar-VisItem)
-	pub struct VisItem: PopFrom, IntoTokens {
+	pub struct VisItem: PopFrom {
 		visibility: Option<Visibility>,
 		variant: VisItemVariant,
 	}
@@ -40,7 +40,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [`VisItem::variant`]
-	pub enum VisItemVariant: PeekFrom, PopFrom, IntoTokens {
+	pub enum VisItemVariant: PeekFrom, PopFrom {
 		// Module(Module),
 		ExternCrate(ExternCrate),
 		// UseDeclaration(UseDeclaration),
@@ -59,7 +59,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [MacroItem](https://doc.rust-lang.org/reference/items.html#grammar-MacroItem)
-	pub enum MacroItem: PeekFrom, PopFrom, IntoTokens {
+	pub enum MacroItem: PeekFrom, PopFrom {
 		MacroInvocationSemi(MacroInvocationSemi),
 		// MacroRulesDefinition(MacroRulesDefinition),
 	} else "Expected VisItem or MacroItem.";

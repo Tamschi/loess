@@ -15,7 +15,7 @@ grammar! {
 	#[derive(Clone)]
 	#[non_exhaustive]
 	/// [Statement](https://doc.rust-lang.org/reference/statements.html?highlight=statement#r-statement.syntax)
-	pub enum Statement: IntoTokens {
+	pub enum Statement {
 		Semi(Semi),
 		Item(Item),
 		LetStatement(LetStatement),
